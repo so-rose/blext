@@ -1,7 +1,7 @@
 [project]
 name = "blext"
 version = "0.1.0"
-description = "Fast, convenient project manager for Blender Extensions."
+description = "A fast, convenient project manager for Blender extensions."
 authors = [
     { name = "Sofus Albert Høgsbro Rose", email = "blext@sofusrose.com" },
 ]
@@ -13,13 +13,28 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "AGPL-3.0-or-later" }
 dependencies = [
-    "cyclopts>=3.1.5",
-    "pip>=24.3.1",
-    "pydantic>=2.10.5",
-    "pypdl>=1.5.1",
-    "rich>=13.9.4",
-    "tomli-w>=1.1.0",
+	"cyclopts>=3.1.5",
+	"pip>=24.3.1",
+	"pydantic>=2.10.5",
+	"pypdl>=1.5.1",
+	"rich>=13.9.4",
+	"tomli-w>=1.1.0",
 ]
+
+classifiers = [
+	"Development Status :: 3 - Alpha",
+	"Programming Language :: Python :: 3",
+	"Environment :: Console",
+	"Natural Language :: English",
+	"Intended Audience :: Developers",
+	"Operating System :: OS Independent",
+	"License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+	"Topic :: Artistic Software",
+	"Topic :: Software Development :: Build Tools",
+]
+
+[project.urls]
+Homepage = "https://git.sofus.io/so-rose/blext"
 
 [dependency-groups]
 dev = [
@@ -148,7 +163,7 @@ docstring-code-format = false
 # - Tooling: MyPy
 ####################
 [tool.mypy]
-python_version = '3.12'
+python_version = '3.11'
 python_executable="./.venv/bin/python"
 
 warn_redundant_casts = true
