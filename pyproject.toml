@@ -1,6 +1,6 @@
 [project]
 name = "blext"
-version = "0.2.0"
+version = "0.2.1"
 description = "A fast, convenient project manager for Blender extensions."
 authors = [
     { name = "Sofus Albert Høgsbro Rose", email = "blext@sofusrose.com" },
