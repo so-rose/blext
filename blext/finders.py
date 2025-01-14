@@ -66,21 +66,21 @@ def find_proj_spec(proj_path: Path | None) -> Path:
 		proj_path: Search for a `pyproject.toml` project specification at this path.
 			When `None`, search in the current working directory.
 	"""
+	# Deduce Project Path
 	if proj_path is None:
 		path_proj_spec = Path.cwd() / 'pyproject.toml'
-		if not path_proj_spec.is_file():
-			symptom = (
-				'does not exist' if not path_proj_spec.exists() else 'is not a file'
-			)
-			msg = "Couldn't find 'pyproject.toml' in the current working directory"
+	elif proj_path.exists():
+		if proj_path.is_file():
+			path_proj_spec = proj_path
+		elif proj_path.is_dir():
+			path_proj_spec = proj_path / 'pyproject.toml'
 
-	elif proj_path.is_dir() and (proj_path / 'pyproject.toml').is_file():
-		path_proj_spec = proj_path / 'pyproject.toml'
-
-	elif not proj_path.is_file():
-		symptom = 'does not exist' if not proj_path.exists() else 'is not a file'
-		msg = f"Provided project specification {symptom} (tried to load '{proj_path}')"
-		raise ValueError(msg)
+	if not path_proj_spec.is_file():
+		msgs = [
+			f'No project specification found at `{path_proj_spec}`.',
+			'Please verify the project path.',
+		]
+		raise ValueError(*msgs)
 
 	return path_proj_spec.resolve()
 

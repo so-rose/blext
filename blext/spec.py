@@ -27,6 +27,40 @@ import tomli_w
 
 from . import supported
 
+ValidBLTags: typ.TypeAlias = typ.Literal[
+	'3D View',
+	'Add Curve',
+	'Add Mesh',
+	'Animation',
+	'Bake',
+	'Camera',
+	'Compositing',
+	'Development',
+	'Game Engine',
+	'Geometry Nodes',
+	'Grease Pencil',
+	'Import-Export',
+	'Lighting',
+	'Material',
+	'Modeling',
+	'Mesh',
+	'Node',
+	'Object',
+	'Paint',
+	'Pipeline',
+	'Physics',
+	'Render',
+	'Rigging',
+	'Scene',
+	'Sculpt',
+	'Sequencer',
+	'System',
+	'Text Editor',
+	'Tracking',
+	'User Interface',
+	'UV',
+]
+
 
 ####################
 # - Path Mangling
@@ -164,39 +198,7 @@ class BLExtSpec(pyd.BaseModel):
 
 	# Addon Tags
 	tags: tuple[
-		typ.Literal[
-			'3D View',
-			'Add Curve',
-			'Add Mesh',
-			'Animation',
-			'Bake',
-			'Camera',
-			'Compositing',
-			'Development',
-			'Game Engine',
-			'Geometry Nodes',
-			'Grease Pencil',
-			'Import-Export',
-			'Lighting',
-			'Material',
-			'Modeling',
-			'Mesh',
-			'Node',
-			'Object',
-			'Paint',
-			'Pipeline',
-			'Physics',
-			'Render',
-			'Rigging',
-			'Scene',
-			'Sculpt',
-			'Sequencer',
-			'System',
-			'Text Editor',
-			'Tracking',
-			'User Interface',
-			'UV',
-		],
+		ValidBLTags,
 		...,
 	] = ()
 	license: tuple[str, ...]
@@ -389,60 +391,83 @@ class BLExtSpec(pyd.BaseModel):
 			ValueError: If the `pyproject.toml` file does not contain the required tables and/or fields.
 
 		"""
-		# Parse Sections
-		## Parse [project]
+		####################
+		# - Parsing: Stage 1
+		####################
+		###: Determine whether all fields are accessible.
+
+		# Parse [project]
 		if proj_spec.get('project') is not None:
 			project = proj_spec['project']
 		else:
-			msg = "'pyproject.toml' MUST define '[project]' table"
-			raise ValueError(msg)
+			msgs = [
+				f'In `{path_proj_root / "pyproject.toml"}`:',
+				'- `[project]` table is not defined.',
+			]
+			raise ValueError(*msgs)
 
-		## Parse [tool.blext]
+		# Parse [tool.blext]
 		if (
 			proj_spec.get('tool') is not None
-			or proj_spec['tool'].get('blext') is not None
+			and proj_spec['tool'].get('blext') is not None
 		):
 			blext_spec = proj_spec['tool']['blext']
 		else:
-			msg = "'pyproject.toml' MUST define '[tool.blext]' table"
-			raise ValueError(msg)
+			msgs = [
+				f'In `{path_proj_root / "pyproject.toml"}`:',
+				'- `[tool.blext]` table is not defined.',
+			]
+			raise ValueError(*msgs)
 
-		## Parse [tool.blext.profiles]
+		# Parse [tool.blext.profiles]
 		if proj_spec['tool']['blext'].get('profiles') is not None:
 			release_profiles = blext_spec['profiles']
 			if release_profile in release_profiles:
 				release_profile_spec = release_profiles[release_profile]
 			else:
-				msg = f"To parse the profile '{release_profile}' from 'pyproject.toml', it MUST be defined as a key in '[tool.blext.profiles]'"
-				raise ValueError(msg)
+				msgs = [
+					f'In `{path_proj_root / "pyproject.toml"}`:',
+					f'- `[tool.blext.profiles.{release_profile}]` table is not defined, yet `{release_profile}` is requested.',
+				]
+				raise ValueError(*msgs)
 
 		else:
-			msg = "'pyproject.toml' MUST define '[tool.blext.profiles]'"
-			raise ValueError(msg)
+			msgs = [
+				f'In `{path_proj_root / "pyproject.toml"}`:',
+				'- `[tool.blext.profiles]` table is not defined.',
+			]
+			raise ValueError(*msgs)
 
-		# Parse Values
-		## Parse project.requires-python
+		####################
+		# - Parsing: Stage 2
+		####################
+		###: Parse values that require transformations.
+
+		field_parse_errs = []
+
+		# Parse project.requires-python
 		if project.get('requires-python') is not None:
 			project_requires_python = project['requires-python'].replace('~= ', '')
 		else:
-			msg = "'pyproject.toml' MUST define 'project.requires-python'"
-			raise ValueError(msg)
+			field_parse_errs.append('- `project.requires-python` is not defined.')
 
-		## Parse project.maintainers[0]
-		if project.get('maintainers') is not None:
+		# Parse project.maintainers[0]
+		if project.get('maintainers') is not None and len(project['maintainers']) > 0:
 			first_maintainer = project.get('maintainers')[0]
 		else:
 			first_maintainer = {'name': None, 'email': None}
 
-		## Parse project.license
+		# Parse project.license
 		if (
 			project.get('license') is not None
 			and project['license'].get('text') is not None
 		):
 			_license = project['license']['text']
 		else:
-			msg = "'pyproject.toml' MUST define 'project.license.text'"
-			raise ValueError(msg)
+			field_parse_errs.append('- `project.license.text` is not defined.')
+			field_parse_errs.append(
+				'- Please note that all Blender addons MUST have a GPL-compatible license: <https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html>'
+			)
 
 		## Parse project.urls.homepage
 		if (
@@ -453,13 +478,54 @@ class BLExtSpec(pyd.BaseModel):
 		else:
 			homepage = None
 
-		# Conform to BLExt Specification
+		####################
+		# - Parsing: Stage 3
+		####################
+		###: Parse field availability and provide for descriptive errors
+
+		if blext_spec.get('platforms') is None:
+			field_parse_errs += ['- `[tool.blext.platforms]` is not defined.']
+		if project.get('name') is None:
+			field_parse_errs += ['- `project.name` is not defined.']
+		if blext_spec.get('pretty_name') is None:
+			field_parse_errs += ['- `tool.blext.pretty_name` is not defined.']
+		if project.get('version') is None:
+			field_parse_errs += ['- `project.version` is not defined.']
+		if project.get('description') is None:
+			field_parse_errs += ['- `project.description` is not defined.']
+		if blext_spec.get('blender_version_min') is None:
+			field_parse_errs += ['- `tool.blext.blender_version_min` is not defined.']
+		if blext_spec.get('blender_version_max') is None:
+			field_parse_errs += ['- `tool.blext.blender_version_max` is not defined.']
+		if blext_spec.get('bl_tags') is None:
+			field_parse_errs += ['- `tool.blext.bl_tags` is not defined.']
+			field_parse_errs += [
+				'- Valid `bl_tags` values are: '
+				+ ', '.join([f'"{el}"' for el in typ.get_args(ValidBLTags)])
+			]
+		if blext_spec.get('copyright') is None:
+			field_parse_errs += ['- `tool.blext.copyright` is not defined.']
+			field_parse_errs += [
+				'- Example: `copyright = ["<current_year> <proj_name> Contributors`'
+			]
+
+		if field_parse_errs:
+			msgs = [
+				f'In `{path_proj_root / "pyproject.toml"}`:',
+				*field_parse_errs,
+			]
+			raise ValueError(*msgs)
+
+		####################
+		# - Parsing: Stage 4
+		####################
+		###: With guaranteed existance, do qualitative parsing w/pydantic.
 		return cls(
 			path_proj_root=path_proj_root,
 			req_python_version=project_requires_python,
-			bl_platform_pypa_tags=blext_spec.get('platforms'),
+			bl_platform_pypa_tags=blext_spec['platforms'],
 			# Path Locality
-			use_path_local=release_profile_spec.get('use_path_local'),
+			use_path_local=release_profile_spec.get('use_path_local', False),
 			# File Logging
 			use_log_file=release_profile_spec.get('use_log_file', False),
 			log_file_path=release_profile_spec.get('log_file_path', 'addon.log'),
@@ -468,20 +534,20 @@ class BLExtSpec(pyd.BaseModel):
 			use_log_console=release_profile_spec.get('use_log_console', True),
 			log_console_level=release_profile_spec.get('log_console_level', 'DEBUG'),
 			# Basics
-			id=project.get('name'),
-			name=blext_spec.get('pretty_name'),
-			version=project.get('version'),
-			tagline=project.get('description'),
+			id=project['name'],
+			name=blext_spec['pretty_name'],
+			version=project['version'],
+			tagline=project['description'],
 			maintainer=f'{first_maintainer["name"]} <{first_maintainer["email"]}>',
 			# Blender Compatibility
-			blender_version_min=blext_spec.get('blender_version_min'),
-			blender_version_max=blext_spec.get('blender_version_max'),
+			blender_version_min=blext_spec['blender_version_min'],
+			blender_version_max=blext_spec['blender_version_max'],
 			# Permissions
 			permissions=blext_spec.get('permissions', {}),
 			# Addon Tags
-			tags=blext_spec.get('bl_tags'),
+			tags=blext_spec['bl_tags'],
 			license=(f'SPDX:{_license}',),
-			copyright=blext_spec.get('copyright'),
+			copyright=blext_spec['copyright'],
 			website=homepage,
 		)
 
@@ -499,14 +565,14 @@ class BLExtSpec(pyd.BaseModel):
 			release_profile: The profile to load initial settings for.
 
 		Raises:
-			ValueError: If the `pyproject.toml` file does not contain the required tables and/or fields.
+			ValueError: If the `pyproject.toml` file cannot be loaded, or it does not contain the required tables and/or fields.
 		"""
 		# Load File
 		if path_proj_spec.is_file():
 			with path_proj_spec.open('rb') as f:
 				proj_spec = tomllib.load(f)
 		else:
-			msg = f"Could not load 'pyproject.toml' at '{path_proj_spec}"
+			msg = f'Could not load file: `{path_proj_spec}`'
 			raise ValueError(msg)
 
 		# Parse Extension Specification

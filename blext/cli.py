@@ -19,12 +19,13 @@
 import os
 import subprocess
 import sys
-import typing as typ
 from pathlib import Path
 
 import cyclopts
+import pydantic as pyd
 import rich
 
+from . import exceptions as exc
 from . import finders, pack, spec, supported, wheels
 
 console = rich.console.Console()
@@ -42,6 +43,39 @@ PATH_BL_INIT_PY: Path = (
 )
 
 
+def _parse(
+	*,
+	bl_platform: supported.BLPlatform | None = None,
+	proj_path: Path | None = None,
+	release_profile: supported.ReleaseProfile = supported.ReleaseProfile.Release,
+	detect_bl_platform: bool = True,
+) -> tuple[supported.BLPlatform | None, spec.BLExtSpec]:
+	# Parse CLI
+	with exc.handle(exc.pretty, ValueError):
+		path_proj_spec = finders.find_proj_spec(proj_path)
+
+	# Parse Blender Extension Specification
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		universal_blext_spec = spec.BLExtSpec.from_proj_spec(
+			path_proj_spec=path_proj_spec,
+			release_profile=release_profile,
+		)
+
+	# Deduce BLPlatform
+	if bl_platform is not None:
+		_bl_platform = bl_platform
+	elif bl_platform is None and detect_bl_platform:
+		with exc.handle(exc.pretty, ValueError):
+			_bl_platform = finders.detect_local_blplatform()
+	else:
+		return (None, universal_blext_spec)
+
+	return (
+		_bl_platform,
+		universal_blext_spec.constrain_to_bl_platform(_bl_platform),
+	)
+
+
 ####################
 # - Command: Build
 ####################
@@ -50,8 +84,7 @@ def build(
 	bl_platform: supported.BLPlatform | None = None,
 	proj_path: Path | None = None,
 	release_profile: supported.ReleaseProfile = supported.ReleaseProfile.Release,
-	_return_blext_spec: typ.Annotated[bool, cyclopts.Parameter(show=False)] = False,
-) -> spec.BLExtSpec | None:
+) -> None:
 	"""[Build] the extension to an installable `.zip` file.
 
 	Parameters:
@@ -60,25 +93,23 @@ def build(
 		release_profile: The release profile to bake into the extension.
 	"""
 	# Parse CLI
-	if bl_platform is None:
-		bl_platform = finders.detect_local_blplatform()
-	path_proj_spec = finders.find_proj_spec(proj_path)
-
-	# Parse Blender Extension Specification
-	blext_spec = spec.BLExtSpec.from_proj_spec(
-		path_proj_spec=path_proj_spec,
-		release_profile=release_profile,
-	).constrain_to_bl_platform(bl_platform)
-
-	# Download Wheels
-	wheels.download_wheels(
-		blext_spec,
+	bl_platform, blext_spec = _parse(
 		bl_platform=bl_platform,
-		no_prompt=False,
+		proj_path=proj_path,
+		release_profile=release_profile,
 	)
 
+	# Download Wheels
+	with exc.handle(exc.pretty, ValueError):
+		wheels.download_wheels(
+			blext_spec,
+			bl_platform=bl_platform,
+			no_prompt=False,
+		)
+
 	# Pack the Blender Extension
-	pack.pack_bl_extension(blext_spec, overwrite=True)
+	with exc.handle(exc.pretty, ValueError):
+		pack.pack_bl_extension(blext_spec, overwrite=True)
 
 	# Validate the Blender Extension
 	console.print()
@@ -110,12 +141,11 @@ def build(
 	if return_code == 0:
 		console.print('[✔] Blender Extension Validation Succeeded')
 	else:
-		msg = 'Packed extension did not validate'
-		raise ValueError(msg)
-
-	if _return_blext_spec:
-		return blext_spec
-	return None
+		with exc.handle(exc.pretty, ValueError):
+			msgs = [
+				'Blender failed to validate the packed extension. For more information, see the validation logs (above).',
+			]
+			raise ValueError(*msgs)
 
 
 ####################
@@ -126,16 +156,24 @@ def dev(
 	proj_path: Path | None = None,
 ) -> None:
 	"""Launch the local [dev] extension w/Blender."""
+	# Parse CLI
+	release_profile = supported.ReleaseProfile.Dev
+	bl_platform, blext_spec = _parse(
+		bl_platform=None,
+		proj_path=proj_path,
+		release_profile=release_profile,
+	)
+
 	# Build the Extension
-	blext_spec = build(
+	build(
 		bl_platform=None,
 		proj_path=proj_path,
 		release_profile=supported.ReleaseProfile.Dev,
-		_return_blext_spec=True,
 	)
 
 	# Find Blender
-	blender_exe = finders.find_blender_exe()
+	with exc.handle(exc.pretty, ValueError):
+		blender_exe = finders.find_blender_exe()
 
 	# Launch Blender
 	## - Same as running 'blender --python ./blender_scripts/bl_init.py'
@@ -188,16 +226,13 @@ def show_spec(
 		proj_path: Path to a `pyproject.toml` or a folder containing a `pyproject.toml`, which specifies the Blender extension.
 		release_profile: The release profile to bake into the extension.
 	"""
-	# Parse BLExtSpec
-	path_proj_spec = finders.find_proj_spec(proj_path)
-	blext_spec = spec.BLExtSpec.from_proj_spec(
-		path_proj_spec=path_proj_spec,
+	# Parse CLI
+	_, blext_spec = _parse(
+		bl_platform=bl_platform,
+		proj_path=proj_path,
 		release_profile=release_profile,
+		detect_bl_platform=False,
 	)
-
-	# Constrain BLExtSpec to BLPlatform
-	if bl_platform is not None:
-		blext_spec = blext_spec.constrain_to_bl_platform(bl_platform)
 
 	# Show BLExtSpec
 	rich.print(blext_spec)
@@ -206,8 +241,8 @@ def show_spec(
 ####################
 # - Command: Show Manifest
 ####################
-@app_show.command(name='bl_manifest', group='Information')
-def show_bl_manifest(
+@app_show.command(name='manifest', group='Information')
+def show_manifest(
 	bl_platform: supported.BLPlatform | None = None,
 	proj_path: Path | None = None,
 	release_profile: supported.ReleaseProfile = supported.ReleaseProfile.Release,
@@ -220,19 +255,12 @@ def show_bl_manifest(
 		release_profile: The release profile to bake into the extension.
 	"""
 	# Parse CLI
-	if bl_platform is None:
-		bl_platform = finders.detect_local_blplatform()
-	path_proj_spec = finders.find_proj_spec(proj_path)
-
-	# Parse Blender Extension Specification
-	blext_spec = spec.BLExtSpec.from_proj_spec(
-		path_proj_spec=path_proj_spec,
+	_, blext_spec = _parse(
+		bl_platform=bl_platform,
+		proj_path=proj_path,
 		release_profile=release_profile,
+		detect_bl_platform=False,
 	)
-
-	# [Maybe] Constrain BLExtSpec to BLPlatform
-	if bl_platform is not None:
-		blext_spec = blext_spec.constrain_to_bl_platform(bl_platform)
 
 	# Show BLExtSpec
 	rich.print(blext_spec.manifest_str)
@@ -252,19 +280,12 @@ def show_init_settings(
 		release_profile: The release profile to bake into the extension.
 	"""
 	# Parse CLI
-	if bl_platform is None:
-		bl_platform = finders.detect_local_blplatform()
-	path_proj_spec = finders.find_proj_spec(proj_path)
-
-	# Parse Blender Extension Specification
-	blext_spec = spec.BLExtSpec.from_proj_spec(
-		path_proj_spec=path_proj_spec,
+	_, blext_spec = _parse(
+		bl_platform=bl_platform,
+		proj_path=proj_path,
 		release_profile=release_profile,
+		detect_bl_platform=False,
 	)
-
-	# [Maybe] Constrain BLExtSpec to BLPlatform
-	if bl_platform is not None:
-		blext_spec = blext_spec.constrain_to_bl_platform(bl_platform)
 
 	# Show BLExtSpec
 	rich.print(blext_spec.init_settings_str)
@@ -276,7 +297,8 @@ def show_init_settings(
 @app_show.command(name='path_blender', group='Paths')
 def show_path_blender() -> None:
 	"""Display the found path to the Blender executable."""
-	blender_exe = finders.find_blender_exe()
+	with exc.handle(exc.pretty, ValueError):
+		blender_exe = finders.find_blender_exe()
 
 	rich.print(blender_exe)
 
