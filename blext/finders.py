@@ -50,9 +50,9 @@ def detect_local_blplatform() -> BLPlatform:
 			return BLPlatform.macos_x64
 		case ('darwin', arch) if arch.startswith(('aarch64', 'arm')):
 			return BLPlatform.macos_arm64
-		case ('linux', 'x86_64' | 'amd64'):
+		case ('windows', 'x86_64' | 'amd64'):
 			return BLPlatform.windows_x64
-		case ('linux', arch) if arch.startswith(('aarch64', 'arm')):
+		case ('windows', arch) if arch.startswith(('aarch64', 'arm')):
 			return BLPlatform.windows_arm64
 
 	msg = "Could not detect a local operating system supported by Blender from 'platform.system(), platform.machine() = {platform_system}, {platform_machine}'"
@@ -104,7 +104,7 @@ def find_blender_exe() -> str:
 			msg = "Couldn't find executable command 'blender' on the system PATH. Is it installed?"
 			raise ValueError(msg)
 
-		case BLPlatform.macos_arm64:
+		case BLPlatform.macos_arm64 | BLPlatform.macos_x64:
 			blender_exe = '/Applications/Blender.app/Contents/MacOS/Blender'
 			if Path(blender_exe).is_file():
 				return blender_exe
@@ -112,7 +112,7 @@ def find_blender_exe() -> str:
 			msg = f"Couldn't find Blender executable at standard path. Is it installed? (searched '{blender_exe}')"
 			raise ValueError(msg)
 
-		case BLPlatform.windows_x64:
+		case BLPlatform.windows_x64 | BLPlatform.windows_x64:
 			blender_exe = shutil.which('blender.exe')
 			if blender_exe is not None:
 				return blender_exe
