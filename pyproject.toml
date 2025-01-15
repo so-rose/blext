@@ -14,7 +14,6 @@ requires-python = ">=3.11"
 license = { text = "AGPL-3.0-or-later" }
 dependencies = [
 	"cyclopts>=3.1.5",
-	"pip>=24.3.1",
 	"pydantic>=2.10.5",
 	"pypdl>=1.5.1",
 	"rich>=13.9.4",
@@ -38,6 +37,7 @@ Homepage = "https://git.sofus.io/so-rose/blext"
 
 [dependency-groups]
 dev = [
+    "commitizen>=4.1.0",
     "mypy>=1.14.1",
     "pytest>=8.3.4",
     "ruff>=0.9.1",

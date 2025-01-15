@@ -57,6 +57,7 @@ class SimplePanel(bpy.types.Panel):
 		layout = self.layout
 
 		# Operator
+		layout.label(text='Look ma, so many hands!')
 		layout.operator(ct.OperatorType.SimpleOperator)
 
 

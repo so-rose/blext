@@ -16,6 +16,7 @@
 
 """A `typer`-based command line interface for the `blext` project manager."""
 
+import importlib.metadata
 import os
 import subprocess
 import sys
@@ -28,11 +29,14 @@ import rich
 from . import exceptions as exc
 from . import finders, pack, spec, supported, wheels
 
+__version__ = importlib.metadata.version('blext')
+
 console = rich.console.Console()
 app = cyclopts.App(
 	name='blext',
 	help='blext simplifies the development and management of Blender extensions.',
 	help_format='markdown',
+	version=__version__,
 )
 
 ####################
