@@ -14,12 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Runs when the package is executed.
+import cyclopts
 
-Executes the `typer` app defined in `cli.py`.
-"""
+from ._context import APP, CONSOLE
 
-if __name__ == '__main__':
-	from blext.cli import APP
+APP_SHOW = cyclopts.App(name='show', help='[Show] information about the extension.')
+_ = APP.command(APP_SHOW)
 
-	APP()
+APP_SHOW['--help'].group = 'Debug'
+APP_SHOW['--version'].group = 'Debug'
+
+__all__ = [
+	'APP_SHOW',
+	'CONSOLE',
+]

@@ -57,18 +57,18 @@ def prepack_bl_extension(blext_spec: spec.BLExtSpec) -> None:
 		progress = rich.progress.Progress(
 			rich.progress.TextColumn(
 				'Writing Wheel: {task.description}...',
-				table_column=rich.progress.Column(ratio=2),
+				table_column=rich.progress.Column(ratio=2),  # pyright: ignore[reportPrivateLocalImportUsage]
 			),
 			rich.progress.BarColumn(
 				bar_width=None,
-				table_column=rich.progress.Column(ratio=2),
+				table_column=rich.progress.Column(ratio=2),  # pyright: ignore[reportPrivateLocalImportUsage]
 			),
 			expand=True,
 		)
 		progress_task = progress.add_task('Writing Wheels...', total=total_wheel_size)
 
 		## Write Wheels
-		with rich.progress.Live(progress, console=console, transient=True) as live:
+		with rich.progress.Live(progress, console=console, transient=True) as live:  # pyright: ignore[reportPrivateLocalImportUsage]
 			for wheel_to_zip in blext_spec.path_wheels.rglob('*.whl'):
 				f_zip.write(wheel_to_zip, Path('wheels') / wheel_to_zip.name)
 				progress.update(
@@ -92,10 +92,10 @@ def pack_bl_extension(
 	Configuration data is sourced from `paths`, which in turns sources much of its user-facing configuration from `pyproject.toml`.
 
 	Parameters:
-		profile: Selects a predefined set of initial extension settings from a `[tool.bl_ext.profiles]` table in `pyproject.toml`.
-		os: The operating system to pack the extension for.
+		blext_spec: The extension specification to pack the zip file base on.
 		force_prepack: Force pre-packing all wheels into the zip file.
-		overwrite: Replace the zip file if it already exists.
+			When not set, the prepack step will always run.
+		overwrite: If packing to a zip file that already exists, replace it.
 	"""
 	path_zip = blext_spec.path_zip
 	if force_prepack or not blext_spec.path_zip_prepack.is_file():
@@ -116,7 +116,7 @@ def pack_bl_extension(
 
 	## Copy Prepacked ZIP and Finish Packing
 	with console.status('Copying Prepacked ZIP...', spinner='dots'):
-		shutil.copyfile(blext_spec.path_zip_prepack, path_zip)
+		_ = shutil.copyfile(blext_spec.path_zip_prepack, path_zip)
 	console.print('[✔] Copied Prepacked Extension ZIP')
 
 	with zipfile.ZipFile(path_zip, 'a', zipfile.ZIP_DEFLATED) as f_zip:

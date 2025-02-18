@@ -1,0 +1,19 @@
+# Getting Started
+
+## Running `blext`
+If you have `uv`, just run:
+
+```bash
+uvx blext
+```
+
+This relies on [`uv` tools](https://docs.astral.sh/uv/concepts/tools/), which is similar to `pipx`.
+
+This is the recommended way of using `blext`.
+
+## Using `blext`
+For now, see `examples/simple` in this repository for an example of a working Blender extension.
+
+Particular attention should be paid to the `[tool.blext]` section of `pyproject.toml`.
+
+More in-depth documentation TBD.

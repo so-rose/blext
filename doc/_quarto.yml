@@ -1,0 +1,123 @@
+####################
+# - Project Config
+####################
+project:
+  type: website
+  output-dir: _site
+
+format:
+  html:
+    #section-divs: true
+    toc-expand: true
+    page-layout: full
+    #page-layout: full
+    include-in-header:
+      text: >
+        <link rel="stylesheet" href="termynal.css">
+    grid:
+      sidebar-width: 200px
+      body-width: 900px
+      margin-width: 300px
+      gutter-width: 1.5rem
+    theme: cosmo
+    highlight-style: github
+    toc: true
+    css: blext_docs.css
+
+filters:
+  - interlinks
+
+interlinks:
+  sources:
+    numpy:
+      url: https://numpy.org/doc/stable/
+    matplotlib:
+      url: https://matplotlib.org/stable/
+    python:
+      url: https://docs.python.org/3/
+    pydantic:
+      url: https://docs.pydantic.dev/latest/
+      inv: objects.inv
+
+metadata-files:
+  # Sidebar for /pydocs Paths
+  - pydocs/_sidebar.yml
+
+####################
+# - Website Config
+####################
+website:
+  title: "blext"
+  description: "A fast, convenient project manager for Blender extensions."
+  page-footer: "Copyright 2025, Sofus Albert Høgsbro Rose" 
+  repo-url: https://codeberg.org/so-rose/blext
+  repo-actions: [issue]
+  page-navigation: true
+  navbar:
+    background: secondary
+    pinned: true
+    search: true
+    left:
+      - file: index.qmd
+        text: Overview
+      - file: guide/index.qmd
+        text: User Guide
+      - file: pydocs/index.qmd
+        text: Reference
+    tools:
+      - icon: box-seam-fill
+        href: https://pypi.org/project/blext/
+      - icon: git
+        menu:
+          - text: Source Code
+            url:  https://codeberg.org/so-rose/blext
+          - text: Report a Bug
+            url:  https://codeberg.org/so-rose/blext/issues/new
+
+####################
+# - Quartodoc Config
+####################
+quartodoc:
+  # Output
+  dir: pydocs
+  sidebar:
+    file: pydocs/_sidebar.yml
+    style: docked
+    search: false
+
+  # Python Package
+  source_dir: ../src
+  package: blext
+  parser: google
+
+  # Style
+  style: pkgdown
+  title: blext
+  render_interlinks: true
+
+  # Options
+  renderer:
+    #style: markdown
+    style: renderer.py
+    #show_signature: true
+    show_signature_annotations: true
+    display_name: name
+    table_style: description-list
+  options:
+    #include_private: true
+    include_empty: true
+    include_attributes: true
+    signature_name: "short"
+
+  sections:
+    - title: "API Reference"
+      desc: Root package for the addon.
+      package: null
+      contents:
+        - blext.cli
+        - blext.exceptions
+        - blext.finders
+        - blext.pack
+        - blext.spec
+        - blext.supported
+        - blext.wheels

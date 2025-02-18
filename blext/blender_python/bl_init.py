@@ -15,9 +15,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import sys
 from pathlib import Path
 
+import addon_utils
 import bpy
 
 ####################
@@ -83,7 +83,10 @@ if __name__ == '__main__':
 	)
 
 	# Uninstall Existing Addon
-	if BLEXT_ADDON_NAME in bpy.context.preferences.addons.keys():  # noqa: SIM118
+	blext_pkg = f'bl_ext.{BLEXT_DEV_REPO_NAME}.{BLEXT_ADDON_NAME}'
+	if BLEXT_ADDON_NAME in bpy.context.preferences.addons.keys() or blext_pkg in [  # noqa: SIM118
+		addon_module.__name__ for addon_module in addon_utils.modules()
+	]:
 		bpy.ops.extensions.package_uninstall(
 			repo_index=dev_repo_idx,
 			pkg_id=BLEXT_ADDON_NAME,
@@ -91,8 +94,9 @@ if __name__ == '__main__':
 
 		# Vacuum sys.modules (remove bl_ext.<addon_repo>.<addon_name>)
 		## - TODO: Start conversation upstream abt. overlapping dependencies.
-		if f'blext.{BLEXT_DEV_REPO_NAME}.{BLEXT_ADDON_NAME}' in sys.modules:
-			del sys.modules[BLEXT_ADDON_NAME]
+		# if blext_pkg in sys.modules:
+		# print('Vacuuming sys.modules')
+		# del sys.modules[BLEXT_ADDON_NAME]
 
 	# Install New Extension
 	bpy.ops.extensions.package_install_files(

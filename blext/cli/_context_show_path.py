@@ -14,18 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import contextlib
+import cyclopts
 
-from typer.testing import CliRunner
+from ._context_show import APP_SHOW, CONSOLE
 
-from blext.cli import app
-from tests import context
+APP_SHOW_PATH = cyclopts.App(name='path', help='[Show] found [Path]s.')
+_ = APP_SHOW.command(APP_SHOW_PATH)
 
-runner = CliRunner()
+APP_SHOW_PATH['--help'].group = 'Debug'
+APP_SHOW_PATH['--version'].group = 'Debug'
 
-
-def test_build_simple():
-	with contextlib.chdir(context.PATH_EXAMPLES['simple']):
-		result = runner.invoke(app, ['build'])
-		print(result)
-		assert result.exit_code == 0
+__all__ = [
+	'APP_SHOW_PATH',
+	'CONSOLE',
+]

@@ -14,12 +14,44 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Runs when the package is executed.
+"""Implements the CLI interface, one command per module."""
 
-Executes the `typer` app defined in `cli.py`.
-"""
+from . import (
+	build,
+	check,
+	clean,
+	dev,
+	edit_sign,
+	edit_unvendor,
+	edit_vendor,
+	init,
+	inject,
+	run,
+	show_deps,
+	show_init_settings,
+	show_manifest,
+	show_path_blender,
+	show_path_uv,
+	show_spec,
+)
+from ._context import APP
 
-if __name__ == '__main__':
-	from blext.cli import APP
-
-	APP()
+__all__ = [
+	'APP',
+	'build',
+	'check',
+	'clean',
+	'dev',
+	'edit_sign',
+	'edit_unvendor',
+	'edit_vendor',
+	'init',
+	'inject',
+	'run',
+	'show_deps',
+	'show_init_settings',
+	'show_manifest',
+	'show_path_blender',
+	'show_path_uv',
+	'show_spec',
+]

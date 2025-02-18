@@ -1,0 +1,10 @@
+# Function reference {.doc .doc-index}
+
+## Some functions
+
+Functions to inspect docstrings.
+
+| | |
+| --- | --- |
+| [get_object](get_object.qmd#quartodoc.get_object) | Fetch a griffe object. |
+| [preview](preview.qmd#quartodoc.preview) | Print a friendly representation of a griffe object (e.g. function, docstring) |

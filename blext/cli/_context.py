@@ -14,12 +14,31 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Runs when the package is executed.
+import importlib.metadata
+from pathlib import Path
 
-Executes the `typer` app defined in `cli.py`.
-"""
+import cyclopts
+import rich
 
-if __name__ == '__main__':
-	from blext.cli import APP
+####################
+# - Static Constants
+####################
+PATH_BL_INIT_PY: Path = (
+	Path(__file__).resolve().parent.parent / 'blender_python' / 'bl_init.py'
+)
 
-	APP()
+####################
+# - Dynamic Constants
+####################
+__version__ = importlib.metadata.version('blext')
+
+CONSOLE = rich.console.Console()
+APP = cyclopts.App(
+	name='blext',
+	help='blext simplifies the development and management of Blender extensions.',
+	help_format='markdown',
+	version=__version__,
+)
+
+APP['--help'].group = 'Debug'
+APP['--version'].group = 'Debug'

@@ -23,9 +23,12 @@ import typing as typ
 from pathlib import Path
 
 import pydantic as pyd
+import rich
 import tomli_w
 
-from . import supported
+from . import supported, wheels
+
+CONSOLE = rich.console.Console()
 
 ValidBLTags: typ.TypeAlias = typ.Literal[
 	'3D View',
@@ -97,8 +100,6 @@ class BLExtSpec(pyd.BaseModel):
 
 	Attributes:
 		init_settings_filename: Must be `init_settings.toml`.
-		use_path_local: Whether to use a local path, instead of a global system path.
-			Useful for debugging during development.
 		use_log_file: Whether the extension should default to the use of file logging.
 		log_file_path: The path to the file log (if enabled).
 		log_file_level: The file log level to use (if enabled).
@@ -128,13 +129,18 @@ class BLExtSpec(pyd.BaseModel):
 		- <https://packaging.python.org/en/latest/guides/writing-pyproject-toml>
 	"""
 
-	# Base
+	# Project Path
 	path_proj_root: Path
-	req_python_version: str
 
 	# Platform Support
-	is_universal_blext: bool = True
-	bl_platform_pypa_tags: dict[str, tuple[str, ...]]
+	## - For building a platform-specific extension, just copy the model w/this field altered.
+	bl_platforms: frozenset[supported.BLPlatform]
+
+	# Versions
+	req_python_version: str
+	min_glibc_version: tuple[int, int] = (2, 20)
+	min_macos_version: tuple[int, int] = (11, 0)
+	## TODO: Constrained integers for both
 
 	####################
 	# - Packed Filenames
@@ -149,9 +155,6 @@ class BLExtSpec(pyd.BaseModel):
 		default='0.1.0', serialization_alias='schema_version'
 	)
 	## TODO: Conform to extension version?
-
-	# Path Locality
-	use_path_local: bool
 
 	# File Logging
 	use_log_file: bool
@@ -205,23 +208,31 @@ class BLExtSpec(pyd.BaseModel):
 	copyright: tuple[str, ...]
 	website: pyd.HttpUrl | None = None
 
+	@property
+	def is_universal_blext(self) -> bool:
+		"""Whether this extension supports all Blender platforms.
+
+		This will generally be the case for pure-Python extensions.
+		"""
+		return frozenset(supported.BLPlatform) == self.bl_platforms
+
 	####################
 	# - Extension Manifest: Computed Properties
 	####################
-	@pyd.computed_field(alias='platforms')  # type: ignore[prop-decorator]
+	@pyd.computed_field
 	@property
-	def bl_platforms(self) -> frozenset[supported.BLPlatform]:
+	def platforms(self) -> list[supported.BLPlatform]:
 		"""Operating systems supported by the extension."""
-		return frozenset(self.bl_platform_pypa_tags.keys())  # type: ignore[arg-type]
+		return sorted(self.bl_platforms)
 
-	@pyd.computed_field  # type: ignore[prop-decorator]
+	@pyd.computed_field(alias='wheels')
 	@property
-	def wheels(self) -> tuple[Path, ...]:
+	def wheel_paths(self) -> tuple[Path, ...]:
 		"""Path to all shipped wheels, relative to the root of the unpacked extension `.zip` file."""
 		return tuple(
 			[
-				Path(f'./wheels/{wheel_path.name}')
-				for wheel_path in self.path_wheels.iterdir()
+				Path(f'./wheels/{wheel.filename}')
+				for wheel in sorted(self.wheels, key=lambda el: el.project)
 			]
 		)
 
@@ -240,8 +251,8 @@ class BLExtSpec(pyd.BaseModel):
 
 	@functools.cached_property
 	def path_dev(self) -> Path:
-		"""Path to the project `dev/` folder, which should not be checked in."""
-		path_dev = self.path_proj_root / 'dev'
+		"""Path to the project `.dev/` folder, which should not be checked in."""
+		path_dev = self.path_proj_root / '.dev'
 		path_dev.mkdir(exist_ok=True)
 		return path_dev
 
@@ -284,7 +295,7 @@ class BLExtSpec(pyd.BaseModel):
 			only_supported_os = next(iter(self.bl_platforms))
 			return f'{self.id}__{self.version}_{only_supported_os}.zip'
 
-		msg = "Cannot deduce filename of non-universal Blender extension when more than one 'BLPlatform' is supported."
+		msg = f"Cannot deduce filename of non-universal Blender extension when more than one 'BLPlatform' is supported: {', '.join(self.bl_platforms)}"
 		raise ValueError(msg)
 
 	@functools.cached_property
@@ -308,7 +319,6 @@ class BLExtSpec(pyd.BaseModel):
 				self.model_dump_json(
 					include={
 						'init_schema_version',
-						'use_path_local',
 						'use_log_file',
 						'log_file_path',
 						'log_file_level',
@@ -337,7 +347,7 @@ class BLExtSpec(pyd.BaseModel):
 						'blender_version_min',
 						'blender_version_max',
 						'bl_platforms',
-						'wheels',
+						'wheel_paths',
 						'permissions',
 						'tags',
 						'license',
@@ -352,7 +362,9 @@ class BLExtSpec(pyd.BaseModel):
 	####################
 	# - Methods
 	####################
-	def constrain_to_bl_platform(self, bl_platform: supported.BLPlatform) -> typ.Self:
+	def constrain_to_bl_platform(
+		self, bl_platform: frozenset[supported.BLPlatform] | supported.BLPlatform | None
+	) -> typ.Self:
 		"""Create a new `BLExtSpec`, which supports only one operating system.
 
 		All PyPa platform tags associated with that operating system will be transferred.
@@ -362,13 +374,237 @@ class BLExtSpec(pyd.BaseModel):
 			bl_platform: The Blender platform to support exclusively.
 
 		"""
-		pypa_platform_tags = self.bl_platform_pypa_tags[bl_platform]
+		if bl_platform is None:
+			bl_platforms = frozenset({supported.BLPlatform})
+		elif isinstance(bl_platform, set | frozenset):
+			bl_platforms = bl_platform
+		else:
+			bl_platforms = frozenset({bl_platform})
+
 		return self.model_copy(
 			update={
-				'bl_platform_pypa_tags': {bl_platform: pypa_platform_tags},
-				'is_universal_blext': False,
+				'bl_platforms': bl_platforms,
 			},
 			deep=True,
+		)
+
+	####################
+	# - Wheel Management
+	####################
+	@functools.cached_property
+	def wheels(self) -> frozenset[wheels.BLExtWheel]:
+		"""All wheels needed by this Blender extension."""
+		all_wheels = {
+			wheel: wheel.get_compatible_bl_platforms(
+				valid_python_tags=frozenset(
+					{
+						'py3',
+						'cp36',
+						'cp37',
+						'cp38',
+						'cp39',
+						'cp310',
+						'cp311',
+					}
+				),
+				valid_abi_tags=frozenset(
+					{
+						'none',
+						'abi3',
+						#'cp36',
+						#'cp37',
+						#'cp38',
+						#'cp39',
+						#'cp310',
+						'cp311',
+					}
+				),
+				min_glibc_version=self.min_glibc_version,
+				min_macos_version=self.min_macos_version,
+			)
+			for wheel in wheels.parse_all_possible_wheels(self.path_proj_root)
+		}
+
+		####################
+		# - Build the Wheel Graph
+		####################
+		wheels_graph: dict[str, dict[supported.BLPlatform, list[wheels.BLExtWheel]]] = {
+			package_name: {bl_platform: [] for bl_platform in self.bl_platforms}
+			for package_name in wheels.parse_all_package_names(self.path_proj_root)
+		}
+		for wheel, wheel_bl_platforms in all_wheels.items():
+			for wheel_bl_platform in wheel_bl_platforms:
+				if wheel_bl_platform in self.bl_platforms:
+					wheels_graph[wheel.project][wheel_bl_platform].append(wheel)
+
+		####################
+		# - Deduplicate: Select ONE Wheel Per-Dependency Per-Platform
+		####################
+		for package_name, wheels_by_project in wheels_graph.items():
+			for bl_platform, wheels_by_platform in wheels_by_project.items():
+				if len(wheels_by_platform) > 1:
+					# Windows: Pick win_amd64 over win32.
+					if bl_platform is supported.BLPlatform.windows_x64:
+						wheels_graph[package_name][bl_platform] = sorted(
+							wheels_by_platform,
+							key=lambda el: sum(
+								{'any': 2, 'win32': 1, 'win_amd64': 0}[platform_tag]
+								for platform_tag in el.platform_tags
+							),
+						)[:1]
+					## TODO: Perhaps sort such that highest version gets picked first?
+
+					# Linux: Sort by GLIBC version and pick the highest valid version.
+					elif bl_platform in [
+						supported.BLPlatform.linux_x64,
+						supported.BLPlatform.linux_arm64,
+					]:
+
+						def glibc_versions(
+							wheel: wheels.BLExtWheel,
+							bl_platform: supported.BLPlatform,
+						) -> list[tuple[int, int]]:
+							glibc_versions = [
+								wheel.glibc_version(platform_tag)
+								for platform_tag in wheel.platform_tags
+								if any(
+									platform_tag.endswith(pypi_arch)
+									for pypi_arch in bl_platform.pypi_arches
+								)
+							]
+
+							return [
+								glibc_version
+								for glibc_version in glibc_versions
+								if glibc_version is not None
+							]
+
+						wheels_graph[package_name][bl_platform] = list(
+							sorted(
+								wheels_by_platform,
+								key=lambda el: -int(el.size) if el.size else 0,
+							)[:1]
+							## TODO: Perhaps sort such that highest version gets picked first?
+						)
+
+					# MacOS: Sort by OS version and pick the highest valid version.
+					elif bl_platform in [
+						supported.BLPlatform.macos_x64,
+						supported.BLPlatform.macos_arm64,
+					]:
+
+						def macos_versions(
+							wheel: wheels.BLExtWheel,
+							bl_platform: supported.BLPlatform,
+						) -> list[tuple[int, int]]:
+							macos_versions = [
+								wheel.macos_version(platform_tag)
+								for platform_tag in wheel.platform_tags
+								if any(
+									platform_tag.endswith(pypi_arch)
+									for pypi_arch in bl_platform.pypi_arches
+								)
+							]
+
+							return [
+								macos_version
+								for macos_version in macos_versions
+								if macos_version is not None
+							]
+
+						wheels_graph[package_name][bl_platform] = list(
+							sorted(
+								wheels_by_platform,
+								key=lambda el: -int(el.size) if el.size else 0,
+								## TODO: Perhaps sort such that highest version gets picked first?
+							)[:1]
+						)
+
+		####################
+		# - Validate: Ensure All Deps + Platforms Have ==1 Wheel
+		####################
+		num_missing_deps = 0
+		missing_dep_msgs: list[str] = []
+		for package_name, wheels_by_project in wheels_graph.items():
+			for bl_platform, wheels_by_platform in wheels_by_project.items():
+				if len(wheels_by_platform) == 0:
+					num_missing_deps += 1
+					all_candidate_wheels = sorted(
+						[
+							wheel
+							for wheel in wheels.parse_all_possible_wheels(
+								self.path_proj_root
+							)
+							if wheel.project == package_name
+						],
+						key=lambda el: el.filename,
+					)
+
+					min_glibc_str = '.'.join(str(i) for i in self.min_glibc_version)
+					min_macos_str = '.'.join(str(i) for i in self.min_macos_version)
+					msgs = [
+						f'**{package_name}** not found for `{bl_platform}`.',
+						*(
+							[
+								'|  **Possible Causes**:',
+								'|  - `...manylinux_M_m_<arch>.whl` wheels require `glibc >= M.m`.',
+								f'|  - This extension is set to require `glibc >= {min_glibc_str}`.',
+								f'|  - Therefore, only wheels with `macos <= {min_glibc_str}` can be included.',
+								'|  ',
+								'|  **Suggestions**:',
+								'|  - Try raising `min_glibc_version = [M, m]` in `[tool.blext]`.',
+								'|  - _This may make the extension incompatible with older machines_.',
+							]
+							if bl_platform.startswith('linux')
+							else []
+						),
+						*(
+							[
+								'|  **Possible Causes**:',
+								'|  - `...macosx_M_m_<arch>.whl` wheels require `macos >= M.m`.',
+								f'|  - This extension is set to require `macos >= {min_macos_str}`.',
+								f'|  - Therefore, only wheels with `macos <= {min_macos_str}` can be included.',
+								'|  ',
+								'|  **Suggestions**:',
+								'|  - Try raising `min_macos_version = [M, m]` in `[tool.blext]`.',
+								'|  - _This may make the extension incompatible with older machines_.',
+							]
+							if bl_platform.startswith('macos')
+							else []
+						),
+						*(
+							[
+								'|  ',
+								'|  **Rejected Wheels**:',
+							]
+							+ [
+								f'|  - {candidate_wheel.filename}'
+								for candidate_wheel in all_candidate_wheels
+							]
+						),
+						'|',
+					]
+					for msg in msgs:
+						missing_dep_msgs.append(msg)
+
+				if len(wheels_by_platform) > 1:
+					msg = f">1 valid wheel is set to be downloaded for '{package_name}:{bl_platform}', which indicates a bug in 'blext'. Please report this bug!"
+					raise RuntimeError(msg)
+
+		if missing_dep_msgs:
+			missing_dep_msgs.append(f'**Missing Dependencies**: {num_missing_deps}')
+			raise ValueError(*missing_dep_msgs)
+
+		####################
+		# - Flatten Wheel Graph and Return
+		####################
+		return frozenset(
+			{
+				wheel
+				for package_name, wheels_by_package in wheels_graph.items()
+				for bl_platform, wheels_by_platform in wheels_by_package.items()
+				for wheel in wheels_by_platform
+			}
 		)
 
 	####################
@@ -449,6 +685,7 @@ class BLExtSpec(pyd.BaseModel):
 		if project.get('requires-python') is not None:
 			project_requires_python = project['requires-python'].replace('~= ', '')
 		else:
+			project_requires_python = ''
 			field_parse_errs.append('- `project.requires-python` is not defined.')
 
 		# Parse project.maintainers[0]
@@ -464,6 +701,7 @@ class BLExtSpec(pyd.BaseModel):
 		):
 			_license = project['license']['text']
 		else:
+			_license = None
 			field_parse_errs.append('- `project.license.text` is not defined.')
 			field_parse_errs.append(
 				'- Please note that all Blender addons MUST have a GPL-compatible license: <https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html>'
@@ -483,8 +721,8 @@ class BLExtSpec(pyd.BaseModel):
 		####################
 		###: Parse field availability and provide for descriptive errors
 
-		if blext_spec.get('platforms') is None:
-			field_parse_errs += ['- `[tool.blext.platforms]` is not defined.']
+		if blext_spec.get('supported_platforms') is None:
+			field_parse_errs += ['- `tool.blext.supported_platforms` is not defined.']
 		if project.get('name') is None:
 			field_parse_errs += ['- `project.name` is not defined.']
 		if blext_spec.get('pretty_name') is None:
@@ -523,16 +761,16 @@ class BLExtSpec(pyd.BaseModel):
 		return cls(
 			path_proj_root=path_proj_root,
 			req_python_version=project_requires_python,
-			bl_platform_pypa_tags=blext_spec['platforms'],
-			# Path Locality
-			use_path_local=release_profile_spec.get('use_path_local', False),
+			min_glibc_version=blext_spec.get('min_glibc_version', (2, 20)),
+			min_macos_version=blext_spec.get('min_macos_version', (11, 0)),
+			bl_platforms=blext_spec['supported_platforms'],
 			# File Logging
 			use_log_file=release_profile_spec.get('use_log_file', False),
 			log_file_path=release_profile_spec.get('log_file_path', 'addon.log'),
-			log_file_level=release_profile_spec.get('log_file_level', 'DEBUG'),
+			log_file_level=release_profile_spec.get('log_file_level', 'debug'),
 			# Console Logging
 			use_log_console=release_profile_spec.get('use_log_console', True),
-			log_console_level=release_profile_spec.get('log_console_level', 'DEBUG'),
+			log_console_level=release_profile_spec.get('log_console_level', 'debug'),
 			# Basics
 			id=project['name'],
 			name=blext_spec['pretty_name'],

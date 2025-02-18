@@ -16,6 +16,7 @@
 
 """Tools for finding common information and files using platform-specific methods."""
 
+import os
 import platform
 import shutil
 from pathlib import Path
@@ -23,13 +24,16 @@ from pathlib import Path
 from .supported import BLPlatform
 
 
+####################
+# - Find: Project Information
+####################
 def detect_local_blplatform() -> BLPlatform:
 	"""Deduce the local Blender platform from `platform.system()` and `platform.machine()`.
 
 	References:
 		Architecture Strings on Linus: <https://stackoverflow.com/questions/45125516/possible-values-for-uname-m>
 
-	Warnings:
+	Warning:
 		This method is mostly untested, especially on Windows.
 
 	Returns:
@@ -54,9 +58,9 @@ def detect_local_blplatform() -> BLPlatform:
 			return BLPlatform.windows_x64
 		case ('windows', arch) if arch.startswith(('aarch64', 'arm')):
 			return BLPlatform.windows_arm64
-
-	msg = "Could not detect a local operating system supported by Blender from 'platform.system(), platform.machine() = {platform_system}, {platform_machine}'"
-	raise ValueError(msg)
+		case _:
+			msg = "Could not detect a local operating system supported by Blender from 'platform.system(), platform.machine() = {platform_system}, {platform_machine}'"
+			raise ValueError(msg)
 
 
 def find_proj_spec(proj_path: Path | None) -> Path:
@@ -67,58 +71,86 @@ def find_proj_spec(proj_path: Path | None) -> Path:
 			When `None`, search in the current working directory.
 	"""
 	# Deduce Project Path
-	if proj_path is None:
-		path_proj_spec = Path.cwd() / 'pyproject.toml'
-	elif proj_path.exists():
-		if proj_path.is_file():
+	match proj_path:
+		case None:
+			path_proj_spec = Path.cwd() / 'pyproject.toml'
+		case p if p.exists() and p.is_file():
 			path_proj_spec = proj_path
-		elif proj_path.is_dir():
+		case p if p.exists() and p.is_dir():
 			path_proj_spec = proj_path / 'pyproject.toml'
-
-	if not path_proj_spec.is_file():
-		msgs = [
-			f'No project specification found at `{path_proj_spec}`.',
-			'Please verify the project path.',
-		]
-		raise ValueError(*msgs)
+		case p:
+			msgs = [
+				f'No Blender extension information could be found at the path `{p}`.',
+				'Path must reference one of:',
+				'- File (`pyproject.toml`): Must contain `[tool.blext]` fields.',
+				'- Folder (w/`pyproject.toml`): Must contain a valid `pyproject.toml` file.',
+				'- Script (`*.py`): Must contain `[tool.blext]` fields as "inline script metadata" (see <https://packaging.python.org/en/latest/specifications/inline-script-metadata/>).',
+			]
+			raise ValueError(*msgs)
 
 	return path_proj_spec.resolve()
 
 
-def find_blender_exe() -> str:
+####################
+# - Find: Executables
+####################
+def find_blender_exe() -> Path:
 	"""Locate the Blender executable, using the current platform as a hint.
-
-	Parameters:
-		os: The currently supported operating system.
 
 	Returns:
 		Absolute path to a valid Blender executable, as a string.
 	"""
 	bl_platform = detect_local_blplatform()
 	match bl_platform:
-		case BLPlatform.linux_x64:
+		case BLPlatform.linux_x64 | BLPlatform.linux_arm64:
 			blender_exe = shutil.which('blender')
 			if blender_exe is not None:
-				return blender_exe
+				return Path(blender_exe)
 
 			msg = "Couldn't find executable command 'blender' on the system PATH. Is it installed?"
 			raise ValueError(msg)
 
 		case BLPlatform.macos_arm64 | BLPlatform.macos_x64:
-			blender_exe = '/Applications/Blender.app/Contents/MacOS/Blender'
-			if Path(blender_exe).is_file():
+			# Search PATH: 'blender'
+			blender_exe = shutil.which('blender')
+			if blender_exe is not None:
+				return Path(blender_exe)
+
+			# Search Applications
+			blender_exe = Path('/Applications/Blender.app/Contents/MacOS/Blender')
+			if blender_exe.is_file():
 				return blender_exe
 
-			msg = f"Couldn't find Blender executable at standard path. Is it installed? (searched '{blender_exe}')"
+			msg = "Couldn't find Blender executable (tried searching for 'blender' on the system path, and at '/Applications/Blender.app/Contents/MacOS/Blender'). Is it installed?"
 			raise ValueError(msg)
 
-		case BLPlatform.windows_x64 | BLPlatform.windows_x64:
+		case BLPlatform.windows_x64 | BLPlatform.windows_arm64:
+			# Search PATH: 'blender'
+			blender_exe = shutil.which('blender')
+			if blender_exe is not None:
+				return Path(blender_exe)
+
+			# Search PATH: 'blender.exe'
 			blender_exe = shutil.which('blender.exe')
 			if blender_exe is not None:
-				return blender_exe
+				return Path(blender_exe)
 
-			msg = "Couldn't find executable command 'blender.exe' on the system PATH. Is it installed?"
+			msg = "Couldn't find executable command 'blender' or 'blender.exe' on the system PATH. Is Blender installed?"
 			raise ValueError(msg)
 
-	msg = f"Could not detect a Blender executable for the current Blender platform '{bl_platform}'."
+
+def find_uv_exe(search_venv: bool = True) -> Path:
+	"""Locate the `uv` executable.
+
+	Returns:
+		Absolute path to a valid Blender executable, as a string.
+	"""
+	if search_venv and 'VIRTUAL_ENV' in os.environ:
+		path_venv = Path(os.environ['VIRTUAL_ENV'])
+		path_uv = path_venv / 'bin' / 'uv'
+
+		if path_uv.is_file():
+			return path_uv
+
+	msg = "Could not find a 'uv' executable."
 	raise ValueError(msg)

@@ -1,4 +1,4 @@
-dev
+.dev
 examples/**/dev
 
 # Byte-compiled / optimized / DLL files

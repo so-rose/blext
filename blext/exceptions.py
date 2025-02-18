@@ -16,26 +16,48 @@
 
 """Exception handling for enhancing the end-user experience of dealing with errors."""
 
+import collections.abc
 import contextlib
 import sys
+import typing as typ
 from pathlib import Path
 
+import pydantic as pyd
 import rich
 import rich.markdown
 import rich.padding
-import pydantic as pyd
-
-
-def sys_exit_1():
-	sys.exit(1)
 
 
 @contextlib.contextmanager
 def handle(
-	ex_handler,
-	*exceptions,
-	after_ex=sys_exit_1,
-):
+	ex_handler: typ.Callable[[Exception], None],
+	*exceptions: type[Exception],
+	after_ex: typ.Callable[[], None] = lambda: sys.exit(1),
+) -> collections.abc.Generator[None, None, None]:
+	"""Handle exceptions thrown in a block with custom logic.
+
+	Useful for transforming the style or behavior of what throwing an exception should do.
+	In particular, it is generally desirable to have shorter, more user-friendly errors in
+	CLI applications, while simultaneously allowing normal extension logic to be used internally.
+
+	Parameters:
+		ex_handler: The exception handler, to which the exception is passed as the only argument.
+		exceptions: The exception types to handle using ex_handler.
+			Use ex. `ValueError` exception types here directly.
+		after_ex: Something
+			By default, exit the program with exit-code 1.
+
+	Returns:
+		A generator, for use in a `with` statement.
+		Anything inside the `with` statement will have the defined subset of its
+		exceptions handled with the given method.
+
+	Examples:
+		```python
+		with handle(pretty, ValueError):
+			raise ValueError("Pretty-Printed Message")
+		```
+	"""
 	try:
 		yield
 	except exceptions as ex:
@@ -47,6 +69,14 @@ def handle(
 # - Exception Handlers
 ####################
 def pretty(ex: Exception, show_filename_lineno: bool = False) -> None:
+	"""Print an exception in a more stylish, end-user oriented fashion.
+
+	Designed for use with `handle`.
+
+	Parameters:
+		ex: The exception to transform and print.
+		show_filename_lineno: Whether to include the filename and line number that caused the error.
+	"""
 	# Parse ValidationError
 	if isinstance(ex, pyd.ValidationError):
 		model_name = ex.title
@@ -57,7 +87,7 @@ def pretty(ex: Exception, show_filename_lineno: bool = False) -> None:
 				f'{model_name}.'
 				+ ', '.join([str(el) for el in err['loc']])
 				+ '='
-				+ str(err['input'])
+				+ str(err['input'])  # pyright: ignore[reportAny]
 				+ ': '
 				+ err['msg']
 				for err in ex.errors()
@@ -68,7 +98,7 @@ def pretty(ex: Exception, show_filename_lineno: bool = False) -> None:
 
 	# Parse Filename and Line#
 	if show_filename_lineno:
-		_, exc_obj, exc_tb = sys.exc_info()
+		_, _, exc_tb = sys.exc_info()
 		filename = (
 			Path(exc_tb.tb_frame.f_code.co_filename).name
 			if exc_tb is not None
@@ -81,8 +111,11 @@ def pretty(ex: Exception, show_filename_lineno: bool = False) -> None:
 
 	# Format Message Tuple
 	messages = [
-		rich.padding.Padding(rich.markdown.Markdown(arg), pad=(0, 0, 0, 4))
-		for arg in ex.args
+		rich.padding.Padding(
+			rich.markdown.Markdown(arg),  # pyright: ignore[reportAny]
+			pad=(0, 0, 0, 4),
+		)
+		for arg in ex.args  # pyright: ignore[reportAny]
 	]
 
 	# Present

@@ -10,7 +10,7 @@ maintainers = [
 ]
 
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = "~=3.11"
 license = { text = "AGPL-3.0-or-later" }
 dependencies = [
 	"cyclopts>=3.1.5",
@@ -18,6 +18,8 @@ dependencies = [
 	"pypdl>=1.5.1",
 	"rich>=13.9.4",
 	"tomli-w>=1.1.0",
+	"uv>=0.6.0",
+	"wheel-filename>=1.4.2",
 ]
 
 classifiers = [
@@ -37,30 +39,42 @@ Homepage = "https://git.sofus.io/so-rose/blext"
 
 [dependency-groups]
 dev = [
+    "bpy>=4.3.0",
     "commitizen>=4.1.0",
     "mypy>=1.14.1",
     "pytest>=8.3.4",
+    "quartodoc>=0.9.1",
     "ruff>=0.9.1",
 ]
-
-[project.scripts]
-blext = "blext.cli:app"
-
-[tool.setuptools]
-packages = ["blext"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["blext"]
 
 [tool.uv]
 package = true
 
+####################
+# - Scripts
+####################
+[project.scripts]
+blext = "blext.cli:app"
+
+
+####################
+# - Build System: hatchling
+####################
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["blext"]
+
 ####################
-# - Tooling: Ruff
+# - Tool: Setuptools
+####################
+[tool.setuptools]
+packages = ["blext"]
+
+####################
+# - Tool: ruff
 ####################
 [tool.ruff]
 target-version = "py311"
@@ -138,15 +152,12 @@ ignore = [
 	"D104", # Same for packages.
 ]
 
-####################
-# - Tooling: Ruff Sublinters
-####################
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = []
 
 [tool.ruff.lint.pycodestyle]
-max-doc-length = 120
-ignore-overlong-task-comments = true
+max-doc-length = 88
+ignore-overlong-task-comments = false
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -154,46 +165,44 @@ convention = "google"
 [tool.ruff.lint.pylint]
 max-args = 6
 
+
 ####################
-# - Tooling: Ruff Formatter
+# - Tool: ruff format
 ####################
 [tool.ruff.format]
 quote-style = "single"
 indent-style = "tab"
 docstring-code-format = false
 
+
 ####################
-# - Tooling: MyPy
+# - Tool: basedpyright
 ####################
-[tool.mypy]
-python_version = '3.11'
-python_executable="./.venv/bin/python"
+[tool.basedpyright]
+defineConstant = { DEBUG = true }
 
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_return_any = true
+#include = ["blext"]
+#strict = ["blext"]
 
-strict_optional = true
-no_implicit_optional = true
+reportMissingImports = "error"
+reportMissingTypeStubs = true
 
-disallow_subclassing_any = false
-disallow_any_generics = true
-disallow_untyped_calls = true
-disallow_incomplete_defs = true
-
-check_untyped_defs = true
-disallow_untyped_decorators = true
-
-ignore_missing_imports = true
-
-plugins = [
-#	'pydantic.mypy',
-#	'typing_protocol_intersection.mypy_plugin',
+executionEnvironments = [
+  { root = "blext/blender_python", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages", ".venv/lib/python3.11/site-packages/bpy/4.3/scripts/modules" ] },
+  #{ root = "blext", pythonVersion = "3.11" },
+  { root = ".", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages" ] },
 ]
 
 
 ####################
-# - Tooling: Commits
+# - Tooling: pytest
+####################
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+
+####################
+# - Tool: commitizen
 ####################
 [tool.commitizen]
 # Specification
@@ -210,10 +219,3 @@ update_changelog_on_bump = true
 # Annotations / Signature
 gpg_sign = true
 annotated_tag = true
-
-####################
-# - Tooling: Pytest
-####################
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-

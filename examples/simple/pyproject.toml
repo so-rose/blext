@@ -27,13 +27,13 @@ blender_version_max = '4.3.10'
 bl_tags = ["Development"]
 copyright = ["2024 blext Contributors"]
 
-# Platform Support
-## Map Valid Blender Platforms -> Required PyPi Platform Tags
-## Include as few PyPi tags as works on ~everything.
-[tool.blext.platforms]
-windows-amd64 = ['win_amd64']
-macos-arm64 = ['macosx_11_0_arm64', 'macosx_12_0_arm64', 'macosx_14_0_arm64']
-linux-x64 = ['manylinux1_x86_64', 'manylinux2014_x86_64', 'manylinux_2_17_x86_64', 'manylinux_2_28_x86_64']
+supported_platforms = [
+	'windows-x64',
+	'macos-arm64',
+	'linux-x64',
+]
+min_glibc_version = [2, 20]
+min_macos_version = [12, 0]
 
 # Packaging
 ## Path is from the directory containing this file.
@@ -46,33 +46,33 @@ init_settings_filename = 'init_settings.toml'
 use_path_local = true
 use_log_file = true
 log_file_path = 'addon.log'
-log_file_level = 'DEBUG'
+log_file_level = 'debug'
 use_log_console = true
-log_console_level = 'INFO'
+log_console_level = 'info'
 
 [tool.blext.profiles.dev]
 use_path_local = true
 use_log_file = true
 log_file_path = 'addon.log'
-log_file_level = 'DEBUG'
+log_file_level = 'debug'
 use_log_console = true
-log_console_level = 'INFO'
+log_console_level = 'info'
 
 [tool.blext.profiles.release]
 use_path_local = false
 use_log_file = true
 log_file_path = 'addon.log'
-log_file_level = 'INFO'
+log_file_level = 'info'
 use_log_console = true
-log_console_level = 'WARNING'
+log_console_level = 'warning'
 
 [tool.blext.profiles.release-debug]
 use_path_local = false
 use_log_file = true
 log_file_path = 'addon.log'
-log_file_level = 'DEBUG'
+log_file_level = 'debug'
 use_log_console = true
-log_console_level = 'WARNING'
+log_console_level = 'warning'
 
 ####################
 # - Blender Extension

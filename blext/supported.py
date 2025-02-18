@@ -20,6 +20,7 @@ String enumerations are used to provide meaningful, editor-friendly choices that
 """
 
 import enum
+import functools
 import logging
 
 
@@ -36,6 +37,21 @@ class BLPlatform(enum.StrEnum):
 	windows_x64 = 'windows-x64'
 	windows_arm64 = 'windows-arm64'
 
+	@functools.cached_property
+	def pypi_arches(self) -> frozenset[str]:
+		"""Set of matching architecture string in PyPi platform tags."""
+		BLP = BLPlatform
+		return {
+			BLP.linux_x64: frozenset({'x86_64'}),
+			BLP.linux_arm64: frozenset({'aarch64', 'armv7l', 'arm64'}),
+			BLP.macos_x64: frozenset(
+				{'x86_64', 'universal', 'universal2', 'intel', 'fat3', 'fat64'}
+			),
+			BLP.macos_arm64: frozenset({'arm64', 'universal2'}),
+			BLP.windows_x64: frozenset({'', 'amd64'}),
+			BLP.windows_arm64: frozenset({'arm64'}),
+		}[self]
+
 
 class ReleaseProfile(enum.StrEnum):
 	"""Release profiles supported by Blender extensions managed by BLExt."""
@@ -49,11 +65,11 @@ class ReleaseProfile(enum.StrEnum):
 class StrLogLevel(enum.StrEnum):
 	"""String log-levels corresponding to log-levels in the `logging` stdlib module."""
 
-	Debug = 'DEBUG'
-	Info = 'INFO'
-	Warning = 'WARNING'
-	Error = 'ERROR'
-	Critical = 'CRITICAL'
+	Debug = 'debug'
+	Info = 'info'
+	Warning = 'warning'
+	Error = 'error'
+	Critical = 'critical'
 
 	@property
 	def log_level(self) -> int:

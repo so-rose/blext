@@ -31,11 +31,11 @@ log = logger.get(__name__)
 # - Constants
 ####################
 LOG_LEVEL_MAP: dict[str, logger.LogLevel] = {
-	'DEBUG': logging.DEBUG,
-	'INFO': logging.INFO,
-	'WARNING': logging.WARNING,
-	'ERROR': logging.ERROR,
-	'CRITICAL': logging.CRITICAL,
+	'debug': logging.DEBUG,
+	'info': logging.INFO,
+	'warning': logging.WARNING,
+	'error': logging.ERROR,
+	'critical': logging.CRITICAL,
 }
 
 
@@ -62,11 +62,11 @@ class SimpleAddonPrefs(bpy.types.AddonPreferences):
 		name='File Log Level',
 		description='Level of addon logging to expose in the file',
 		items=[
-			('DEBUG', 'Debug', 'Debug'),
-			('INFO', 'Info', 'Info'),
-			('WARNING', 'Warning', 'Warning'),
-			('ERROR', 'Error', 'Error'),
-			('CRITICAL', 'Critical', 'Critical'),
+			('debug', 'Debug', 'Debug'),
+			('info', 'Info', 'Info'),
+			('warning', 'Warning', 'Warning'),
+			('error', 'Error', 'Error'),
+			('critical', 'Critical', 'Critical'),
 		],
 		default=INIT_SETTINGS.log_file_level,
 		update=lambda self, _: self.on_addon_logging_changed(),
@@ -101,11 +101,11 @@ class SimpleAddonPrefs(bpy.types.AddonPreferences):
 		name='Console Log Level',
 		description='Level of addon logging to expose in the console',
 		items=[
-			('DEBUG', 'Debug', 'Debug'),
-			('INFO', 'Info', 'Info'),
-			('WARNING', 'Warning', 'Warning'),
-			('ERROR', 'Error', 'Error'),
-			('CRITICAL', 'Critical', 'Critical'),
+			('debug', 'Debug', 'Debug'),
+			('info', 'Info', 'Info'),
+			('warning', 'Warning', 'Warning'),
+			('error', 'Error', 'Error'),
+			('critical', 'Critical', 'Critical'),
 		],
 		default=INIT_SETTINGS.log_console_level,
 		update=lambda self, _: self.on_addon_logging_changed(),

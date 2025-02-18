@@ -1,0 +1,39 @@
+# Introduction
+`blext` is a project manager for developing [Blender](https://www.blender.org/) extensions.
+
+To get started, [install the uv package manager](https://docs.astral.sh/uv/getting-started/installation/), then run:
+
+```{=html}
+<div id="termynal" data-termynal data-ty-typeDelay="40" data-ty-lineDelay="300">
+    <span data-ty="input" data-ty-prompt="λ">uv tool install blext</span>
+    <span data-ty="progress" data-ty-progressChar="·"></span>
+    <span data-ty>Installed 1 executable: blext</span>
+</div>
+<script src="termynal.js" data-termynal-container="#termynal"></script>
+```
+
+<br />
+
+One may also use `pip install --user blext` or variants thereof.
+
+## WARNING: Alpha Software
+_NOTE: This software should be considered alpha aka. **unstable**. It is not ready for production use. The feature-set is incomplete. The documentation is still very sparse._
+
+_With that said, we already find it **quite useful**. We hope you'll consider sharing your experiences with us, good and bad - for example, in the Discussions / Issues sections!_
+
+
+## Features
+- **All You Need is `uv`**: The absolute only prerequisite is [`uv`](https://docs.astral.sh/uv/getting-started/installation/) and `blender`.
+	_Another opinionated Python packager?_ Trust me, it's great.
+- **Intuitive and Fast**: `uvx blext dev` runs Blender with your extension.
+	If you only changed some code, it runs nearly instantly!
+- **Effortless Deps**: Need a Python package for your addon?
+	Just `uv add <pkgname>`.
+	The next time you run `blext dev`, your package will be available from your extension code.
+- **Single Source of Truth**: Manage your Blender extension entirely from `pyproject.toml`, using the new table `[tool.blext]`.
+	`blext` is explicit about any mistakes you might make, and for your trouble, generates a correct `blender_manifest.toml` when making the addon.
+- **Extension Analysis**: "Look inside" your extension with ease.
+	Need to check the generated `blender_manifest.toml`?
+	Re-run Blender's own extension validation?
+	Or just check a platform-specific deduction?
+Just use `blext show`!

@@ -14,12 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Runs when the package is executed.
+from pathlib import Path
 
-Executes the `typer` app defined in `cli.py`.
-"""
+import blext
 
-if __name__ == '__main__':
-	from blext.cli import APP
+EXAMPLES_PATH = Path(__file__).parent.parent / 'examples'
 
-	APP()
+
+def test_mk_bl_ext_spec():
+	spec = blext.BLExtSpec.from_proj_spec(
+		EXAMPLES_PATH / 'simple' / 'pyproject.toml',
+		release_profile=blext.ReleaseProfile.Release,
+	)

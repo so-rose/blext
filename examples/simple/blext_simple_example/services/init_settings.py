@@ -39,11 +39,11 @@ INIT_SETTINGS_FILENAME = 'init_settings.toml'
 ####################
 LogLevel: typ.TypeAlias = int
 StrLogLevel: typ.TypeAlias = typ.Literal[
-	'DEBUG',
-	'INFO',
-	'WARNING',
-	'ERROR',
-	'CRITICAL',
+	'debug',
+	'info',
+	'warning',
+	'error',
+	'critical',
 ]
 
 
