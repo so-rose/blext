@@ -394,7 +394,7 @@ def download_wheels(
 	*,
 	path_wheels: Path,
 	no_prompt: bool = False,
-) -> None:
+) -> bool:
 	"""Download universal and binary wheels for all platforms defined in `pyproject.toml`.
 
 	Each blender-supported platform requires specifying a valid list of PyPi platform constraints.
@@ -546,3 +546,5 @@ def download_wheels(
 		# ]
 		# for copy_task in copy_tasks:
 		# shutil.copyfile(str(copy_task['from']), str(copy_task['to']))
+	if len(wheels_to_download) > 0 or len(wheel_paths_to_delete) > 0:
+		return True

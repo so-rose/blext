@@ -227,11 +227,11 @@ class BLExtSpec(pyd.BaseModel):
 
 	@pyd.computed_field(alias='wheels')
 	@property
-	def wheel_paths(self) -> tuple[Path, ...]:
+	def wheel_paths(self) -> tuple[str, ...]:
 		"""Path to all shipped wheels, relative to the root of the unpacked extension `.zip` file."""
 		return tuple(
 			[
-				Path(f'./wheels/{wheel.filename}')
+				f'./wheels/{wheel.filename}'
 				for wheel in sorted(self.wheels, key=lambda el: el.project)
 			]
 		)

@@ -54,7 +54,7 @@ package = true
 # - Scripts
 ####################
 [project.scripts]
-blext = "blext.cli:app"
+blext = "blext.cli:APP"
 
 
 ####################
