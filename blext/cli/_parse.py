@@ -19,7 +19,7 @@ from pathlib import Path
 import pydantic as pyd
 
 import blext.exceptions as exc
-from blext import finders, spec, supported
+from blext import finders, paths, spec, supported
 
 
 def parse_blext_spec(
@@ -50,10 +50,21 @@ def parse_blext_spec(
 
 	# Parse Blender Extension Specification
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		return spec.BLExtSpec.from_proj_spec(
+		blext_spec = spec.BLExtSpec.from_proj_spec(
 			path_proj_spec=path_proj_spec,
 			release_profile=release_profile,
 		)
+
+	# Register Root Paths for BLExtSpec
+	## - Script BLExt: Use Global Spec Cache for "Project" Root Directory
+	## - Project BLExt: Use Project Spec Cache for "Project" Root Directory
+	if path_proj_spec.name.endswith('.py'):
+		unique_script_id = '???'
+		paths.register_blext_spec(
+			blext_spec, paths.PATH_GLOBAL_SPEC_CACHE / unique_script_id
+		)
+	else:
+		paths.register_blext_spec(blext_spec, path_proj_spec.parent)
 
 
 def parse_bl_platform(

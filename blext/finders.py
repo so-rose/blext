@@ -25,7 +25,84 @@ from .supported import BLPlatform
 
 
 ####################
-# - Find: Project Information
+# - Project Information
+####################
+def search_parents(path: Path, filename: str) -> Path | None:
+	"""Search all parents of a path for a file.
+
+	Notes:
+		The input `path` is itself searched for the filename, but only if it is a directory.
+
+	Parameters:
+		path: The path to search the parents of.
+
+	Returns:
+		Absolute path to the found file, else `None` if no file was found.
+	"""
+	# No File Found
+	if path == Path(path.root) or path == path.parent:
+		return None
+
+	# File Found
+	if path.is_dir():
+		file_path = path / filename
+		if file_path.is_file():
+			return file_path.resolve()
+
+	# Recurse
+	return search_parents(p.parent, filename)
+
+
+def find_proj_spec(proj_path: Path | None) -> Path:
+	"""Locate the project specification by scanning the given project path.
+
+	Parameters:
+		proj_path: Use to search for a project specification.
+			May refer to any of:
+
+			- File (`pyproject.toml`): Must contain `[tool.blext]` fields.'
+			- Script (`*.py`): Must contain `[tool.blext]` fields as "inline script metadata".'
+			- Folder (w/`pyproject.toml`): Must contain a valid `pyproject.toml` file.'
+			'- `None`: Will search upwards for `pyproject.toml` from the current folder ({Path.cwd()}).'
+
+	Returns:
+		The path to a file that **might** support a `blext` project specificaiton.
+
+	Raises:
+		ValueError: If no project specificaiton can be found.
+
+	References:
+		- Inline Script Metadata: <https://packaging.python.org/en/latest/specifications/inline-script-metadata/#reference-implementation>
+	"""
+	# Search for Project Specification
+	if proj_path is None:
+		path_proj_spec = search_parents(Path.cwd(), 'pyproject.toml')
+	elif proj_path.is_file() and (
+		proj_path.name.endswith('.py') or proj_path.name == 'pyproject.toml'
+	):
+		path_proj_spec = proj_path
+	elif proj_path.is_dir():
+		path_proj_spec = proj_path / 'pyproject.toml'
+	else:
+		path_proj_spec = None
+
+	# Found Project Spec
+	if path_proj_spec is not None:
+		return path_proj_spec.resolve()
+
+	msgs = [
+		f'No Blender extension information could be found from the given path "{proj_path}".',
+		'Path must be one of:',
+		'- File (`pyproject.toml`): Must contain `[tool.blext]` fields.',
+		'- Script (`*.py`): Must contain `[tool.blext]` fields as "inline script metadata".',
+		'- Folder (w/`pyproject.toml`): Must contain a valid `pyproject.toml` file.',
+		f'- `None`: Will search upwards for `pyproject.toml` from the current folder ({Path.cwd()}).',
+	]
+	raise ValueError(*msgs)
+
+
+####################
+# - Platform Information
 ####################
 def detect_local_blplatform() -> BLPlatform:
 	"""Deduce the local Blender platform from `platform.system()` and `platform.machine()`.
@@ -63,36 +140,8 @@ def detect_local_blplatform() -> BLPlatform:
 			raise ValueError(msg)
 
 
-def find_proj_spec(proj_path: Path | None) -> Path:
-	"""Locate the project specification using the given hint.
-
-	Parameters:
-		proj_path: Search for a `pyproject.toml` project specification at this path.
-			When `None`, search in the current working directory.
-	"""
-	# Deduce Project Path
-	match proj_path:
-		case None:
-			path_proj_spec = Path.cwd() / 'pyproject.toml'
-		case p if p.exists() and p.is_file():
-			path_proj_spec = proj_path
-		case p if p.exists() and p.is_dir():
-			path_proj_spec = proj_path / 'pyproject.toml'
-		case p:
-			msgs = [
-				f'No Blender extension information could be found at the path `{p}`.',
-				'Path must reference one of:',
-				'- File (`pyproject.toml`): Must contain `[tool.blext]` fields.',
-				'- Folder (w/`pyproject.toml`): Must contain a valid `pyproject.toml` file.',
-				'- Script (`*.py`): Must contain `[tool.blext]` fields as "inline script metadata" (see <https://packaging.python.org/en/latest/specifications/inline-script-metadata/>).',
-			]
-			raise ValueError(*msgs)
-
-	return path_proj_spec.resolve()
-
-
 ####################
-# - Find: Executables
+# - Executables
 ####################
 def find_blender_exe() -> Path:
 	"""Locate the Blender executable, using the current platform as a hint.

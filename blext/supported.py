@@ -22,6 +22,7 @@ String enumerations are used to provide meaningful, editor-friendly choices that
 import enum
 import functools
 import logging
+import typing as typ
 
 
 class BLPlatform(enum.StrEnum):
@@ -53,15 +54,6 @@ class BLPlatform(enum.StrEnum):
 		}[self]
 
 
-class ReleaseProfile(enum.StrEnum):
-	"""Release profiles supported by Blender extensions managed by BLExt."""
-
-	Test = 'test'
-	Dev = 'dev'
-	Release = 'release'
-	ReleaseDebug = 'release-debug'
-
-
 class StrLogLevel(enum.StrEnum):
 	"""String log-levels corresponding to log-levels in the `logging` stdlib module."""
 
@@ -84,4 +76,56 @@ class StrLogLevel(enum.StrEnum):
 			SLL.Warning: logging.WARNING,
 			SLL.Error: logging.ERROR,
 			SLL.Critical: logging.CRITICAL,
+		}[self]
+
+
+class ReleaseProfileSpec(typ.TypedDict, total=False):
+	use_log_file: bool
+	log_file_name: str
+	log_file_level: StrLogLevel
+	use_log_console: bool
+	log_console_level: StrLogLevel
+
+
+class ReleaseProfile(enum.StrEnum):
+	"""Release profiles supported by Blender extensions managed by BLExt."""
+
+	Test = 'test'
+	Dev = 'dev'
+	Release = 'release'
+	ReleaseDebug = 'release-debug'
+
+	@property
+	def default_spec(self) -> ReleaseProfileSpec:
+		RP = ReleaseProfile
+		log_file_name = 'addon.log'
+		return {
+			RP.Test: {
+				'use_log_file': True,
+				'log_file_name': log_file_name,
+				'log_file_level': StrLogLevel.Debug,
+				'use_log_console': True,
+				'log_console_level': StrLogLevel.Info,
+			},
+			RP.Dev: {
+				'use_log_file': True,
+				'log_file_name': log_file_name,
+				'log_file_level': StrLogLevel.Debug,
+				'use_log_console': True,
+				'log_console_level': StrLogLevel.Info,
+			},
+			RP.Release: {
+				'use_log_file': False,
+				'log_file_name': log_file_name,
+				'log_file_level': StrLogLevel.Debug,
+				'use_log_console': True,
+				'log_console_level': StrLogLevel.Info,
+			},
+			RP.ReleaseDebug: {
+				'use_log_file': True,
+				'log_file_name': log_file_name,
+				'log_file_level': StrLogLevel.Debug,
+				'use_log_console': True,
+				'log_console_level': StrLogLevel.Debug,
+			},
 		}[self]

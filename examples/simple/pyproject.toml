@@ -35,41 +35,32 @@ supported_platforms = [
 min_glibc_version = [2, 20]
 min_macos_version = [12, 0]
 
-# Packaging
-## Path is from the directory containing this file.
-[tool.blext.packaging]
-init_settings_filename = 'init_settings.toml'
-
 # "Profiles" -> Affects Initialization Settings
 ## This sets the default extension preferences for different situations.
 [tool.blext.profiles.test]
-use_path_local = true
 use_log_file = true
-log_file_path = 'addon.log'
+log_file_name = 'addon.log'
 log_file_level = 'debug'
 use_log_console = true
 log_console_level = 'info'
 
 [tool.blext.profiles.dev]
-use_path_local = true
 use_log_file = true
-log_file_path = 'addon.log'
+log_file_name = 'addon.log'
 log_file_level = 'debug'
 use_log_console = true
 log_console_level = 'info'
 
 [tool.blext.profiles.release]
-use_path_local = false
 use_log_file = true
-log_file_path = 'addon.log'
+log_file_name = 'addon.log'
 log_file_level = 'info'
 use_log_console = true
 log_console_level = 'warning'
 
 [tool.blext.profiles.release-debug]
-use_path_local = false
 use_log_file = true
-log_file_path = 'addon.log'
+log_file_name = 'addon.log'
 log_file_level = 'debug'
 use_log_console = true
 log_console_level = 'warning'

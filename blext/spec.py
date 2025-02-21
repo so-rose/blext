@@ -18,6 +18,7 @@
 
 import functools
 import json
+import re
 import tomllib
 import typing as typ
 from pathlib import Path
@@ -25,8 +26,10 @@ from pathlib import Path
 import pydantic as pyd
 import rich
 import tomli_w
+from frozendict import frozendict
 
 from . import supported, wheels
+from .utils.pydantic_frozen_dict import FrozenDict
 
 CONSOLE = rich.console.Console()
 
@@ -66,28 +69,58 @@ ValidBLTags: typ.TypeAlias = typ.Literal[
 
 
 ####################
-# - Path Mangling
+# - Parsing
 ####################
-def parse_spec_path(path_proj_root: Path, p_str: str) -> Path:
-	"""Convert a project-root-relative '/'-delimited string path to an absolute, cross-platform path.
+INLINE_BLOCK_NAME = 'blext'
+INLINE_SCRIPT_METADATA_REGEX = (
+	r'(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$'
+)
 
-	This allows for cross-platform path specification, while retaining normalized use of '/' in configuration.
 
-	Args:
-		path_proj_root: The path to the project root directory.
-		p_str: The '/'-delimited string denoting a path relative to the project root.
+def parse_inline_script_metadata(
+	*, block_name: str, py_source_code: str
+) -> dict[str, typ.Any] | None:
+	"""Parse inline script metadata from Python source code.
+
+	Parameters:
+		block_name: The name of the metadata block type to parse from the source code's header.
+			For instance, setting this to `script` will parse blocks starting with `# /// script` (and ending with `# ///`).
+		py_source_code: The Python source code to parse for inline script metadata.
+			The script must start with a `# /// TYPE` metadata blocks.
 
 	Returns:
-		The full absolute path to use when ex. packaging.
+		A dictionary of inline script metadata, in a format equivalent to that of `pyproject.toml`, if such metadata could be parsed.
+
+		Otherwise the return value is `None`.
+
+	References:
+		PyPa on Inline Script Metadata: <https://packaging.python.org/en/latest/specifications/inline-script-metadata>
 	"""
-	return path_proj_root / Path(*p_str.split('/'))
+	matches = [
+		match
+		for match in re.finditer(INLINE_SCRIPT_METADATA_REGEX, py_source_code)
+		if match.group('type') == block_name
+	]
+
+	if len(matches) == 1:
+		return tomllib.loads(
+			''.join(
+				line[2:] if line.startswith('# ') else line[1:]
+				for line in matches[0].group('content').splitlines(keepends=True)
+			)
+		)
+
+	if len(matches) > 1:
+		msg = f'Multiple `{block_name}` blocks of inline script metadata were found.'
+		raise ValueError(msg)
+
+	return None
 
 
 ####################
 # - Types
 ####################
-# class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
-class BLExtSpec(pyd.BaseModel):
+class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 	"""Completely encapsulates information about the packaging of a Blender extension.
 
 	This model allows `pyproject.toml` to be the single source of truth for a Blender extension project.
@@ -101,7 +134,7 @@ class BLExtSpec(pyd.BaseModel):
 	Attributes:
 		init_settings_filename: Must be `init_settings.toml`.
 		use_log_file: Whether the extension should default to the use of file logging.
-		log_file_path: The path to the file log (if enabled).
+		log_file_name: The path to the file log (if enabled).
 		log_file_level: The file log level to use (if enabled).
 		use_log_console: Whether the extension should default to the use of console logging.
 		log_console_level: The console log level to use (if enabled).
@@ -129,9 +162,6 @@ class BLExtSpec(pyd.BaseModel):
 		- <https://packaging.python.org/en/latest/guides/writing-pyproject-toml>
 	"""
 
-	# Project Path
-	path_proj_root: Path
-
 	# Platform Support
 	## - For building a platform-specific extension, just copy the model w/this field altered.
 	bl_platforms: frozenset[supported.BLPlatform]
@@ -151,14 +181,14 @@ class BLExtSpec(pyd.BaseModel):
 	####################
 	# - Init Settings
 	####################
-	init_schema_version: typ.Literal['0.1.0'] = pyd.Field(
+	init_settings_schema_version: typ.Literal['0.1.0'] = pyd.Field(
 		default='0.1.0', serialization_alias='schema_version'
 	)
 	## TODO: Conform to extension version?
 
 	# File Logging
 	use_log_file: bool
-	log_file_path: Path
+	log_file_name: str
 	log_file_level: supported.StrLogLevel
 
 	# Console Logging
@@ -195,9 +225,9 @@ class BLExtSpec(pyd.BaseModel):
 	## - "clipboard" (to read and/or write the system clipboard)
 	## - "camera" (to capture photos and videos)
 	## - "microphone" (to capture audio)
-	permissions: dict[
+	permissions: FrozenDict[
 		typ.Literal['files', 'network', 'clipboard', 'camera', 'microphone'], str
-	] = {}
+	] = frozendict()
 
 	# Addon Tags
 	tags: tuple[
@@ -240,51 +270,6 @@ class BLExtSpec(pyd.BaseModel):
 	# - Path Properties
 	####################
 	@functools.cached_property
-	def path_proj_spec(self) -> Path:
-		"""Path to the project `pyproject.toml`."""
-		return self.path_proj_root / 'pyproject.toml'
-
-	@functools.cached_property
-	def path_pkg(self) -> Path:
-		"""Path to the Python package of the extension."""
-		return self.path_proj_root / self.id
-
-	@functools.cached_property
-	def path_dev(self) -> Path:
-		"""Path to the project `.dev/` folder, which should not be checked in."""
-		path_dev = self.path_proj_root / '.dev'
-		path_dev.mkdir(exist_ok=True)
-		return path_dev
-
-	@functools.cached_property
-	def path_wheels(self) -> Path:
-		"""Path to the project's downloaded wheel cache."""
-		path_wheels = self.path_dev / 'wheels'
-		path_wheels.mkdir(exist_ok=True)
-		return path_wheels
-
-	@functools.cached_property
-	def path_prepack(self) -> Path:
-		"""Path to the project's prepack folder, where pre-packed `.zip`s are written to."""
-		path_prepack = self.path_dev / 'prepack'
-		path_prepack.mkdir(exist_ok=True)
-		return path_prepack
-
-	@functools.cached_property
-	def path_build(self) -> Path:
-		"""Path to the project's build folder, where extension `.zip`s are written to."""
-		path_build = self.path_dev / 'build'
-		path_build.mkdir(exist_ok=True)
-		return path_build
-
-	@functools.cached_property
-	def path_local(self) -> Path:
-		"""Path to the project's build folder, where extension `.zip`s are written to."""
-		path_build = self.path_dev / 'build'
-		path_build.mkdir(exist_ok=True)
-		return path_build
-
-	@functools.cached_property
 	def filename_zip(self) -> str:
 		"""Deduce the filename of the `.zip` extension file to build."""
 		# Deduce Zip Filename
@@ -298,66 +283,54 @@ class BLExtSpec(pyd.BaseModel):
 		msg = f"Cannot deduce filename of non-universal Blender extension when more than one 'BLPlatform' is supported: {', '.join(self.bl_platforms)}"
 		raise ValueError(msg)
 
-	@functools.cached_property
-	def path_zip(self) -> Path:
-		"""Path to the Blender extension `.zip` to build."""
-		return self.path_build / self.filename_zip
-
-	@functools.cached_property
-	def path_zip_prepack(self) -> Path:
-		"""Path to the Blender extension `.zip` to build."""
-		return self.path_prepack / self.filename_zip
-
 	####################
 	# - Exporters
 	####################
 	@functools.cached_property
 	def init_settings_str(self) -> str:
 		"""The Blender extension manifest TOML as a string."""
-		return tomli_w.dumps(
-			json.loads(
-				self.model_dump_json(
-					include={
-						'init_schema_version',
-						'use_log_file',
-						'log_file_path',
-						'log_file_level',
-						'use_log_console',
-						'log_console_level',
-					},
-					by_alias=True,
-				)
+		json_dict: dict[str, typ.Any] = json.loads(
+			self.model_dump_json(
+				include={
+					'init_settings_schema_version',
+					'use_log_file',
+					'log_file_name',
+					'log_file_level',
+					'use_log_console',
+					'log_console_level',
+				},
+				by_alias=True,
 			)
 		)
+		return tomli_w.dumps(json_dict)
 
 	@functools.cached_property
 	def manifest_str(self) -> str:
 		"""The Blender extension manifest TOML as a string."""
-		return tomli_w.dumps(
-			json.loads(
-				self.model_dump_json(
-					include={
-						'manifest_schema_version',
-						'id',
-						'name',
-						'version',
-						'tagline',
-						'maintainer',
-						'type',
-						'blender_version_min',
-						'blender_version_max',
-						'bl_platforms',
-						'wheel_paths',
-						'permissions',
-						'tags',
-						'license',
-						'copyright',
-					}
-					| ({'website'} if self.website is not None else set()),
-					by_alias=True,
-				)
+		json_dict: dict[str, typ.Any] = json.loads(
+			self.model_dump_json(
+				include={
+					'manifest_schema_version',
+					'id',
+					'name',
+					'version',
+					'tagline',
+					'maintainer',
+					'type',
+					'blender_version_min',
+					'blender_version_max',
+					'bl_platforms',
+					'wheel_paths',
+					'permissions',
+					'tags',
+					'license',
+					'copyright',
+				}
+				| ({'website'} if self.website is not None else set()),
+				by_alias=True,
 			)
 		)
+		return tomli_w.dumps(json_dict)
 
 	####################
 	# - Methods
@@ -613,9 +586,9 @@ class BLExtSpec(pyd.BaseModel):
 	@classmethod
 	def from_proj_spec_dict(
 		cls,
-		proj_spec: dict[str, typ.Any],
 		*,
-		path_proj_root: Path,
+		proj_spec: dict[str, typ.Any],
+		path_proj_spec: Path,
 		release_profile: supported.ReleaseProfile,
 	) -> typ.Self:
 		"""Parse a `BLExtSpec` from a `pyproject.toml` dictionary.
@@ -630,91 +603,122 @@ class BLExtSpec(pyd.BaseModel):
 		####################
 		# - Parsing: Stage 1
 		####################
-		###: Determine whether all fields are accessible.
+		###: Determine whether all required fields are accessible.
 
-		# Parse [project]
+		# [project]
 		if proj_spec.get('project') is not None:
-			project = proj_spec['project']
+			project: dict[str, typ.Any] = proj_spec['project']
 		else:
 			msgs = [
-				f'In `{path_proj_root / "pyproject.toml"}`:',
+				f'In `{path_proj_spec}`:',
 				'- `[project]` table is not defined.',
 			]
 			raise ValueError(*msgs)
 
-		# Parse [tool.blext]
+		# [tool.blext]
 		if (
 			proj_spec.get('tool') is not None
-			and proj_spec['tool'].get('blext') is not None
+			and proj_spec['tool'].get('blext') is not None  # pyright: ignore[reportAny]
+			and isinstance(proj_spec['tool']['blext'], dict)
 		):
-			blext_spec = proj_spec['tool']['blext']
+			blext_spec: dict[str, typ.Any] = proj_spec['tool']['blext']
 		else:
 			msgs = [
-				f'In `{path_proj_root / "pyproject.toml"}`:',
+				f'In `{path_proj_spec}`:',
 				'- `[tool.blext]` table is not defined.',
 			]
 			raise ValueError(*msgs)
 
-		# Parse [tool.blext.profiles]
-		if proj_spec['tool']['blext'].get('profiles') is not None:
-			release_profiles = blext_spec['profiles']
-			if release_profile in release_profiles:
-				release_profile_spec = release_profiles[release_profile]
-			else:
-				msgs = [
-					f'In `{path_proj_root / "pyproject.toml"}`:',
-					f'- `[tool.blext.profiles.{release_profile}]` table is not defined, yet `{release_profile}` is requested.',
+		# [tool.blext.profiles]
+		if blext_spec.get('profiles') is not None:
+			release_profiles: dict[str, typ.Any] = blext_spec['profiles']
+			if release_profile in release_profiles and isinstance(
+				release_profile, dict
+			):
+				release_profile_spec: supported.ReleaseProfileSpec = release_profiles[
+					release_profile
 				]
-				raise ValueError(*msgs)
+			else:
+				release_profile_spec = release_profile.default_spec
 
 		else:
-			msgs = [
-				f'In `{path_proj_root / "pyproject.toml"}`:',
-				'- `[tool.blext.profiles]` table is not defined.',
-			]
-			raise ValueError(*msgs)
+			release_profile_spec = release_profile.default_spec
 
 		####################
 		# - Parsing: Stage 2
 		####################
 		###: Parse values that require transformations.
 
-		field_parse_errs = []
+		field_parse_errs: list[str] = []
 
-		# Parse project.requires-python
+		# project.requires-python
 		if project.get('requires-python') is not None:
-			project_requires_python = project['requires-python'].replace('~= ', '')
+			if isinstance(project['requires-python'], str):
+				project_requires_python = project['requires-python'].replace('~= ', '')
+			else:
+				project_requires_python = None
+				field_parse_errs.append(
+					f'- `project.requires-python` must be a string (current value: {project["requires-python"]})'
+				)
 		else:
-			project_requires_python = ''
+			project_requires_python = None
 			field_parse_errs.append('- `project.requires-python` is not defined.')
+			## TODO: Use validator to check that Blender version corresponds to the Python version.
 
-		# Parse project.maintainers[0]
-		if project.get('maintainers') is not None and len(project['maintainers']) > 0:
-			first_maintainer = project.get('maintainers')[0]
+		# project.maintainers
+		if project.get('maintainers') is not None:
+			if isinstance(project['maintainers'], list):
+				maintainers: list[typ.Any] = project['maintainers']
+				if len(maintainers) > 0 and all(
+					isinstance(maintainer, dict)
+					and 'name' in maintainer
+					and isinstance(maintainer['name'], str)
+					and 'email' in maintainer
+					and isinstance(maintainer['email'], str)
+					for maintainer in maintainers  # pyright: ignore[reportAny]
+				):
+					first_maintainer = maintainers[0]  # pyright: ignore[reportAny]
+				else:
+					first_maintainer = None
+					field_parse_errs.append(
+						f'- `project.maintainers` is malformed. It must be a **non-empty** list of dictionaries, where each dictionary has a "name: str" and an "email: str" field (current value: {maintainers}).'
+					)
+			else:
+				first_maintainer = None
+				field_parse_errs.append(
+					f'- `project.maintainers` must be a list (current value: {project["maintainers"]})'
+				)
 		else:
-			first_maintainer = {'name': None, 'email': None}
+			first_maintainer = {'name': 'None', 'email': 'None'}
+		## TODO: Use validator to check that the email has a valid format.
 
-		# Parse project.license
+		# project.license
 		if (
 			project.get('license') is not None
-			and project['license'].get('text') is not None
+			and isinstance(project['license'], dict)
+			and project['license'].get('text') is not None  # pyright: ignore[reportUnknownMemberType]
+			and isinstance(project['license']['text'], str)
 		):
-			_license = project['license']['text']
+			extension_license = project['license']['text']
 		else:
-			_license = None
+			extension_license = None
 			field_parse_errs.append('- `project.license.text` is not defined.')
 			field_parse_errs.append(
-				'- Please note that all Blender addons MUST have a GPL-compatible license: <https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html>'
+				'- Please note that all Blender addons MUST declare a GPL-compatible license: <https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html>'
 			)
+		## TODO: Check that the license is one of the licenses compatible with Blender. Consider providing a CLI option to ignore this (--i-have-consulted-legal-council-and-swear-its-okay)
 
-		## Parse project.urls.homepage
+		## project.urls.homepage
 		if (
 			project.get('urls') is not None
-			and project['urls'].get('Homepage') is not None
+			and isinstance(project['urls'], dict)
+			and project['urls'].get('Homepage') is not None  # pyright: ignore[reportUnknownMemberType]
+			and isinstance(project['urls']['Homepage'], str)
 		):
 			homepage = project['urls']['Homepage']
 		else:
 			homepage = None
+		## TODO: Use a validator to check that the URL is valid.
 
 		####################
 		# - Parsing: Stage 3
@@ -747,9 +751,16 @@ class BLExtSpec(pyd.BaseModel):
 				'- Example: `copyright = ["<current_year> <proj_name> Contributors`'
 			]
 
+		## TODO:
+		## - Validator name and prety name match Blender's validation.
+		## - Validator version string, match Blender's validation routine.
+		## - Validator for Blender version strings.
+		## - Validator for description, esp. the period at the end.
+		## - Validator for copyright format.
+
 		if field_parse_errs:
 			msgs = [
-				f'In `{path_proj_root / "pyproject.toml"}`:',
+				f'In `{path_proj_spec}`:',
 				*field_parse_errs,
 			]
 			raise ValueError(*msgs)
@@ -758,19 +769,32 @@ class BLExtSpec(pyd.BaseModel):
 		# - Parsing: Stage 4
 		####################
 		###: With guaranteed existance, do qualitative parsing w/pydantic.
-		return cls(
-			path_proj_root=path_proj_root,
+
+		if (
+			project_requires_python is None
+			or release_profile_spec is None
+			or extension_license is None
+			or first_maintainer is None
+		):
+			msg = 'While parsing the project specification, some variables attained a theoretically impossible value. This is a serious bug, please report it!'
+			raise RuntimeError(msg)
+
+		blext_spec: BLExtSpec = cls(
 			req_python_version=project_requires_python,
 			min_glibc_version=blext_spec.get('min_glibc_version', (2, 20)),
 			min_macos_version=blext_spec.get('min_macos_version', (11, 0)),
 			bl_platforms=blext_spec['supported_platforms'],
 			# File Logging
 			use_log_file=release_profile_spec.get('use_log_file', False),
-			log_file_path=release_profile_spec.get('log_file_path', 'addon.log'),
-			log_file_level=release_profile_spec.get('log_file_level', 'debug'),
+			log_file_name=release_profile_spec.get('log_file_name', 'addon.log'),
+			log_file_level=release_profile_spec.get(
+				'log_file_level', supported.StrLogLevel.Debug
+			),
 			# Console Logging
 			use_log_console=release_profile_spec.get('use_log_console', True),
-			log_console_level=release_profile_spec.get('log_console_level', 'debug'),
+			log_console_level=release_profile_spec.get(
+				'log_console_level', supported.StrLogLevel.Debug
+			),
 			# Basics
 			id=project['name'],
 			name=blext_spec['pretty_name'],
@@ -784,7 +808,7 @@ class BLExtSpec(pyd.BaseModel):
 			permissions=blext_spec.get('permissions', {}),
 			# Addon Tags
 			tags=blext_spec['bl_tags'],
-			license=(f'SPDX:{_license}',),
+			license=(f'SPDX:{extension_license}',),
 			copyright=blext_spec['copyright'],
 			website=homepage,
 		)
@@ -807,15 +831,29 @@ class BLExtSpec(pyd.BaseModel):
 		"""
 		# Load File
 		if path_proj_spec.is_file():
-			with path_proj_spec.open('rb') as f:
-				proj_spec = tomllib.load(f)
+			if path_proj_spec.name == 'pyproject.toml':
+				with path_proj_spec.open('rb') as f:
+					proj_spec = tomllib.load(f)
+			if path_proj_spec.name.endswith('.py'):
+				with path_proj_spec.open('r') as f:
+					proj_spec = parse_inline_script_metadata(
+						block_name=INLINE_BLOCK_NAME,
+						py_source_code=f.read(),
+					)
+
+				if proj_spec is None:
+					msg = f'Could not find inline script metadata in "{path_proj_spec}" (looking for a `# /// {INLINE_BLOCK_NAME}` block)`.'
+					raise ValueError(msg)
+			else:
+				msg = f'Tried to load a Blender extension project specification from "{path_proj_spec}", but it is invalid: Only `pyproject.toml` and `*.py` scripts w/inline script metadata are supported.'
+				raise ValueError(msg)
 		else:
-			msg = f'Could not load file: `{path_proj_spec}`'
+			msg = f'Tried to load a Blender extension project specification from "{path_proj_spec}", but no such file exists.'
 			raise ValueError(msg)
 
 		# Parse Extension Specification
 		return cls.from_proj_spec_dict(
-			proj_spec,
-			path_proj_root=path_proj_spec.parent,
+			proj_spec=proj_spec,
+			path_proj_spec=path_proj_spec,
 			release_profile=release_profile,
 		)
