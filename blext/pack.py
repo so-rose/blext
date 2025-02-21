@@ -27,7 +27,7 @@ import rich
 import rich.progress
 import rich.prompt
 
-from blext import spec
+from . import paths, spec
 
 console = rich.console.Console()
 
@@ -40,20 +40,25 @@ def prepack_bl_extension(blext_spec: spec.BLExtSpec) -> None:
 
 	Since the wheels tend to be the slowest part of packing an extension, a two-step process allows reusing a base `.zip` file that already contains required wheels.
 	"""
+	path_zip_prepack = paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
+
 	# Overwrite
-	if blext_spec.path_zip_prepack.is_file():
-		blext_spec.path_zip_prepack.unlink()
+	if path_zip_prepack.is_file():
+		path_zip_prepack.unlink()
 
 	console.print()
 	console.rule('[bold green]Pre-Packing Extension')
-	with zipfile.ZipFile(
-		blext_spec.path_zip_prepack, 'w', zipfile.ZIP_DEFLATED
-	) as f_zip:
-		# Install Wheels @ /wheels/*
-		## Setup UI
+	with zipfile.ZipFile(path_zip_prepack, 'w', zipfile.ZIP_DEFLATED) as f_zip:
+		####################
+		# - INSTALL: Wheels => /wheels/*.whl
+		####################
 		total_wheel_size = sum(
-			f.stat().st_size for f in blext_spec.path_wheels.rglob('*') if f.is_file()
+			f.stat().st_size
+			for f in paths.path_wheels(blext_spec).rglob('*')
+			if f.is_file()
 		)
+
+		# Setup Progress Bar
 		progress = rich.progress.Progress(
 			rich.progress.TextColumn(
 				'Writing Wheel: {task.description}...',
@@ -67,9 +72,9 @@ def prepack_bl_extension(blext_spec: spec.BLExtSpec) -> None:
 		)
 		progress_task = progress.add_task('Writing Wheels...', total=total_wheel_size)
 
-		## Write Wheels
-		with rich.progress.Live(progress, console=console, transient=True) as live:  # pyright: ignore[reportPrivateLocalImportUsage]
-			for wheel_to_zip in blext_spec.path_wheels.rglob('*.whl'):
+		# Write Wheels
+		with rich.progress.Live(progress, console=console, transient=True) as live:
+			for wheel_to_zip in paths.path_wheels(blext_spec).rglob('*.whl'):
 				f_zip.write(wheel_to_zip, Path('wheels') / wheel_to_zip.name)
 				progress.update(
 					progress_task,
@@ -78,6 +83,7 @@ def prepack_bl_extension(blext_spec: spec.BLExtSpec) -> None:
 				)
 				live.refresh()
 
+		# Report Done
 		console.print('[✔] Wrote Wheels')
 
 
@@ -97,9 +103,12 @@ def pack_bl_extension(
 			When not set, the prepack step will always run.
 		overwrite: If packing to a zip file that already exists, replace it.
 	"""
-	path_zip = blext_spec.path_zip
-	if force_prepack or not blext_spec.path_zip_prepack.is_file():
+	path_zip = paths.path_build(blext_spec) / blext_spec.packed_zip_filename
+	path_zip_prepack = paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
+
+	if force_prepack or not path_zip_prepack.is_file():
 		prepack_bl_extension(blext_spec)
+		## TODO: More robust mechanism for deducing whether to do a prepack?
 
 	# Overwrite Existing ZIP
 	if path_zip.is_file():
@@ -116,33 +125,65 @@ def pack_bl_extension(
 
 	## Copy Prepacked ZIP and Finish Packing
 	with console.status('Copying Prepacked ZIP...', spinner='dots'):
-		_ = shutil.copyfile(blext_spec.path_zip_prepack, path_zip)
+		_ = shutil.copyfile(path_zip_prepack, path_zip)
 	console.print('[✔] Copied Prepacked Extension ZIP')
 
 	with zipfile.ZipFile(path_zip, 'a', zipfile.ZIP_DEFLATED) as f_zip:
-		# Write Blender Extension Manifest @ /blender_manifest.toml
+		####################
+		# - INSTALL: Blender Manifest => /blender_manifest.toml
+		####################
 		with console.status('Writing Extension Manifest...', spinner='dots'):
 			f_zip.writestr(
 				blext_spec.manifest_filename,
-				blext_spec.manifest_str,
+				blext_spec.export_blender_manifest(fmt='toml'),
 			)
 		console.print('[✔] Wrote Extension Manifest')
 
-		# Write Init Settings @ /init_settings.toml
+		####################
+		# - INSTALL: Init Settings => /init_settings.toml
+		####################
 		with console.status('Writing Init Settings...', spinner='dots'):
 			f_zip.writestr(
 				blext_spec.init_settings_filename,
-				blext_spec.init_settings_str,
+				blext_spec.export_init_settings(fmt='toml'),
 			)
 		console.print('[✔] Wrote Init Settings')
 
-		# Install Addon Files @ /*
+		####################
+		# - INSTALL: Addon Files => /*
+		####################
 		with console.status('Writing Addon Files...', spinner='dots'):
-			for file_to_zip in blext_spec.path_pkg.rglob('*'):
-				f_zip.write(
-					file_to_zip,
-					file_to_zip.relative_to(blext_spec.path_pkg),
+			path_pypkg = paths.path_pypkg(blext_spec)
+			path_pysrc = paths.path_pysrc(blext_spec)
+			print(path_pysrc)
+
+			# Project: Write Extension Python Package
+			if path_pypkg is not None:
+				for file_to_zip in path_pypkg.rglob('*'):
+					f_zip.write(
+						file_to_zip,
+						file_to_zip.relative_to(path_pypkg),
+					)
+
+			# Script: Write Script String as __init__.py
+			elif path_pysrc is not None:
+				with path_pysrc.open('r') as f_pysrc:
+					pysrc = f_pysrc.read()
+
+				f_zip.writestr(
+					'__init__.py',
+					pysrc,
 				)
+			else:
+				msg = 'Tried to pack an extension that is neither a project nor a script. Please report this bug.'
+				raise RuntimeError(msg)
+
 		console.print('[✔] Wrote Addon Files')
 
 	console.print(f'[✔] Finished Writing: "{path_zip.name}"')
+
+
+## TODO: Consider supporting a faster ZIP packer, ex. external 7-zip or a Rust module.
+## - See https://nickb.dev/blog/deflate-yourself-for-faster-rust-zips/
+## - Principle is doing everything in RAM, THEN writing out to disk.
+## - This mainly only hurts when prepacking - by the way, aren't wheels already deflated?

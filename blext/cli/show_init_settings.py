@@ -16,12 +16,15 @@
 
 """Implements the `show init_settings` command."""
 
+import typing as typ
 from pathlib import Path
 
-from blext import supported
+import pydantic as pyd
+
+from blext import exceptions as exc
+from blext import extyp, loaders
 
 from ._context_show import APP_SHOW, CONSOLE
-from ._parse import parse_bl_platform, parse_blext_spec
 
 
 ####################
@@ -29,9 +32,11 @@ from ._parse import parse_bl_platform, parse_blext_spec
 ####################
 @APP_SHOW.command(name='init_settings', group='Information')
 def show_init_settings(
-	proj_path: Path | None = None,
-	bl_platform: supported.BLPlatform | None = None,
-	release_profile: supported.ReleaseProfile = supported.ReleaseProfile.Release,
+	proj: Path | None = None,
+	*,
+	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
+	profile: extyp.StandardReleaseProfile | str = 'release',
+	format: typ.Literal['json', 'toml'] = 'toml',  # noqa: A002
 ) -> None:
 	"""Print the complete extension specification.
 
@@ -41,15 +46,14 @@ def show_init_settings(
 		release_profile: The release profile to bake into the extension.
 	"""
 	# Parse CLI
-	blext_spec = parse_blext_spec(
-		proj_path=proj_path,
-		release_profile=release_profile,
-	)
-	bl_platform = parse_bl_platform(
-		blext_spec,
-		bl_platform_hint=bl_platform,
-		detect=True,
-	)
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		blext_spec = loaders.load_bl_platform_into_spec(
+			loaders.load_blext_spec(
+				proj_uri=proj,
+				release_profile_id=profile,
+			),
+			bl_platform_ref=platform,
+		)
 
 	# Show BLExtSpec
-	CONSOLE.print(blext_spec.init_settings_str)
+	CONSOLE.print(blext_spec.export_blender_manifest(fmt=format))

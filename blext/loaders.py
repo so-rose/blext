@@ -14,18 +14,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Load various data from external sources."""
+
+import base64
+import hashlib
+import typing as typ
 from pathlib import Path
 
-import pydantic as pyd
+from . import extyp, finders, paths, spec
 
-import blext.exceptions as exc
-from blext import finders, paths, spec, supported
+HASH_ALGO_SCRIPTPATH = 'sha256'
 
 
-def parse_blext_spec(
+def load_blext_spec(
+	proj_uri: Path | None = None,
 	*,
-	proj_path: Path | None = None,
-	release_profile: supported.ReleaseProfile = supported.ReleaseProfile.Release,
+	release_profile_id: extyp.StandardReleaseProfile | str = 'release',
 ) -> spec.BLExtSpec:
 	"""Parse a `BLExtSpec` from a specified project path and release profile.
 
@@ -44,45 +48,44 @@ def parse_blext_spec(
 	Raises:
 		ValueError: When
 	"""
-	# Parse CLI
-	with exc.handle(exc.pretty, ValueError):
-		path_proj_spec = finders.find_proj_spec(proj_path)
+	path_proj_spec = finders.find_proj_spec(proj_uri)
+	blext_spec = spec.BLExtSpec.from_proj_spec_path(
+		path_proj_spec=path_proj_spec,
+		release_profile_id=release_profile_id,
+	)
 
-	# Parse Blender Extension Specification
-	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = spec.BLExtSpec.from_proj_spec(
-			path_proj_spec=path_proj_spec,
-			release_profile=release_profile,
-		)
-
-	# Register Root Paths for BLExtSpec
+	# Register BLExtSpec -> Project Root Path
 	## - Script BLExt: Use Global Spec Cache for "Project" Root Directory
 	## - Project BLExt: Use Project Spec Cache for "Project" Root Directory
 	if path_proj_spec.name.endswith('.py'):
-		unique_script_id = '???'
+		hasher = hashlib.new(HASH_ALGO_SCRIPTPATH)
+		hasher.update(str(path_proj_spec).encode())
+		unique_script_id = base64.b64encode(hasher.digest(), altchars=b'+-').decode(
+			'utf-8'
+		)[:-1]  ## Slice to chop off the = at the end.
+
+		path_root = paths.PATH_GLOBAL_SCRIPT_CACHE / unique_script_id
+		path_root.mkdir(exist_ok=True)
 		paths.register_blext_spec(
-			blext_spec, paths.PATH_GLOBAL_SPEC_CACHE / unique_script_id
+			blext_spec,
+			path_root=path_root,
+			path_script_source=path_proj_spec,
 		)
 	else:
-		paths.register_blext_spec(blext_spec, path_proj_spec.parent)
+		paths.register_blext_spec(blext_spec, path_root=path_proj_spec.parent)
+
+	return blext_spec
 
 
-def parse_bl_platform(
+def load_bl_platform_into_spec(
 	blext_spec: spec.BLExtSpec,
 	*,
-	bl_platform_hint: supported.BLPlatform | None = None,
-	detect: bool = True,
-) -> supported.BLPlatform:
-	"""Deduce the platform for which build the extension for.
-
-	To specify a particular Blender platform to use, the following sequence of possibilities are tried (in order):
-
-		1. If `bl_platform_hint` is given, then it will be selected.
-		2. If `detect` is given, then the local Blender platform will be detected and selected.
-		3. Otherwise, an error will be thrown.
-
-	**The selected platform must always be compatible with `blext_spec`.**
-	This is also checked automatically.
+	bl_platform_ref: frozenset[extyp.BLPlatform]
+	| extyp.BLPlatform
+	| typ.Literal['detect']
+	| None = None,
+) -> spec.BLExtSpec:
+	"""Constrain the Blender platforms supported by a Blender extension.
 
 	Parameters:
 		blext_spec: The path to a Blender extension project.
@@ -99,14 +102,24 @@ def parse_bl_platform(
 	Raises:
 		ValueError: When either no platform could be selected, or the selected platform is not supported by the extension.
 	"""
-	if bl_platform_hint is not None:
-		## TODO: Suport checking extension support.
-		return bl_platform_hint
+	match bl_platform_ref:
+		case None:
+			return blext_spec
 
-	if bl_platform_hint is None and detect:
-		with exc.handle(exc.pretty, ValueError):
-			return finders.detect_local_blplatform()
+		case 'detect':
+			new_blext_spec = blext_spec.constrain_to_bl_platform(
+				finders.detect_local_blplatform()
+			)
 
-	with exc.handle(exc.pretty, ValueError):
-		msg = 'Tried to find a Blender platform, but no hint was given, and auto-detection was disallowed'
-		raise ValueError(msg)
+		case extyp.BLPlatform():
+			new_blext_spec = blext_spec.constrain_to_bl_platform(bl_platform_ref)
+
+		case frozenset():
+			new_blext_spec = blext_spec.constrain_to_bl_platform(bl_platform_ref)
+
+	# Update BLExtSpec -> Project Root Path Registration
+	## - Constraining the BLExtSpec has changed them.
+	## - Therefore, for there to still be a path registered for the specification, the registration must be updated.
+	paths.update_registered_blext_spec(blext_spec, new_blext_spec)
+
+	return new_blext_spec

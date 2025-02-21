@@ -16,6 +16,7 @@
 
 """Implements the `show deps` command."""
 
+import typing as typ
 from pathlib import Path
 
 import pydantic as pyd
@@ -23,10 +24,9 @@ import rich.markdown
 import rich.table
 
 from blext import exceptions as exc
-from blext import supported, wheels
+from blext import extyp, loaders
 
 from ._context_show import APP_SHOW, CONSOLE
-from ._parse import parse_bl_platform, parse_blext_spec
 
 
 ####################
@@ -34,64 +34,79 @@ from ._parse import parse_bl_platform, parse_blext_spec
 ####################
 @APP_SHOW.command(name='deps', group='Information')
 def show_deps(
-	proj_path: Path | None = None,
-	bl_platform: supported.BLPlatform | None = None,
-	release_profile: supported.ReleaseProfile = supported.ReleaseProfile.Release,
+	proj: Path | None = None,
+	*,
+	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
+	profile: extyp.StandardReleaseProfile | str = 'release',
+	sort_by: typ.Literal['filename', 'size'] = 'size',
+	format: typ.Literal['table'] = 'table',  # noqa: A002
 ) -> None:
 	"""Print the complete extension specification.
 
 	Parameters:
-		bl_platform: The Blender platform to build the extension for.
-		proj_path: Path to a `pyproject.toml` or a folder containing a `pyproject.toml`, which specifies the Blender extension.
-		release_profile: The release profile to bake into the extension.
+		proj: Path to the Blender extension project.
+		bl_platform: Blender platform(s) to constrain the extension to.
+			Use "detect" to constrain to detect the current platform.
+		release_profile: The release profile to apply to the extension.
+		sort_by: How to sort the project dependencies table.
+		format: The text format to show the project dependencies with.
 	"""
 	# Parse CLI
-	blext_spec = parse_blext_spec(
-		proj_path=proj_path,
-		release_profile=release_profile,
-	)
-	if bl_platform is not None:
-		bl_platform = parse_bl_platform(
-			blext_spec,
-			bl_platform_hint=bl_platform,
-			detect=False,
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		blext_spec = loaders.load_bl_platform_into_spec(
+			loaders.load_blext_spec(
+				proj_uri=proj,
+				release_profile_id=profile,
+			),
+			bl_platform_ref=platform,
 		)
-		blext_spec = blext_spec.constrain_to_bl_platform(bl_platform)
 
-	# Show BLExtSpec
+	# Sort Wheels
 	with exc.handle(exc.pretty, ValueError):
-		blext_wheels: list[wheels.BLExtWheel] = sorted(
-			blext_spec.wheels, key=lambda el: int(el.size) if el.size is not None else 0
+		blext_wheels = sorted(
+			blext_spec.wheels_graph.wheels,
+			key={
+				'filename': lambda wheel: wheel.filename,
+				'size': lambda wheel: wheel.sort_key_size,
+			}[sort_by],
 		)
 
-	byte_size = pyd.ByteSize(
-		sum(int(wheel.size) if wheel.size is not None else 0 for wheel in blext_wheels)
-	)
+	####################
+	# - UI: Create Table w/Wheel Data
+	####################
+	if format == 'table':
+		# Assemble Table of Wheels
+		table = rich.table.Table()
+		table.add_column('Name')
+		table.add_column('Version', no_wrap=True)
+		table.add_column('Platforms')
+		table.add_column('Py|ABI', no_wrap=True)
+		table.add_column('Size', no_wrap=True)
 
-	table = rich.table.Table()
-	table.add_column('Name')
-	table.add_column('Version', no_wrap=True)
-	table.add_column('Platforms')
-	table.add_column('Py|ABI', no_wrap=True)
-	table.add_column('Size', no_wrap=True)
-
-	for wheel in blext_wheels:
+		for wheel in blext_wheels:
+			table.add_row(
+				wheel.project,
+				wheel.version,
+				', '.join(list(wheel.platform_tags)),
+				', '.join(list(wheel.python_tags))
+				+ '|'
+				+ ', '.join(list(wheel.abi_tags)),
+				wheel.size.human_readable(decimal=True, separator=' ')
+				if wheel.size is not None
+				else 'Unknown',
+			)
+		table.add_section()
 		table.add_row(
-			wheel.project,
-			wheel.version,
-			', '.join(list(wheel.platform_tags)),
-			', '.join(list(wheel.python_tags)) + '|' + ', '.join(list(wheel.abi_tags)),
-			wheel.size.human_readable(decimal=True, separator=' ')
-			if wheel.size is not None
-			else 'Unknown',
+			f'={len(blext_spec.wheels_graph.wheels)} wheels',
+			'',
+			', '.join(blext_spec.bl_platforms),
+			'',
+			f'={blext_spec.wheels_graph.total_size_bytes.human_readable(decimal=True, separator=" ")}',
 		)
-	table.add_section()
-	table.add_row(
-		f'={len(blext_spec.wheels)} wheels',
-		'',
-		', '.join(blext_spec.bl_platforms),
-		'',
-		f'={byte_size.human_readable(decimal=True, separator=" ")}',
-	)
+		## TODO: A column that checks whether the wheel is downloaded/cached?
+		## TODO: Export as ex.
 
-	CONSOLE.print(table)
+		####################
+		# - UI: Print
+		####################
+		CONSOLE.print(table)

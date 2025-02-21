@@ -14,10 +14,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from .extyp import BLPlatform, ReleaseProfile, StandardReleaseProfile, StrLogLevel
 from .spec import BLExtSpec
-from .supported import ReleaseProfile
 
 __all__ = [
 	'BLExtSpec',
+	'BLPlatform',
 	'ReleaseProfile',
+	'StandardReleaseProfile',
+	'StrLogLevel',
 ]

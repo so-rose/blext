@@ -21,13 +21,13 @@ import platform
 import shutil
 from pathlib import Path
 
-from .supported import BLPlatform
+from . import extyp
 
 
 ####################
 # - Project Information
 ####################
-def search_parents(path: Path, filename: str) -> Path | None:
+def search_in_parents(path: Path, filename: str) -> Path | None:
 	"""Search all parents of a path for a file.
 
 	Notes:
@@ -50,14 +50,14 @@ def search_parents(path: Path, filename: str) -> Path | None:
 			return file_path.resolve()
 
 	# Recurse
-	return search_parents(p.parent, filename)
+	return search_in_parents(path.parent, filename)
 
 
-def find_proj_spec(proj_path: Path | None) -> Path:
+def find_proj_spec(proj_uri: Path | None) -> Path:
 	"""Locate the project specification by scanning the given project path.
 
 	Parameters:
-		proj_path: Use to search for a project specification.
+		proj_uri: Use to search for a project specification.
 			May refer to any of:
 
 			- File (`pyproject.toml`): Must contain `[tool.blext]` fields.'
@@ -75,23 +75,32 @@ def find_proj_spec(proj_path: Path | None) -> Path:
 		- Inline Script Metadata: <https://packaging.python.org/en/latest/specifications/inline-script-metadata/#reference-implementation>
 	"""
 	# Search for Project Specification
-	if proj_path is None:
-		path_proj_spec = search_parents(Path.cwd(), 'pyproject.toml')
-	elif proj_path.is_file() and (
-		proj_path.name.endswith('.py') or proj_path.name == 'pyproject.toml'
+	if proj_uri is None:
+		path_proj_spec = search_in_parents(Path.cwd(), 'pyproject.toml')
+	elif proj_uri.is_file() and (
+		proj_uri.name.endswith('.py') or proj_uri.name == 'pyproject.toml'
 	):
-		path_proj_spec = proj_path
-	elif proj_path.is_dir():
-		path_proj_spec = proj_path / 'pyproject.toml'
+		path_proj_spec = proj_uri
+	elif proj_uri.is_dir():
+		path_proj_spec = proj_uri / 'pyproject.toml'
 	else:
 		path_proj_spec = None
+
+	## TODO: Handle using URLs as proj_uri:
+	## - git URL (w/optional ref): blext handles cloning to a cached path.
+	## - Online .py (w/inline metadata): blext handles downloading to a cached path and running.
+	## TODO: OR, hear me out.
+	## - We could go ahead and *only* download the pyproject.toml (or, well, we'd need to get the entire .py).
+	## - We could then register the URL as the project path in 'paths'.
+	## - Then, whenever 'paths' is asked for 'path_pypkg', THEN AND ONLY THEN does it 'git clone'.
+	## - This allows for ex. analyzing the dependencies of remote repos without a full clone.
 
 	# Found Project Spec
 	if path_proj_spec is not None:
 		return path_proj_spec.resolve()
 
 	msgs = [
-		f'No Blender extension information could be found from the given path "{proj_path}".',
+		f'No Blender extension information could be found from the given path "{proj_uri}".',
 		'Path must be one of:',
 		'- File (`pyproject.toml`): Must contain `[tool.blext]` fields.',
 		'- Script (`*.py`): Must contain `[tool.blext]` fields as "inline script metadata".',
@@ -104,7 +113,7 @@ def find_proj_spec(proj_path: Path | None) -> Path:
 ####################
 # - Platform Information
 ####################
-def detect_local_blplatform() -> BLPlatform:
+def detect_local_blplatform() -> extyp.BLPlatform:
 	"""Deduce the local Blender platform from `platform.system()` and `platform.machine()`.
 
 	References:
@@ -124,17 +133,17 @@ def detect_local_blplatform() -> BLPlatform:
 
 	match (platform_system, platform_machine):
 		case ('linux', 'x86_64' | 'amd64'):
-			return BLPlatform.linux_x64
+			return extyp.BLPlatform.linux_x64
 		case ('linux', arch) if arch.startswith(('aarch64', 'arm')):
-			return BLPlatform.linux_arm64
+			return extyp.BLPlatform.linux_arm64
 		case ('darwin', 'x86_64' | 'amd64'):
-			return BLPlatform.macos_x64
+			return extyp.BLPlatform.macos_x64
 		case ('darwin', arch) if arch.startswith(('aarch64', 'arm')):
-			return BLPlatform.macos_arm64
+			return extyp.BLPlatform.macos_arm64
 		case ('windows', 'x86_64' | 'amd64'):
-			return BLPlatform.windows_x64
+			return extyp.BLPlatform.windows_x64
 		case ('windows', arch) if arch.startswith(('aarch64', 'arm')):
-			return BLPlatform.windows_arm64
+			return extyp.BLPlatform.windows_arm64
 		case _:
 			msg = "Could not detect a local operating system supported by Blender from 'platform.system(), platform.machine() = {platform_system}, {platform_machine}'"
 			raise ValueError(msg)
@@ -151,7 +160,7 @@ def find_blender_exe() -> Path:
 	"""
 	bl_platform = detect_local_blplatform()
 	match bl_platform:
-		case BLPlatform.linux_x64 | BLPlatform.linux_arm64:
+		case extyp.BLPlatform.linux_x64 | extyp.BLPlatform.linux_arm64:
 			blender_exe = shutil.which('blender')
 			if blender_exe is not None:
 				return Path(blender_exe)
@@ -159,7 +168,7 @@ def find_blender_exe() -> Path:
 			msg = "Couldn't find executable command 'blender' on the system PATH. Is it installed?"
 			raise ValueError(msg)
 
-		case BLPlatform.macos_arm64 | BLPlatform.macos_x64:
+		case extyp.BLPlatform.macos_arm64 | extyp.BLPlatform.macos_x64:
 			# Search PATH: 'blender'
 			blender_exe = shutil.which('blender')
 			if blender_exe is not None:
@@ -173,7 +182,7 @@ def find_blender_exe() -> Path:
 			msg = "Couldn't find Blender executable (tried searching for 'blender' on the system path, and at '/Applications/Blender.app/Contents/MacOS/Blender'). Is it installed?"
 			raise ValueError(msg)
 
-		case BLPlatform.windows_x64 | BLPlatform.windows_arm64:
+		case extyp.BLPlatform.windows_x64 | extyp.BLPlatform.windows_arm64:
 			# Search PATH: 'blender'
 			blender_exe = shutil.which('blender')
 			if blender_exe is not None:

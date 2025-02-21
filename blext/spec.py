@@ -18,7 +18,6 @@
 
 import functools
 import json
-import re
 import tomllib
 import typing as typ
 from pathlib import Path
@@ -28,7 +27,8 @@ import rich
 import tomli_w
 from frozendict import frozendict
 
-from . import supported, wheels
+from . import extyp, pydeps
+from .utils.inline_script_metadata import parse_inline_script_metadata
 from .utils.pydantic_frozen_dict import FrozenDict
 
 CONSOLE = rich.console.Console()
@@ -66,55 +66,6 @@ ValidBLTags: typ.TypeAlias = typ.Literal[
 	'User Interface',
 	'UV',
 ]
-
-
-####################
-# - Parsing
-####################
-INLINE_BLOCK_NAME = 'blext'
-INLINE_SCRIPT_METADATA_REGEX = (
-	r'(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$'
-)
-
-
-def parse_inline_script_metadata(
-	*, block_name: str, py_source_code: str
-) -> dict[str, typ.Any] | None:
-	"""Parse inline script metadata from Python source code.
-
-	Parameters:
-		block_name: The name of the metadata block type to parse from the source code's header.
-			For instance, setting this to `script` will parse blocks starting with `# /// script` (and ending with `# ///`).
-		py_source_code: The Python source code to parse for inline script metadata.
-			The script must start with a `# /// TYPE` metadata blocks.
-
-	Returns:
-		A dictionary of inline script metadata, in a format equivalent to that of `pyproject.toml`, if such metadata could be parsed.
-
-		Otherwise the return value is `None`.
-
-	References:
-		PyPa on Inline Script Metadata: <https://packaging.python.org/en/latest/specifications/inline-script-metadata>
-	"""
-	matches = [
-		match
-		for match in re.finditer(INLINE_SCRIPT_METADATA_REGEX, py_source_code)
-		if match.group('type') == block_name
-	]
-
-	if len(matches) == 1:
-		return tomllib.loads(
-			''.join(
-				line[2:] if line.startswith('# ') else line[1:]
-				for line in matches[0].group('content').splitlines(keepends=True)
-			)
-		)
-
-	if len(matches) > 1:
-		msg = f'Multiple `{block_name}` blocks of inline script metadata were found.'
-		raise ValueError(msg)
-
-	return None
 
 
 ####################
@@ -164,23 +115,20 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 
 	# Platform Support
 	## - For building a platform-specific extension, just copy the model w/this field altered.
-	bl_platforms: frozenset[supported.BLPlatform]
+	bl_platforms: frozenset[extyp.BLPlatform]
+	wheels_graph: pydeps.BLExtWheelsGraph
 
 	# Versions
 	req_python_version: str
 	min_glibc_version: tuple[int, int] = (2, 20)
 	min_macos_version: tuple[int, int] = (11, 0)
 	## TODO: Constrained integers for both
-
-	####################
-	# - Packed Filenames
-	####################
-	init_settings_filename: typ.Literal['init_settings.toml'] = 'init_settings.toml'
-	manifest_filename: typ.Literal['blender_manifest.toml'] = 'blender_manifest.toml'
+	## TODO: Perhaps keep a BLExtWheelsGraph on here instead?
 
 	####################
 	# - Init Settings
 	####################
+	init_settings_filename: typ.Literal['init_settings.toml'] = 'init_settings.toml'
 	init_settings_schema_version: typ.Literal['0.1.0'] = pyd.Field(
 		default='0.1.0', serialization_alias='schema_version'
 	)
@@ -189,15 +137,16 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 	# File Logging
 	use_log_file: bool
 	log_file_name: str
-	log_file_level: supported.StrLogLevel
+	log_file_level: extyp.StrLogLevel
 
 	# Console Logging
 	use_log_console: bool
-	log_console_level: supported.StrLogLevel
+	log_console_level: extyp.StrLogLevel
 
 	####################
 	# - Extension Manifest
 	####################
+	manifest_filename: typ.Literal['blender_manifest.toml'] = 'blender_manifest.toml'
 	manifest_schema_version: typ.Literal['1.0.0'] = pyd.Field(
 		default='1.0.0', serialization_alias='schema_version'
 	)
@@ -206,7 +155,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 	id: str
 	name: str
 	version: str
-	tagline: str
+	tagline: pyd.constr(
+		max_length=64,
+		pattern=r'^[a-zA-Z0-9\ \=\+\!\@\#\$\%\^\&\*\(\)\-\_\\\|\;\:\'\"\/\?\{\[\}\]]{1,63}[a-zA-Z0-9]$',
+	)
 	maintainer: str
 
 	## TODO: Validator on tagline that prohibits ending with punctuation
@@ -214,8 +166,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 
 	# Blender Compatibility
 	type: typ.Literal['add-on'] = 'add-on'
-	blender_version_min: str
-	blender_version_max: str
+	blender_version_min: pyd.constr(pattern=r'^[4-9]+\.[3-9]+\.[0-9]+$')
+	blender_version_max: pyd.constr(pattern=r'^[4-9]+\.[3-9]+\.[0-9]+$')
 
 	# OS/Arch Compatibility
 
@@ -238,42 +190,44 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 	copyright: tuple[str, ...]
 	website: pyd.HttpUrl | None = None
 
+	####################
+	# - Identity Attributes
+	####################
 	@property
-	def is_universal_blext(self) -> bool:
+	def is_universal(self) -> bool:
 		"""Whether this extension supports all Blender platforms.
 
 		This will generally be the case for pure-Python extensions.
 		"""
-		return frozenset(supported.BLPlatform) == self.bl_platforms
+		return frozenset(extyp.BLPlatform) == self.bl_platforms
 
 	####################
-	# - Extension Manifest: Computed Properties
+	# - Packing Information
 	####################
-	@pyd.computed_field
+	@pyd.computed_field(alias='platforms')
 	@property
-	def platforms(self) -> list[supported.BLPlatform]:
-		"""Operating systems supported by the extension."""
+	def packed_platforms(self) -> list[extyp.BLPlatform]:
+		"""Sorted variant of `self.bl_platforms`."""
 		return sorted(self.bl_platforms)
 
 	@pyd.computed_field(alias='wheels')
 	@property
-	def wheel_paths(self) -> tuple[str, ...]:
-		"""Path to all shipped wheels, relative to the root of the unpacked extension `.zip` file."""
+	def packed_wheel_paths(self) -> tuple[str, ...]:
+		"""Path to all shipped wheels within the packed `.zip` file."""
 		return tuple(
 			[
 				f'./wheels/{wheel.filename}'
-				for wheel in sorted(self.wheels, key=lambda el: el.project)
+				for wheel in sorted(
+					self.wheels_graph.wheels, key=lambda wheel: wheel.project
+				)
 			]
 		)
 
-	####################
-	# - Path Properties
-	####################
 	@functools.cached_property
-	def filename_zip(self) -> str:
-		"""Deduce the filename of the `.zip` extension file to build."""
+	def packed_zip_filename(self) -> str:
+		"""Filename of the `.zip` file to build as a Blender extension."""
 		# Deduce Zip Filename
-		if self.is_universal_blext:
+		if self.is_universal:
 			return f'{self.id}__{self.version}.zip'
 
 		if len(self.bl_platforms) == 1:
@@ -286,57 +240,77 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 	####################
 	# - Exporters
 	####################
-	@functools.cached_property
-	def init_settings_str(self) -> str:
-		"""The Blender extension manifest TOML as a string."""
-		json_dict: dict[str, typ.Any] = json.loads(
-			self.model_dump_json(
-				include={
-					'init_settings_schema_version',
-					'use_log_file',
-					'log_file_name',
-					'log_file_level',
-					'use_log_console',
-					'log_console_level',
-				},
-				by_alias=True,
-			)
+	def export_init_settings(self, *, fmt: typ.Literal['json', 'toml']) -> str:
+		"""Initialization settings, as a TOML string."""
+		# Parse Model to JSON
+		## - JSON is used like a Rosetta Stone, since it is best supported by pydantic.
+		json_str = self.model_dump_json(
+			include={
+				'init_settings_schema_version',
+				'use_log_file',
+				'log_file_name',
+				'log_file_level',
+				'use_log_console',
+				'log_console_level',
+			},
+			by_alias=True,
 		)
-		return tomli_w.dumps(json_dict)
 
-	@functools.cached_property
-	def manifest_str(self) -> str:
-		"""The Blender extension manifest TOML as a string."""
-		json_dict: dict[str, typ.Any] = json.loads(
-			self.model_dump_json(
-				include={
-					'manifest_schema_version',
-					'id',
-					'name',
-					'version',
-					'tagline',
-					'maintainer',
-					'type',
-					'blender_version_min',
-					'blender_version_max',
-					'bl_platforms',
-					'wheel_paths',
-					'permissions',
-					'tags',
-					'license',
-					'copyright',
-				}
-				| ({'website'} if self.website is not None else set()),
-				by_alias=True,
-			)
+		# Return String as Format
+		if fmt == 'json':
+			return json_str
+		if fmt == 'toml':
+			json_dict: dict[str, typ.Any] = json.loads(json_str)
+			return tomli_w.dumps(json_dict)
+
+		msg = (
+			f'Cannot export initialization settings to the given unknown format: {fmt}'
 		)
-		return tomli_w.dumps(json_dict)
+		raise ValueError(msg)
+
+	def export_blender_manifest(self, *, fmt: typ.Literal['json', 'toml']) -> str:
+		"""Blender extension manifest, as a TOML string."""
+		# Parse Model to JSON
+		## - JSON is used like a Rosetta Stone, since it is best supported by pydantic.
+		json_str = self.model_dump_json(
+			include={
+				'manifest_schema_version',
+				'id',
+				'name',
+				'version',
+				'tagline',
+				'maintainer',
+				'type',
+				'blender_version_min',
+				'blender_version_max',
+				'packed_platforms',
+				'packed_wheel_paths',
+				'permissions',
+				'tags',
+				'license',
+				'copyright',
+			}
+			| ({'website'} if self.website is not None else set()),
+			by_alias=True,
+		)
+
+		# Return String as Format
+		if fmt == 'json':
+			return json_str
+		if fmt == 'toml':
+			json_dict: dict[str, typ.Any] = json.loads(json_str)
+			return tomli_w.dumps(json_dict)
+
+		msg = (
+			f'Cannot export initialization settings to the given unknown format: {fmt}'
+		)
+		raise ValueError(msg)
 
 	####################
 	# - Methods
 	####################
 	def constrain_to_bl_platform(
-		self, bl_platform: frozenset[supported.BLPlatform] | supported.BLPlatform | None
+		self, bl_platform: frozenset[extyp.BLPlatform] | extyp.BLPlatform | None
 	) -> typ.Self:
 		"""Create a new `BLExtSpec`, which supports only one operating system.
 
@@ -348,7 +322,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 
 		"""
 		if bl_platform is None:
-			bl_platforms = frozenset({supported.BLPlatform})
+			bl_platforms = frozenset({extyp.BLPlatform})
 		elif isinstance(bl_platform, set | frozenset):
 			bl_platforms = bl_platform
 		else:
@@ -357,227 +331,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 		return self.model_copy(
 			update={
 				'bl_platforms': bl_platforms,
+				'wheels_graph': self.wheels_graph.model_copy(
+					update={'supported_bl_platforms': bl_platforms}
+				),
 			},
 			deep=True,
-		)
-
-	####################
-	# - Wheel Management
-	####################
-	@functools.cached_property
-	def wheels(self) -> frozenset[wheels.BLExtWheel]:
-		"""All wheels needed by this Blender extension."""
-		all_wheels = {
-			wheel: wheel.get_compatible_bl_platforms(
-				valid_python_tags=frozenset(
-					{
-						'py3',
-						'cp36',
-						'cp37',
-						'cp38',
-						'cp39',
-						'cp310',
-						'cp311',
-					}
-				),
-				valid_abi_tags=frozenset(
-					{
-						'none',
-						'abi3',
-						#'cp36',
-						#'cp37',
-						#'cp38',
-						#'cp39',
-						#'cp310',
-						'cp311',
-					}
-				),
-				min_glibc_version=self.min_glibc_version,
-				min_macos_version=self.min_macos_version,
-			)
-			for wheel in wheels.parse_all_possible_wheels(self.path_proj_root)
-		}
-
-		####################
-		# - Build the Wheel Graph
-		####################
-		wheels_graph: dict[str, dict[supported.BLPlatform, list[wheels.BLExtWheel]]] = {
-			package_name: {bl_platform: [] for bl_platform in self.bl_platforms}
-			for package_name in wheels.parse_all_package_names(self.path_proj_root)
-		}
-		for wheel, wheel_bl_platforms in all_wheels.items():
-			for wheel_bl_platform in wheel_bl_platforms:
-				if wheel_bl_platform in self.bl_platforms:
-					wheels_graph[wheel.project][wheel_bl_platform].append(wheel)
-
-		####################
-		# - Deduplicate: Select ONE Wheel Per-Dependency Per-Platform
-		####################
-		for package_name, wheels_by_project in wheels_graph.items():
-			for bl_platform, wheels_by_platform in wheels_by_project.items():
-				if len(wheels_by_platform) > 1:
-					# Windows: Pick win_amd64 over win32.
-					if bl_platform is supported.BLPlatform.windows_x64:
-						wheels_graph[package_name][bl_platform] = sorted(
-							wheels_by_platform,
-							key=lambda el: sum(
-								{'any': 2, 'win32': 1, 'win_amd64': 0}[platform_tag]
-								for platform_tag in el.platform_tags
-							),
-						)[:1]
-					## TODO: Perhaps sort such that highest version gets picked first?
-
-					# Linux: Sort by GLIBC version and pick the highest valid version.
-					elif bl_platform in [
-						supported.BLPlatform.linux_x64,
-						supported.BLPlatform.linux_arm64,
-					]:
-
-						def glibc_versions(
-							wheel: wheels.BLExtWheel,
-							bl_platform: supported.BLPlatform,
-						) -> list[tuple[int, int]]:
-							glibc_versions = [
-								wheel.glibc_version(platform_tag)
-								for platform_tag in wheel.platform_tags
-								if any(
-									platform_tag.endswith(pypi_arch)
-									for pypi_arch in bl_platform.pypi_arches
-								)
-							]
-
-							return [
-								glibc_version
-								for glibc_version in glibc_versions
-								if glibc_version is not None
-							]
-
-						wheels_graph[package_name][bl_platform] = list(
-							sorted(
-								wheels_by_platform,
-								key=lambda el: -int(el.size) if el.size else 0,
-							)[:1]
-							## TODO: Perhaps sort such that highest version gets picked first?
-						)
-
-					# MacOS: Sort by OS version and pick the highest valid version.
-					elif bl_platform in [
-						supported.BLPlatform.macos_x64,
-						supported.BLPlatform.macos_arm64,
-					]:
-
-						def macos_versions(
-							wheel: wheels.BLExtWheel,
-							bl_platform: supported.BLPlatform,
-						) -> list[tuple[int, int]]:
-							macos_versions = [
-								wheel.macos_version(platform_tag)
-								for platform_tag in wheel.platform_tags
-								if any(
-									platform_tag.endswith(pypi_arch)
-									for pypi_arch in bl_platform.pypi_arches
-								)
-							]
-
-							return [
-								macos_version
-								for macos_version in macos_versions
-								if macos_version is not None
-							]
-
-						wheels_graph[package_name][bl_platform] = list(
-							sorted(
-								wheels_by_platform,
-								key=lambda el: -int(el.size) if el.size else 0,
-								## TODO: Perhaps sort such that highest version gets picked first?
-							)[:1]
-						)
-
-		####################
-		# - Validate: Ensure All Deps + Platforms Have ==1 Wheel
-		####################
-		num_missing_deps = 0
-		missing_dep_msgs: list[str] = []
-		for package_name, wheels_by_project in wheels_graph.items():
-			for bl_platform, wheels_by_platform in wheels_by_project.items():
-				if len(wheels_by_platform) == 0:
-					num_missing_deps += 1
-					all_candidate_wheels = sorted(
-						[
-							wheel
-							for wheel in wheels.parse_all_possible_wheels(
-								self.path_proj_root
-							)
-							if wheel.project == package_name
-						],
-						key=lambda el: el.filename,
-					)
-
-					min_glibc_str = '.'.join(str(i) for i in self.min_glibc_version)
-					min_macos_str = '.'.join(str(i) for i in self.min_macos_version)
-					msgs = [
-						f'**{package_name}** not found for `{bl_platform}`.',
-						*(
-							[
-								'|  **Possible Causes**:',
-								'|  - `...manylinux_M_m_<arch>.whl` wheels require `glibc >= M.m`.',
-								f'|  - This extension is set to require `glibc >= {min_glibc_str}`.',
-								f'|  - Therefore, only wheels with `macos <= {min_glibc_str}` can be included.',
-								'|  ',
-								'|  **Suggestions**:',
-								'|  - Try raising `min_glibc_version = [M, m]` in `[tool.blext]`.',
-								'|  - _This may make the extension incompatible with older machines_.',
-							]
-							if bl_platform.startswith('linux')
-							else []
-						),
-						*(
-							[
-								'|  **Possible Causes**:',
-								'|  - `...macosx_M_m_<arch>.whl` wheels require `macos >= M.m`.',
-								f'|  - This extension is set to require `macos >= {min_macos_str}`.',
-								f'|  - Therefore, only wheels with `macos <= {min_macos_str}` can be included.',
-								'|  ',
-								'|  **Suggestions**:',
-								'|  - Try raising `min_macos_version = [M, m]` in `[tool.blext]`.',
-								'|  - _This may make the extension incompatible with older machines_.',
-							]
-							if bl_platform.startswith('macos')
-							else []
-						),
-						*(
-							[
-								'|  ',
-								'|  **Rejected Wheels**:',
-							]
-							+ [
-								f'|  - {candidate_wheel.filename}'
-								for candidate_wheel in all_candidate_wheels
-							]
-						),
-						'|',
-					]
-					for msg in msgs:
-						missing_dep_msgs.append(msg)
-
-				if len(wheels_by_platform) > 1:
-					msg = f">1 valid wheel is set to be downloaded for '{package_name}:{bl_platform}', which indicates a bug in 'blext'. Please report this bug!"
-					raise RuntimeError(msg)
-
-		if missing_dep_msgs:
-			missing_dep_msgs.append(f'**Missing Dependencies**: {num_missing_deps}')
-			raise ValueError(*missing_dep_msgs)
-
-		####################
-		# - Flatten Wheel Graph and Return
-		####################
-		return frozenset(
-			{
-				wheel
-				for package_name, wheels_by_package in wheels_graph.items()
-				for bl_platform, wheels_by_platform in wheels_by_package.items()
-				for wheel in wheels_by_platform
-			}
 		)
 
 	####################
@@ -586,10 +344,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 	@classmethod
 	def from_proj_spec_dict(
 		cls,
+		proj_spec_dict: dict[str, typ.Any],
 		*,
-		proj_spec: dict[str, typ.Any],
 		path_proj_spec: Path,
-		release_profile: supported.ReleaseProfile,
+		release_profile_id: extyp.StandardReleaseProfile | str,
 	) -> typ.Self:
 		"""Parse a `BLExtSpec` from a `pyproject.toml` dictionary.
 
@@ -600,49 +358,57 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 			ValueError: If the `pyproject.toml` file does not contain the required tables and/or fields.
 
 		"""
+		is_proj_metadata = path_proj_spec.name == 'pyproject.toml'
+		is_script_metadata = path_proj_spec.name.endswith('.py')
+
 		####################
 		# - Parsing: Stage 1
 		####################
 		###: Determine whether all required fields are accessible.
 
 		# [project]
-		if proj_spec.get('project') is not None:
-			project: dict[str, typ.Any] = proj_spec['project']
+		if proj_spec_dict.get('project') is not None:
+			project: dict[str, typ.Any] = proj_spec_dict['project']
 		else:
 			msgs = [
-				f'In `{path_proj_spec}`:',
 				'- `[project]` table is not defined.',
 			]
 			raise ValueError(*msgs)
 
 		# [tool.blext]
 		if (
-			proj_spec.get('tool') is not None
-			and proj_spec['tool'].get('blext') is not None  # pyright: ignore[reportAny]
-			and isinstance(proj_spec['tool']['blext'], dict)
+			proj_spec_dict.get('tool') is not None
+			and proj_spec_dict['tool'].get('blext') is not None  # pyright: ignore[reportAny]
+			and isinstance(proj_spec_dict['tool']['blext'], dict)
 		):
-			blext_spec: dict[str, typ.Any] = proj_spec['tool']['blext']
+			blext_spec_dict: dict[str, typ.Any] = proj_spec_dict['tool']['blext']
 		else:
 			msgs = [
-				f'In `{path_proj_spec}`:',
 				'- `[tool.blext]` table is not defined.',
 			]
 			raise ValueError(*msgs)
 
 		# [tool.blext.profiles]
-		if blext_spec.get('profiles') is not None:
-			release_profiles: dict[str, typ.Any] = blext_spec['profiles']
-			if release_profile in release_profiles and isinstance(
-				release_profile, dict
-			):
-				release_profile_spec: supported.ReleaseProfileSpec = release_profiles[
-					release_profile
-				]
-			else:
-				release_profile_spec = release_profile.default_spec
+		release_profile: None | extyp.ReleaseProfile = None
+		if blext_spec_dict.get('profiles') is not None:
+			project_release_profiles: dict[str, typ.Any] = blext_spec_dict['profiles']
+			if release_profile_id in project_release_profiles:
+				release_profile = extyp.ReleaseProfile(
+					**project_release_profiles[release_profile_id]
+				)
+
+		if release_profile is None and release_profile_id in typ.get_args(
+			extyp.StandardReleaseProfile
+		):
+			release_profile = extyp.ReleaseProfile.default_spec(release_profile_id)  # pyright: ignore[reportArgumentType]
 
 		else:
-			release_profile_spec = release_profile.default_spec
+			msgs = [
+				f'- The selected "release profile" `{release_profile_id}` is not a standard release profile...',
+				'- ... but `[tool.blext.profiles]` does not define.',
+				f'- Please either define `{release_profile_id}` in `[tool.blext.profiles]`, or select a standard release profile from `{set(typ.get_args(extyp.StandardReleaseProfile))}`',
+			]
+			raise ValueError(*msgs)
 
 		####################
 		# - Parsing: Stage 2
@@ -652,20 +418,30 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 		field_parse_errs: list[str] = []
 
 		# project.requires-python
-		if project.get('requires-python') is not None:
-			if isinstance(project['requires-python'], str):
-				project_requires_python = project['requires-python'].replace('~= ', '')
+		project_requires_python: str | None = None
+		if (is_proj_metadata and project.get('requires-python') is not None) or (
+			is_script_metadata and proj_spec_dict.get('requires-python') is not None
+		):
+			if is_proj_metadata:
+				requires_python_field = project['requires-python']
+			elif is_script_metadata:
+				requires_python_field = proj_spec_dict['requires-python']
 			else:
-				project_requires_python = None
+				msg = 'BLExtSpec metadata is neither project nor script metadata. Something is very wrong.'
+				raise RuntimeError(msg)
+
+			if isinstance(requires_python_field, str):
+				project_requires_python = requires_python_field.replace('~= ', '')
+			else:
 				field_parse_errs.append(
 					f'- `project.requires-python` must be a string (current value: {project["requires-python"]})'
 				)
 		else:
-			project_requires_python = None
 			field_parse_errs.append('- `project.requires-python` is not defined.')
 			## TODO: Use validator to check that Blender version corresponds to the Python version.
 
 		# project.maintainers
+		first_maintainer: dict[str, str] | None = None
 		if project.get('maintainers') is not None:
 			if isinstance(project['maintainers'], list):
 				maintainers: list[typ.Any] = project['maintainers']
@@ -677,22 +453,21 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 					and isinstance(maintainer['email'], str)
 					for maintainer in maintainers  # pyright: ignore[reportAny]
 				):
-					first_maintainer = maintainers[0]  # pyright: ignore[reportAny]
+					first_maintainer = maintainers[0]
 				else:
-					first_maintainer = None
 					field_parse_errs.append(
 						f'- `project.maintainers` is malformed. It must be a **non-empty** list of dictionaries, where each dictionary has a "name: str" and an "email: str" field (current value: {maintainers}).'
 					)
 			else:
-				first_maintainer = None
 				field_parse_errs.append(
 					f'- `project.maintainers` must be a list (current value: {project["maintainers"]})'
 				)
 		else:
-			first_maintainer = {'name': 'None', 'email': 'None'}
+			first_maintainer = {'name': 'Unknown', 'email': 'unknown@example.com'}
 		## TODO: Use validator to check that the email has a valid format.
 
 		# project.license
+		extension_license: str | None = None
 		if (
 			project.get('license') is not None
 			and isinstance(project['license'], dict)
@@ -701,7 +476,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 		):
 			extension_license = project['license']['text']
 		else:
-			extension_license = None
 			field_parse_errs.append('- `project.license.text` is not defined.')
 			field_parse_errs.append(
 				'- Please note that all Blender addons MUST declare a GPL-compatible license: <https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html>'
@@ -725,27 +499,27 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 		####################
 		###: Parse field availability and provide for descriptive errors
 
-		if blext_spec.get('supported_platforms') is None:
+		if blext_spec_dict.get('supported_platforms') is None:
 			field_parse_errs += ['- `tool.blext.supported_platforms` is not defined.']
 		if project.get('name') is None:
 			field_parse_errs += ['- `project.name` is not defined.']
-		if blext_spec.get('pretty_name') is None:
+		if blext_spec_dict.get('pretty_name') is None:
 			field_parse_errs += ['- `tool.blext.pretty_name` is not defined.']
 		if project.get('version') is None:
 			field_parse_errs += ['- `project.version` is not defined.']
 		if project.get('description') is None:
 			field_parse_errs += ['- `project.description` is not defined.']
-		if blext_spec.get('blender_version_min') is None:
+		if blext_spec_dict.get('blender_version_min') is None:
 			field_parse_errs += ['- `tool.blext.blender_version_min` is not defined.']
-		if blext_spec.get('blender_version_max') is None:
+		if blext_spec_dict.get('blender_version_max') is None:
 			field_parse_errs += ['- `tool.blext.blender_version_max` is not defined.']
-		if blext_spec.get('bl_tags') is None:
+		if blext_spec_dict.get('bl_tags') is None:
 			field_parse_errs += ['- `tool.blext.bl_tags` is not defined.']
 			field_parse_errs += [
 				'- Valid `bl_tags` values are: '
 				+ ', '.join([f'"{el}"' for el in typ.get_args(ValidBLTags)])
 			]
-		if blext_spec.get('copyright') is None:
+		if blext_spec_dict.get('copyright') is None:
 			field_parse_errs += ['- `tool.blext.copyright` is not defined.']
 			field_parse_errs += [
 				'- Example: `copyright = ["<current_year> <proj_name> Contributors`'
@@ -772,77 +546,89 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 
 		if (
 			project_requires_python is None
-			or release_profile_spec is None
 			or extension_license is None
 			or first_maintainer is None
 		):
 			msg = 'While parsing the project specification, some variables attained a theoretically impossible value. This is a serious bug, please report it!'
 			raise RuntimeError(msg)
 
-		blext_spec: BLExtSpec = cls(
+		# Compute Path to uv.lock
+		if path_proj_spec.name == 'pyproject.toml':
+			path_uv_lock = path_proj_spec / 'uv.lock'
+		elif path_proj_spec.name.endswith('.py'):
+			path_uv_lock = path_proj_spec.parent / (path_proj_spec.name + '.lock')
+		else:
+			msg = f'Invalid project specification path: {path_proj_spec}. Please report this error as a bug.'
+			raise RuntimeError(msg)
+
+		return cls(
 			req_python_version=project_requires_python,
-			min_glibc_version=blext_spec.get('min_glibc_version', (2, 20)),
-			min_macos_version=blext_spec.get('min_macos_version', (11, 0)),
-			bl_platforms=blext_spec['supported_platforms'],
+			wheels_graph=pydeps.BLExtWheelsGraph.from_uv_lock(
+				pydeps.uv.parse_uv_lock(path_uv_lock),
+				supported_bl_platforms=blext_spec_dict['supported_platforms'],
+				min_glibc_version=blext_spec_dict.get('min_glibc_version', (2, 20)),
+				min_macos_version=blext_spec_dict.get('min_macos_version', (11, 0)),
+			),
+			bl_platforms=blext_spec_dict['supported_platforms'],
+			####################
+			# - Init Settings
+			####################
 			# File Logging
-			use_log_file=release_profile_spec.get('use_log_file', False),
-			log_file_name=release_profile_spec.get('log_file_name', 'addon.log'),
-			log_file_level=release_profile_spec.get(
-				'log_file_level', supported.StrLogLevel.Debug
-			),
+			use_log_file=release_profile.use_log_file,
+			log_file_name=release_profile.log_file_name,
+			log_file_level=release_profile.log_file_level,
 			# Console Logging
-			use_log_console=release_profile_spec.get('use_log_console', True),
-			log_console_level=release_profile_spec.get(
-				'log_console_level', supported.StrLogLevel.Debug
-			),
+			use_log_console=release_profile.use_log_console,
+			log_console_level=release_profile.log_console_level,
+			####################
+			# - Blender Manifest
+			####################
 			# Basics
 			id=project['name'],
-			name=blext_spec['pretty_name'],
+			name=blext_spec_dict['pretty_name'],
 			version=project['version'],
 			tagline=project['description'],
 			maintainer=f'{first_maintainer["name"]} <{first_maintainer["email"]}>',
 			# Blender Compatibility
-			blender_version_min=blext_spec['blender_version_min'],
-			blender_version_max=blext_spec['blender_version_max'],
+			blender_version_min=blext_spec_dict['blender_version_min'],
+			blender_version_max=blext_spec_dict['blender_version_max'],
 			# Permissions
-			permissions=blext_spec.get('permissions', {}),
+			permissions=blext_spec_dict.get('permissions', {}),
 			# Addon Tags
-			tags=blext_spec['bl_tags'],
+			tags=blext_spec_dict['bl_tags'],
 			license=(f'SPDX:{extension_license}',),
-			copyright=blext_spec['copyright'],
-			website=homepage,
+			copyright=blext_spec_dict['copyright'],
+			website=homepage,  # pyright: ignore[reportArgumentType]
 		)
 
 	@classmethod
-	def from_proj_spec(
+	def from_proj_spec_path(
 		cls,
 		path_proj_spec: Path,
 		*,
-		release_profile: supported.ReleaseProfile,
+		release_profile_id: extyp.StandardReleaseProfile | str,
 	) -> typ.Self:
-		"""Parse a `BLExtSpec` from a `pyproject.toml` file.
+		"""Parse an extension specification from a compatible file.
 
 		Args:
-			path_proj_spec: The path to an appropriately utilized `pyproject.toml` file.
-			release_profile: The profile to load initial settings for.
+			path_proj_spec: Path to either a `pyproject.toml`, or `*.py` script with inline metadata.
+			release_profile_id: The identifier for the release profile, which decides the initialization settings of the extension.
 
 		Raises:
 			ValueError: If the `pyproject.toml` file cannot be loaded, or it does not contain the required tables and/or fields.
 		"""
-		# Load File
 		if path_proj_spec.is_file():
 			if path_proj_spec.name == 'pyproject.toml':
 				with path_proj_spec.open('rb') as f:
-					proj_spec = tomllib.load(f)
+					proj_spec_dict = tomllib.load(f)
 			if path_proj_spec.name.endswith('.py'):
 				with path_proj_spec.open('r') as f:
-					proj_spec = parse_inline_script_metadata(
-						block_name=INLINE_BLOCK_NAME,
+					proj_spec_dict = parse_inline_script_metadata(
 						py_source_code=f.read(),
 					)
 
-				if proj_spec is None:
-					msg = f'Could not find inline script metadata in "{path_proj_spec}" (looking for a `# /// {INLINE_BLOCK_NAME}` block)`.'
+				if proj_spec_dict is None:
+					msg = f'Could not find inline script metadata in "{path_proj_spec}" (looking for a `# /// script` block)`.'
 					raise ValueError(msg)
 			else:
 				msg = f'Tried to load a Blender extension project specification from "{path_proj_spec}", but it is invalid: Only `pyproject.toml` and `*.py` scripts w/inline script metadata are supported.'
@@ -853,7 +639,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 
 		# Parse Extension Specification
 		return cls.from_proj_spec_dict(
-			proj_spec=proj_spec,
+			proj_spec_dict,
 			path_proj_spec=path_proj_spec,
-			release_profile=release_profile,
+			release_profile_id=release_profile_id,
 		)

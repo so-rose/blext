@@ -19,62 +19,69 @@
 import os
 import subprocess
 import sys
+import typing as typ
 from pathlib import Path
 
+import pydantic as pyd
+
 import blext.exceptions as exc
-from blext import finders, pack, supported, wheels
+from blext import extyp, finders, loaders, pack, paths
 
 from ._context import APP, CONSOLE
-from ._parse import parse_bl_platform, parse_blext_spec
 
 
 @APP.command()
 def build(
-	proj_path: Path | None = None,
-	bl_platform: supported.BLPlatform | None = None,
-	release_profile: supported.ReleaseProfile = supported.ReleaseProfile.Release,
+	proj: Path | None = None,
+	*,
+	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
+	profile: extyp.StandardReleaseProfile | str = 'release',
 ) -> None:
 	"""[Build] the extension to an installable `.zip` file.
 
 	Parameters:
-		bl_platform: The Blender platform to build the extension for.
-		proj_path: Path to a `pyproject.toml` or a folder containing a `pyproject.toml`, which specifies the Blender extension.
-		release_profile: The release profile to bake into the extension.
+		proj: Path to the Blender extension project.
+		bl_platform: Blender platform(s) to constrain the extension to.
+			Use "detect" to constrain to detect the current platform.
+		profile: The release profile ID to apply to the extension.
 	"""
-	# Parse CLI
-	blext_spec = parse_blext_spec(
-		proj_path=proj_path,
-		release_profile=release_profile,
-	)
-	bl_platform = parse_bl_platform(
-		blext_spec,
-		bl_platform_hint=bl_platform,
-		detect=True,
-	)
-	blext_spec = blext_spec.constrain_to_bl_platform(bl_platform)
+	####################
+	# - Build Extension
+	####################
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		blext_spec = loaders.load_bl_platform_into_spec(
+			loaders.load_blext_spec(
+				proj_uri=proj,
+				release_profile_id=profile,
+			),
+			bl_platform_ref=platform,
+		)
 
-	# Download Wheels
-	with exc.handle(exc.pretty, ValueError):
-		wheels_changed = wheels.download_wheels(
-			blext_spec.wheels,
-			path_wheels=blext_spec.path_wheels,
+		# Download Wheels
+		wheels_changed = blext_spec.wheels_graph.download_wheels(
+			path_wheels=paths.path_wheels(blext_spec),
 			no_prompt=False,
 		)
+
+		# Pack the Blender Extension
 		if wheels_changed:
 			pack.prepack_bl_extension(blext_spec)
-
-	# Pack the Blender Extension
-	with exc.handle(exc.pretty, ValueError):
 		pack.pack_bl_extension(blext_spec, overwrite=True)
 
-	# Validate the Blender Extension
+	####################
+	# - Validate Extension
+	####################
+	with exc.handle(exc.pretty, ValueError):
+		blender_exe = finders.find_blender_exe()
+
+	## TODO: Dedicated functions so we can reuse this thing
 	CONSOLE.print()
 	CONSOLE.rule('[bold green]Extension Validation')
 	CONSOLE.print('[italic]$ blender --factory-startup --command extension validate')
 	CONSOLE.print()
 	CONSOLE.rule(characters='--', style='gray')
 
-	blender_exe = str(finders.find_blender_exe())
+	path_zip = paths.path_build(blext_spec) / blext_spec.packed_zip_filename
 	bl_process = subprocess.Popen(
 		[
 			blender_exe,
@@ -82,7 +89,7 @@ def build(
 			'--command',  ## Validate an Extension
 			'extension',
 			'validate',
-			str(blext_spec.path_zip),
+			str(path_zip),
 		],
 		bufsize=0,  ## TODO: Check if -1 is OK
 		env=os.environ,

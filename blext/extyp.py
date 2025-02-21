@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Constrained sets of strings denoting some supported set of values.
+"""Abstrctions useful for working with Blender extension types.
 
 String enumerations are used to provide meaningful, editor-friendly choices that are enforced when appropriate ex. in the CLI interface.
 """
@@ -23,6 +23,8 @@ import enum
 import functools
 import logging
 import typing as typ
+
+import pydantic as pyd
 
 
 class BLPlatform(enum.StrEnum):
@@ -79,53 +81,49 @@ class StrLogLevel(enum.StrEnum):
 		}[self]
 
 
-class ReleaseProfileSpec(typ.TypedDict, total=False):
+StandardReleaseProfile: typ.TypeAlias = typ.Literal[
+	'test', 'dev', 'release', 'release-debug'
+]
+
+
+class ReleaseProfile(pyd.BaseModel):
 	use_log_file: bool
 	log_file_name: str
 	log_file_level: StrLogLevel
 	use_log_console: bool
 	log_console_level: StrLogLevel
 
-
-class ReleaseProfile(enum.StrEnum):
-	"""Release profiles supported by Blender extensions managed by BLExt."""
-
-	Test = 'test'
-	Dev = 'dev'
-	Release = 'release'
-	ReleaseDebug = 'release-debug'
-
-	@property
-	def default_spec(self) -> ReleaseProfileSpec:
-		RP = ReleaseProfile
+	@classmethod
+	def default_spec(cls, release_profile_id: StandardReleaseProfile) -> typ.Self:
+		"""A default, sensible release profile specification."""
 		log_file_name = 'addon.log'
 		return {
-			RP.Test: {
-				'use_log_file': True,
-				'log_file_name': log_file_name,
-				'log_file_level': StrLogLevel.Debug,
-				'use_log_console': True,
-				'log_console_level': StrLogLevel.Info,
-			},
-			RP.Dev: {
-				'use_log_file': True,
-				'log_file_name': log_file_name,
-				'log_file_level': StrLogLevel.Debug,
-				'use_log_console': True,
-				'log_console_level': StrLogLevel.Info,
-			},
-			RP.Release: {
-				'use_log_file': False,
-				'log_file_name': log_file_name,
-				'log_file_level': StrLogLevel.Debug,
-				'use_log_console': True,
-				'log_console_level': StrLogLevel.Info,
-			},
-			RP.ReleaseDebug: {
-				'use_log_file': True,
-				'log_file_name': log_file_name,
-				'log_file_level': StrLogLevel.Debug,
-				'use_log_console': True,
-				'log_console_level': StrLogLevel.Debug,
-			},
-		}[self]
+			'test': cls(
+				use_log_file=True,
+				log_file_name=log_file_name,
+				log_file_level=StrLogLevel.Debug,
+				use_log_console=True,
+				log_console_level=StrLogLevel.Info,
+			),
+			'dev': cls(
+				use_log_file=True,
+				log_file_name=log_file_name,
+				log_file_level=StrLogLevel.Debug,
+				use_log_console=True,
+				log_console_level=StrLogLevel.Info,
+			),
+			'release': cls(
+				use_log_file=False,
+				log_file_name=log_file_name,
+				log_file_level=StrLogLevel.Debug,
+				use_log_console=True,
+				log_console_level=StrLogLevel.Warning,
+			),
+			'release-debug': cls(
+				use_log_file=True,
+				log_file_name=log_file_name,
+				log_file_level=StrLogLevel.Debug,
+				use_log_console=True,
+				log_console_level=StrLogLevel.Info,
+			),
+		}[release_profile_id]

@@ -21,35 +21,55 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pydantic as pyd
+
 import blext.exceptions as exc
-from blext import finders, supported
+from blext import extyp, finders, loaders, pack, paths
 
 from ._context import APP, CONSOLE, PATH_BL_INIT_PY
-from ._parse import parse_bl_platform, parse_blext_spec
-from .build import build
 
 
 @APP.command()
 def dev(
-	proj_path: Path | None = None,
+	proj: Path | None = None,
+	*,
+	headless: bool = False,
 ) -> None:
-	"""Launch the local [dev] extension w/Blender."""
-	# Parse CLI
-	blext_spec = parse_blext_spec(
-		proj_path=proj_path,
-		release_profile=supported.ReleaseProfile.Dev,
-	)
-	bl_platform = parse_bl_platform(blext_spec, detect=True)
-	blext_spec = blext_spec.constrain_to_bl_platform(bl_platform)
+	"""Launch the extension locally, using Blender.
 
-	# Build the Extension
-	build(
-		bl_platform=bl_platform,
-		proj_path=proj_path,
-		release_profile=supported.ReleaseProfile.Dev,
-	)
+	Parameters:
+		proj: Path to the Blender extension project.
+		bl_platform: Blender platform(s) to constrain the extension to.
+			Use "detect" to constrain to detect the current platform.
+		release_profile: The release profile to apply to the extension.
+		format: The text format to show the Blender manifest as.
+	"""
+	####################
+	# - Build Extension
+	####################
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		blext_spec = loaders.load_bl_platform_into_spec(
+			loaders.load_blext_spec(
+				proj_uri=proj,
+				release_profile_id='dev',
+			),
+			bl_platform_ref='detect',
+		)
 
-	# Find Blender
+		# Download Wheels
+		wheels_changed = blext_spec.wheels_graph.download_wheels(
+			path_wheels=paths.path_wheels(blext_spec),
+			no_prompt=False,
+		)
+
+		# Pack the Blender Extension
+		if wheels_changed:
+			pack.prepack_bl_extension(blext_spec)
+		pack.pack_bl_extension(blext_spec, overwrite=True)
+
+	####################
+	# - Run Blender
+	####################
 	with exc.handle(exc.pretty, ValueError):
 		blender_exe = finders.find_blender_exe()
 
@@ -61,21 +81,25 @@ def dev(
 	CONSOLE.print()
 	CONSOLE.rule(characters='--', style='gray')
 
+	path_zip = paths.path_build(blext_spec) / blext_spec.packed_zip_filename
 	bl_process = subprocess.Popen(
 		[
 			blender_exe,
 			'--python',
 			str(PATH_BL_INIT_PY),
 			'--factory-startup',  ## Temporarily Disable All Addons
+			*(['--headless'] if headless else []),
 		],
 		bufsize=0,  ## TODO: Check if -1 is OK
 		env=os.environ
 		| {
 			'BLEXT_ADDON_NAME': blext_spec.id,
-			'BLEXT_ZIP_PATH': str(blext_spec.path_zip),
-			'BLEXT_LOCAL_PATH': str(blext_spec.path_local),
+			'BLEXT_ZIP_PATH': str(path_zip),
+			'BLEXT_LOCAL_PATH': str(paths.path_local(blext_spec)),
 		},
 		stdout=sys.stdout,
 		stderr=sys.stderr,
 	)
 	_ = bl_process.wait()
+
+	## TODO: A lot of QOL; for instance, CTRL+C really should quit Blender as well.
