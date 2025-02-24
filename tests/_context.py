@@ -20,7 +20,7 @@ PATH_ROOT = Path(__file__).resolve().parent.parent
 
 EXAMPLES_PROJ_FILES_VALID = [
 	PATH_ROOT / 'examples' / 'simple' / 'pyproject.toml',
-	PATH_ROOT / 'examples' / 'extension_file.py',
+	PATH_ROOT / 'examples' / 'minimal_file_ext.py',
 ]
 
 EXAMPLES_PROJ_FILES_INVALID = [
@@ -29,5 +29,5 @@ EXAMPLES_PROJ_FILES_INVALID = [
 	PATH_ROOT / 'examples' / 'simpl',
 	PATH_ROOT / 'examples' / 'simple' / 'pyproject.json',
 	PATH_ROOT / 'examples' / 'simple' / 'uv.lock',
-	PATH_ROOT / 'extension_file.py.lock',
+	PATH_ROOT / 'minimal_file_ext.py.lock',
 ]
