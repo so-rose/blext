@@ -22,6 +22,7 @@ import tomllib
 import typing as typ
 from pathlib import Path
 
+import annotated_types as atyp
 import pydantic as pyd
 import rich
 import tomli_w
@@ -71,7 +72,7 @@ ValidBLTags: typ.TypeAlias = typ.Literal[
 ####################
 # - Types
 ####################
-class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
+class BLExtSpec(pyd.BaseModel, frozen=True):
 	"""Completely encapsulates information about the packaging of a Blender extension.
 
 	This model allows `pyproject.toml` to be the single source of truth for a Blender extension project.
@@ -115,7 +116,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 
 	# Platform Support
 	## - For building a platform-specific extension, just copy the model w/this field altered.
-	bl_platforms: frozenset[extyp.BLPlatform]
+	bl_platforms: typ.Annotated[
+		frozenset[extyp.BLPlatform],
+		atyp.MinLen(1),
+	]
 	wheels_graph: pydeps.BLExtWheelsGraph
 
 	# Versions
@@ -166,8 +170,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 
 	# Blender Compatibility
 	type: typ.Literal['add-on'] = 'add-on'
-	blender_version_min: pyd.constr(pattern=r'^[4-9]+\.[3-9]+\.[0-9]+$')
-	blender_version_max: pyd.constr(pattern=r'^[4-9]+\.[3-9]+\.[0-9]+$')
+	blender_version_min: pyd.constr(pattern=r'^[4-9]+\.[2-9]+\.[0-9]+$')
+	blender_version_max: pyd.constr(pattern=r'^[4-9]+\.[2-9]+\.[0-9]+$')
 
 	# OS/Arch Compatibility
 
@@ -554,7 +558,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 
 		# Compute Path to uv.lock
 		if path_proj_spec.name == 'pyproject.toml':
-			path_uv_lock = path_proj_spec / 'uv.lock'
+			path_uv_lock = path_proj_spec.parent / 'uv.lock'
 		elif path_proj_spec.name.endswith('.py'):
 			path_uv_lock = path_proj_spec.parent / (path_proj_spec.name + '.lock')
 		else:
@@ -621,7 +625,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):  ## TODO: FrozenDict
 			if path_proj_spec.name == 'pyproject.toml':
 				with path_proj_spec.open('rb') as f:
 					proj_spec_dict = tomllib.load(f)
-			if path_proj_spec.name.endswith('.py'):
+			elif path_proj_spec.name.endswith('.py'):
 				with path_proj_spec.open('r') as f:
 					proj_spec_dict = parse_inline_script_metadata(
 						py_source_code=f.read(),

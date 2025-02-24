@@ -13,6 +13,7 @@ readme = "README.md"
 requires-python = "~=3.11"
 license = { text = "AGPL-3.0-or-later" }
 dependencies = [
+	"annotated-types>=0.7.0",
 	"cyclopts>=3.1.5",
 	"frozendict>=2.4.6",
 	"pydantic>=2.10.5",
@@ -42,8 +43,10 @@ Homepage = "https://git.sofus.io/so-rose/blext"
 dev = [
     "bpy>=4.3.0",
     "commitizen>=4.1.0",
+    "hypothesis>=6.126.0",
     "mypy>=1.14.1",
     "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
     "quartodoc>=0.9.1",
     "ruff>=0.9.1",
 ]

@@ -45,8 +45,7 @@ MANYLINUX_LEGACY_ALIASES = {
 class BLExtWheel(pyd.BaseModel, frozen=True):
 	"""A particular Python dependency needed by a Blender extension."""
 
-	url: pyd.HttpUrl | None = None
-	path: Path | None = None
+	url: pyd.HttpUrl
 
 	hash: str | None = None
 	size: pyd.ByteSize | None = None
@@ -54,19 +53,12 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 	@functools.cached_property
 	def filename(self) -> str:
 		"""Parse the filename of the wheel file."""
-		if self.url is not None:
-			if self.url.path is not None:
-				url_parts = self.url.path.split('/')
-				if url_parts[-1].endswith('.whl'):
-					return url_parts[-1]
+		if self.url.path is not None:
+			url_parts = self.url.path.split('/')
+			if url_parts[-1].endswith('.whl'):
+				return url_parts[-1]
 
-			msg = f"Wheel filename could not be found in URL '{self.url}'"
-			raise RuntimeError(msg)
-
-		if self.path is not None:
-			return self.path.name
-
-		msg = f'BLExtWheel has neither a URL or a Path: {self}'
+		msg = f"Wheel filename could not be found in URL '{self.url}'"
 		raise RuntimeError(msg)
 
 	####################
