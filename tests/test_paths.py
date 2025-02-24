@@ -14,3 +14,32 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import typing as typ
+from pathlib import Path
+
+import hypothesis as hyp
+from hypothesis import strategies as st
+
+import blext
+from blext import paths
+
+from ._context import EXAMPLES_PROJ_FILES_VALID
+
+
+@hyp.given(
+	st.sampled_from(EXAMPLES_PROJ_FILES_VALID),
+	st.sampled_from(typ.get_args(blext.StandardReleaseProfile)),
+)
+def test_paths(
+	proj_uri: Path,
+	release_profile_id: blext.StandardReleaseProfile,
+) -> None:
+	blext_spec = blext.loaders.load_blext_spec(
+		proj_uri, release_profile_id=release_profile_id
+	)
+	_ = paths.path_root(blext_spec)
+	_ = paths.path_dev(blext_spec)
+	_ = paths.path_wheels(blext_spec)
+	_ = paths.path_prepack(blext_spec)
+	_ = paths.path_build(blext_spec)
+	_ = paths.path_local(blext_spec)
