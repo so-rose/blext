@@ -108,7 +108,19 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 	@property
 	def platform_tags(self) -> frozenset[str]:
 		"""The platform tags of the wheel."""
-		return frozenset(self._parsed_wheel_filename.platform_tags)
+		return frozenset(
+			{
+				platform_tag
+				if not platform_tag in MANYLINUX_LEGACY_ALIASES
+				else MANYLINUX_LEGACY_ALIASES[platform_tag]
+				for platform_tag in self._parsed_wheel_filename.platform_tags
+				if not (
+					platform_tag in MANYLINUX_LEGACY_ALIASES
+					and MANYLINUX_LEGACY_ALIASES[platform_tag]
+					in self._parsed_wheel_filename.platform_tags
+				)
+			}
+		)
 
 	def glibc_version(self, platform_tag: str) -> tuple[int, int] | None:
 		"""The GLIBC version that this wheel was compiled with.
