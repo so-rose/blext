@@ -14,14 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from . import network, uv
-from .wheel import MANYLINUX_LEGACY_ALIASES, BLExtWheel
-from .wheels_graph import BLExtWheelsGraph
+from . import inline_script_metadata, pydantic_frozen_dict
 
 __all__ = [
-	'MANYLINUX_LEGACY_ALIASES',
-	'BLExtWheel',
-	'BLExtWheelsGraph',
-	'network',
-	'uv',
+	'inline_script_metadata',
+	'pydantic_frozen_dict',
 ]

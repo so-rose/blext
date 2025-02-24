@@ -14,8 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from . import paths
-from .extyp import BLPlatform, ReleaseProfile, StandardReleaseProfile, StrLogLevel
+from . import exceptions, loaders, pack, paths, pydeps, utils
+from .extyp import (
+	BLPlatform,
+	ReleaseProfile,
+	StandardReleaseProfile,
+	StrLogLevel,
+	ValidBLTags,
+)
 from .spec import BLExtSpec
 
 __all__ = [
@@ -24,5 +30,11 @@ __all__ = [
 	'ReleaseProfile',
 	'StandardReleaseProfile',
 	'StrLogLevel',
+	'ValidBLTags',
+	'exceptions',
+	'loaders',
+	'pack',
 	'paths',
+	'pydeps',
+	'utils',
 ]

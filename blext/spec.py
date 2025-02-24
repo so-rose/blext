@@ -34,40 +34,6 @@ from .utils.pydantic_frozen_dict import FrozenDict
 
 CONSOLE = rich.console.Console()
 
-ValidBLTags: typ.TypeAlias = typ.Literal[
-	'3D View',
-	'Add Curve',
-	'Add Mesh',
-	'Animation',
-	'Bake',
-	'Camera',
-	'Compositing',
-	'Development',
-	'Game Engine',
-	'Geometry Nodes',
-	'Grease Pencil',
-	'Import-Export',
-	'Lighting',
-	'Material',
-	'Modeling',
-	'Mesh',
-	'Node',
-	'Object',
-	'Paint',
-	'Pipeline',
-	'Physics',
-	'Render',
-	'Rigging',
-	'Scene',
-	'Sculpt',
-	'Sequencer',
-	'System',
-	'Text Editor',
-	'Tracking',
-	'User Interface',
-	'UV',
-]
-
 
 ####################
 # - Types
@@ -187,7 +153,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 	# Addon Tags
 	tags: tuple[
-		ValidBLTags,
+		extyp.ValidBLTags,
 		...,
 	] = ()
 	license: tuple[str, ...]
@@ -521,7 +487,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			field_parse_errs += ['- `tool.blext.bl_tags` is not defined.']
 			field_parse_errs += [
 				'- Valid `bl_tags` values are: '
-				+ ', '.join([f'"{el}"' for el in typ.get_args(ValidBLTags)])
+				+ ', '.join([f'"{el}"' for el in typ.get_args(extyp.ValidBLTags)])
 			]
 		if blext_spec_dict.get('copyright') is None:
 			field_parse_errs += ['- `tool.blext.copyright` is not defined.']

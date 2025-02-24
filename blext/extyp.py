@@ -26,6 +26,40 @@ import typing as typ
 
 import pydantic as pyd
 
+ValidBLTags: typ.TypeAlias = typ.Literal[
+	'3D View',
+	'Add Curve',
+	'Add Mesh',
+	'Animation',
+	'Bake',
+	'Camera',
+	'Compositing',
+	'Development',
+	'Game Engine',
+	'Geometry Nodes',
+	'Grease Pencil',
+	'Import-Export',
+	'Lighting',
+	'Material',
+	'Modeling',
+	'Mesh',
+	'Node',
+	'Object',
+	'Paint',
+	'Pipeline',
+	'Physics',
+	'Render',
+	'Rigging',
+	'Scene',
+	'Sculpt',
+	'Sequencer',
+	'System',
+	'Text Editor',
+	'Tracking',
+	'User Interface',
+	'UV',
+]
+
 
 class BLPlatform(enum.StrEnum):
 	"""Operating systems supported by Blender extensions managed by BLExt.
