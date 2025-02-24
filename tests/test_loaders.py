@@ -14,3 +14,70 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import typing as typ
+from pathlib import Path
+
+import hypothesis as hyp
+from hypothesis import strategies as st
+
+import blext
+from blext import loaders
+
+from ._context import EXAMPLES_PROJ_FILES_VALID
+
+
+####################
+# - Tests: Parse Examples
+####################
+@hyp.given(
+	st.sampled_from(EXAMPLES_PROJ_FILES_VALID),
+	st.sampled_from(typ.get_args(blext.StandardReleaseProfile)),
+)
+def test_load_path_uri(
+	proj_uri: Path,
+	release_profile_id: blext.StandardReleaseProfile,
+) -> None:
+	_ = loaders.load_blext_spec(proj_uri, release_profile_id=release_profile_id)
+
+
+@hyp.given(
+	st.sampled_from(EXAMPLES_PROJ_FILES_VALID),
+	st.sampled_from(typ.get_args(blext.StandardReleaseProfile)),
+)
+def test_load_path_registration(
+	proj_uri: Path,
+	release_profile_id: blext.StandardReleaseProfile,
+) -> None:
+	blext_spec = loaders.load_blext_spec(
+		proj_uri, release_profile_id=release_profile_id
+	)
+	assert (
+		blext.paths.path_root(blext_spec) == proj_uri
+		or proj_uri.is_relative_to(blext.paths.path_root(blext_spec))
+		or blext.paths.path_root(blext_spec).is_relative_to(
+			blext.paths.PATH_GLOBAL_SCRIPT_CACHE
+		)
+	)
+
+
+@hyp.given(
+	st.sampled_from(EXAMPLES_PROJ_FILES_VALID),
+	st.sampled_from(typ.get_args(blext.StandardReleaseProfile)),
+	st.sampled_from(
+		[
+			blext.BLPlatform.linux_x64,
+			blext.BLPlatform.macos_arm64,
+			blext.BLPlatform.windows_x64,
+		]
+	),
+)
+def test_load_spec_and_inject_bl_platform(
+	proj_uri: Path,
+	release_profile_id: blext.StandardReleaseProfile,
+	bl_platform: blext.BLPlatform,
+) -> None:
+	blext_spec = loaders.load_bl_platform_into_spec(
+		loaders.load_blext_spec(proj_uri, release_profile_id=release_profile_id),
+		bl_platform_ref=bl_platform,
+	)
+	assert next(iter(blext_spec.bl_platforms)) == bl_platform
