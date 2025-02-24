@@ -16,9 +16,14 @@
 
 """Tools for managing wheel-based dependencies."""
 
+import functools
+import signal
 import sys
-import time
+import threading
+import typing as typ
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.request import urlopen
 
 import pypdl
 import pypdl.utils
@@ -33,16 +38,58 @@ CONSOLE = rich.console.Console()
 
 DELAY_DOWNLOAD_PROGRESS = 0.01
 DOWNLOAD_DONE_THRESHOLD = 99
+# EVENT_DONE = threading.Event()
+
+
+# def handle_sigint(signum, frame):
+# EVENT_DONE.set()
+#
+#
+# signal.signal(signal.SIGINT, handle_sigint)
 
 
 ####################
 # - Wheel Download
 ####################
+def download_wheel(
+	wheel_url: str,
+	wheel_path: Path,
+	*,
+	wheel: BLExtWheel,
+	cb_update_wheel_download: typ.Callable[
+		[BLExtWheel, Path, int], list[None] | None
+	] = lambda *_: None,
+	cb_finish_wheel_download: typ.Callable[
+		[BLExtWheel, Path], list[None] | None
+	] = lambda *_: None,
+) -> None:
+	response = urlopen(wheel_url)
+	with wheel_path.open('wb') as f_wheel:
+		for raw_data in iter(functools.partial(response.read, 32768), b''):
+			f_wheel.write(raw_data)
+			cb_update_wheel_download(wheel, wheel_path, len(raw_data))
+
+			# if EVENT_DONE.is_set():
+			# wheel_path.unlink()
+			# return
+
+	cb_finish_wheel_download(wheel, wheel_path)
+
+
 def download_wheels(
 	wheels: frozenset[BLExtWheel],
 	*,
 	path_wheels: Path,
 	no_prompt: bool = False,
+	cb_start_wheel_download: typ.Callable[
+		[BLExtWheel, Path], typ.Any
+	] = lambda *_: None,
+	cb_update_wheel_download: typ.Callable[
+		[BLExtWheel, Path, int], typ.Any
+	] = lambda *_: None,
+	cb_finish_wheel_download: typ.Callable[
+		[BLExtWheel, Path], typ.Any
+	] = lambda *_: None,
 ) -> bool:
 	"""Download universal and binary wheels for all platforms defined in `pyproject.toml`.
 
@@ -81,103 +128,32 @@ def download_wheels(
 	## TODO: Check hash of existing wheels.
 
 	# Delete Superfluous Wheels
-	if wheel_paths_to_delete:
-		CONSOLE.print()
-		CONSOLE.rule('[bold green]Wheels to Delete')
-		CONSOLE.print(f'[italic]Deleting from: {path_wheels}:')
-		CONSOLE.print(
-			rich.markdown.Markdown(
-				'\n'.join(
-					[
-						f'- {wheel_path_to_delete.relative_to(path_wheels)}'
-						for wheel_path_to_delete in wheel_paths_to_delete
-					]
-				)
-			),
-		)
-		CONSOLE.print()
-
-		if not no_prompt:
-			if rich.prompt.Confirm.ask('[bold]OK to delete?'):
-				for path_wheel in wheel_paths_to_delete:
-					if path_wheel.is_file() and path_wheel.name.endswith('.whl'):
-						path_wheel.unlink()
-					else:
-						msg = f"While deleting superfluous wheels, a wheel path was computed that doesn't point to a valid .whl wheel: {path_wheel}"
-						raise RuntimeError(msg)
-			else:
-				CONSOLE.print('[italic]Aborting...[/italic]')
-				sys.exit(1)
+	## TODO:
+	# if wheel_paths_to_delete:
+	# for path_wheel in wheel_paths_to_delete:
+	# if path_wheel.is_file() and path_wheel.name.endswith('.whl'):
+	# path_wheel.unlink()
+	# else:
+	# msg = f"While deleting superfluous wheels, a wheel path was computed that doesn't point to a valid .whl wheel: {path_wheel}"
+	# raise RuntimeError(msg)
 
 	# Download Missing Wheels
 	if wheels_to_download:
-		CONSOLE.print()
-		CONSOLE.rule('[bold green]Wheels to Download')
-		CONSOLE.print(f'[italic]Downloading to: {path_wheels}')
-		CONSOLE.print(
-			rich.markdown.Markdown(
-				'\n'.join(
-					[
-						f'- {wheel_path_to_download.relative_to(path_wheels)}'
-						for wheel_path_to_download in wheels_to_download
-					]
+		with ThreadPoolExecutor(max_workers=8) as pool:
+			for path_wheel, wheel in sorted(
+				wheels_to_download.items(),
+				key=lambda el: el[1].filename,
+			):
+				cb_start_wheel_download(wheel, path_wheel)
+				pool.submit(
+					download_wheel,
+					str(wheel.url),
+					path_wheel,
+					wheel=wheel,
+					cb_update_wheel_download=cb_update_wheel_download,
+					cb_finish_wheel_download=cb_finish_wheel_download,
 				)
-			),
-		)
-		CONSOLE.print()
 
-		# Start Download
-		dl_tasks = [
-			{
-				'url': str(wheel.url),
-				'file_path': str(path_wheel),
-			}
-			for path_wheel, wheel in wheels_to_download.items()
-		]
-		if dl_tasks:
-			dl = pypdl.Pypdl(  # pyright: ignore[reportPrivateLocalImportUsage]
-				max_concurrent=8,
-				allow_reuse=False,
-			)
-			dl_promise: pypdl.utils.EFuture = dl.start(  # pyright: ignore[reportUnknownMemberType, reportAssignmentType]
-				tasks=dl_tasks,
-				retries=3,
-				display=False,
-				block=False,
-			)
-
-			# Monitor Download w/Progress Bar
-			with rich.progress.Progress() as progress:
-				task = progress.add_task('Downloading...', total=100)
-
-			# Wait for Download to Start
-			while dl.progress is None:
-				time.sleep(DELAY_DOWNLOAD_PROGRESS)
-
-			# Monitor Download
-			## - 99% seems to be the maximum value.
-			while dl.progress < DOWNLOAD_DONE_THRESHOLD:
-				progress.update(task, completed=dl.progress)
-				time.sleep(DELAY_DOWNLOAD_PROGRESS)
-
-			# Stop the Download @ 99%
-			## - Essentially, we must wait on the future from the started download.
-			## - This also merges the downloaded segments and cleans up.
-			_ = dl_promise.result()
-
-			# Finalize Progress Bar to 100%
-			progress.update(task, completed=100)
-
-		## TODO: Reimplement for locally built wheels w/Copy
-		# copy_tasks = [
-		# {
-		# 'from': wheel_path,
-		# 'to': blext_spec.path_wheels / wheel_filename,
-		# }
-		# for wheel_filename, wheel_path in wheel_target_urls.items()
-		# if wheel_filename in wheels_to_download and isinstance(wheel_path, Path)
-		# ]
-		# for copy_task in copy_tasks:
-		# shutil.copyfile(str(copy_task['from']), str(copy_task['to']))
+		# TODO: Check hashes of all downloaded wheels.
 
 	return bool(len(wheels_to_download) > 0 or len(wheel_paths_to_delete) > 0)

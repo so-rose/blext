@@ -307,12 +307,26 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		*,
 		path_wheels: Path,
 		no_prompt: bool = False,
+		cb_start_wheel_download: typ.Callable[
+			[BLExtWheel, Path], typ.Any
+		] = lambda *_: None,
+		cb_update_wheel_download: typ.Callable[
+			[BLExtWheel, Path, int], typ.Any
+		] = lambda *_: None,
+		cb_finish_wheel_download: typ.Callable[
+			[BLExtWheel, Path], typ.Any
+		] = lambda *_: None,
 	) -> bool:
 		"""Returns:
 		Whether any change to downloaded wheels was made, incl. new downloads or deletions.
 		"""
 		return network.download_wheels(
-			self.wheels, path_wheels=path_wheels, no_prompt=no_prompt
+			self.wheels,
+			path_wheels=path_wheels,
+			no_prompt=no_prompt,
+			cb_start_wheel_download=cb_start_wheel_download,
+			cb_update_wheel_download=cb_update_wheel_download,
+			cb_finish_wheel_download=cb_finish_wheel_download,
 		)
 
 	####################

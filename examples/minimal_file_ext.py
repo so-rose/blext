@@ -18,10 +18,11 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "jax~=0.5.0",
+#   "mypy>=1.15.0",
 # ]
 #
 # [project]
-# name = "extension_file"
+# name = "minimal_ext_file"
 # version = "0.1.0"
 # description = "A quick example of a one-file Blender w/Python dependencies"
 # authors = [

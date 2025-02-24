@@ -24,15 +24,12 @@ from pathlib import Path
 
 import annotated_types as atyp
 import pydantic as pyd
-import rich
 import tomli_w
 from frozendict import frozendict
 
 from . import extyp, pydeps
 from .utils.inline_script_metadata import parse_inline_script_metadata
 from .utils.pydantic_frozen_dict import FrozenDict
-
-CONSOLE = rich.console.Console()
 
 
 ####################

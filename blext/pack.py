@@ -20,112 +20,88 @@ This involves parsing and validating the plugin configuration from `pyproject.to
 """
 
 import shutil
+import typing as typ
 import zipfile
 from pathlib import Path
 
-import rich
-import rich.progress
-import rich.prompt
-
-from . import paths, spec
-
-console = rich.console.Console()
+from . import paths, pydeps, spec
 
 
 ####################
 # - Pack Extension to ZIP
 ####################
-def prepack_bl_extension(
+def prepack_extension_wheels(
 	blext_spec: spec.BLExtSpec,
 	*,
-	vendor: bool = True,
 	path_zip_prepack: Path | None = None,
 	path_wheels: Path | None = None,
-	path_uv_lock: Path | None = None,
+	cb_pre_wheel_write: typ.Callable[
+		[pydeps.BLExtWheel, Path], list[None] | None
+	] = lambda *_: None,
+	cb_post_wheel_write: typ.Callable[
+		[pydeps.BLExtWheel, Path], list[None] | None
+	] = lambda *_: None,
 ) -> None:
 	"""Prepare a `.zip` file containing all wheels, but no code.
 
-	Since the wheels tend to be the slowest part of packing an extension, a two-step process allows reusing a base `.zip` file that already contains required wheels.
+	Notes:
+		Since the wheels tend to be the slowest part of packing an extension, a two-step process allows reusing a base `.zip` file that already contains required wheels.
+
+	Parameters:
+		blext_spec: The Blender extension specification to pre-pack.
+		vendor: Whether to pack all wheel dependencies.
+			When false, `uv.lock` will be written to the `.zip` root.
+		path_zip_prepack: Path to the prepacked `.zip` file.
+			Defaults to `paths.path_zip_prepack(blext_spec) / blext_spec.packed_zip_filename`
+		path_wheels: Path to downloaded wheels, when `vendor=True`.
+			Defaults to `paths.path_zip_prepack(blext_spec) / blext_spec.packed_zip_filename`
+		path_uv_lock: Path to `uv.lock` file, used when `vendor=False`.
+
+	Raises:
+		ValueError: When not all wheels required by `blext_spec` are found in `path_wheels`.
 	"""
 	path_zip_prepack = (
 		paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
 		if path_zip_prepack is None
 		else path_zip_prepack
 	)
+	path_wheels = paths.path_wheels(blext_spec) if path_wheels is None else path_wheels
 
-	if vendor:
-		path_wheels = (
-			paths.path_wheels(blext_spec) if path_wheels is None else path_wheels
-		)
-		found_wheel_filenames = [
-			path_wheel.name for path_wheel in path_wheels.rglob('*.whl')
-		]
-		if not all(
-			wheel.filename in found_wheel_filenames
-			for wheel in blext_spec.wheels_graph.wheels
-		):
-			msg = 'While pre-packing the extension, not all required extension wheels were available.'
-			raise ValueError(msg)
-	else:
-		path_uv_lock = (
-			paths.path_uv_lock(blext_spec) if path_uv_lock is None else path_uv_lock
-		)
+	# Validate Wheels to Pack
+	found_wheel_filenames = [
+		path_wheel.name for path_wheel in path_wheels.rglob('*.whl')
+	]
+	if not all(
+		wheel.filename in found_wheel_filenames
+		for wheel in blext_spec.wheels_graph.wheels
+	):
+		msg = 'While pre-packing the extension, not all required extension wheels were available.'
+		raise ValueError(msg)
+
+	# TODO: Also check hashes.
 
 	# Overwrite
 	if path_zip_prepack.is_file():
 		path_zip_prepack.unlink()
 
-	console.print()
-	console.rule('[bold green]Pre-Packing Extension')
 	with zipfile.ZipFile(path_zip_prepack, 'w', zipfile.ZIP_DEFLATED) as f_zip:
-		if vendor:
-			####################
-			# - INSTALL: Wheels => /wheels/*.whl
-			####################
-			total_wheel_size = sum(
-				f.stat().st_size for f in path_wheels.rglob('*') if f.is_file()
-			)
+		####################
+		# - INSTALL: Wheels => /wheels/*.whl
+		####################
+		for wheel in sorted(
+			blext_spec.wheels_graph.wheels, key=lambda wheel: wheel.filename
+		):
+			path_wheel = path_wheels / wheel.filename
+			path_wheel_zip = Path('wheels') / wheel.filename
 
-			# Setup Progress Bar
-			progress = rich.progress.Progress(
-				rich.progress.TextColumn(
-					'Writing Wheel: {task.description}...',
-					table_column=rich.progress.Column(ratio=2),  # pyright: ignore[reportPrivateLocalImportUsage]
-				),
-				rich.progress.BarColumn(
-					bar_width=None,
-					table_column=rich.progress.Column(ratio=2),  # pyright: ignore[reportPrivateLocalImportUsage]
-				),
-				expand=True,
-			)
-			progress_task = progress.add_task(
-				'Writing Wheels...', total=total_wheel_size
-			)
-
-			# Write Wheels
-			with rich.progress.Live(progress, console=console, transient=True) as live:
-				for wheel_to_zip in path_wheels.rglob('*.whl'):
-					f_zip.write(wheel_to_zip, Path('wheels') / wheel_to_zip.name)
-					progress.update(
-						progress_task,
-						description=wheel_to_zip.name,
-						advance=wheel_to_zip.stat().st_size,
-					)
-					live.refresh()
-
-			# Report Done
-			console.print('[✔] Wrote Wheels')
-		else:
-			f_zip.write(
-				path_uv_lock,
-				'uv.lock',
-			)
+			cb_pre_wheel_write(wheel, path_wheel)
+			f_zip.write(path_wheel, path_wheel_zip)
+			cb_post_wheel_write(wheel, path_wheel)
 
 
 def pack_bl_extension(
 	blext_spec: spec.BLExtSpec,
 	*,
-	vendor: bool = True,
 	force_prepack: bool = False,
 	overwrite: bool = True,
 	path_zip: Path | None = None,
@@ -134,6 +110,7 @@ def pack_bl_extension(
 	path_uv_lock: Path | None = None,
 	path_pypkg: Path | None = None,
 	path_pysrc: Path | None = None,
+	cb_update_status: typ.Callable[[str], list[None] | None] = lambda *_: None,
 ) -> None:
 	"""Pack all files needed by a Blender extension, into an installable `.zip`.
 
@@ -155,19 +132,20 @@ def pack_bl_extension(
 		if path_zip_prepack is None
 		else path_zip_prepack
 	)
+	path_uv_lock = (
+		paths.path_uv_lock(blext_spec) if path_uv_lock is None else path_uv_lock
+	)
+
 	is_path_py_given = path_pypkg is None and path_pysrc is None
 	path_pypkg = paths.path_pypkg(blext_spec) if is_path_py_given else path_pypkg
 	path_pysrc = paths.path_pysrc(blext_spec) if is_path_py_given else path_pysrc
 
 	if force_prepack or not path_zip_prepack.is_file():
-		prepack_bl_extension(
+		prepack_extension_wheels(
 			blext_spec,
-			vendor=vendor,
 			path_zip_prepack=path_zip_prepack,
 			path_wheels=path_wheels,
-			path_uv_lock=path_uv_lock,
 		)
-		## TODO: More robust mechanism for deducing whether to do a prepack?
 
 	# Overwrite Existing ZIP
 	if path_zip.is_file():
@@ -177,68 +155,69 @@ def pack_bl_extension(
 		path_zip.unlink()
 
 	# Pack Extension
-	console.print()
-	console.rule('[bold green]Packing Extension')
-	console.print(f'[italic]Writing to: {path_zip.parent}')
-	console.print()
 
 	## Copy Prepacked ZIP and Finish Packing
-	with console.status('Copying Prepacked ZIP...', spinner='dots'):
-		_ = shutil.copyfile(path_zip_prepack, path_zip)
-	console.print('[✔] Copied Prepacked Extension ZIP')
+	cb_update_status('Copying Pre-Packed Extension ZIP')
+	_ = shutil.copyfile(path_zip_prepack, path_zip)
 
 	with zipfile.ZipFile(path_zip, 'a', zipfile.ZIP_DEFLATED) as f_zip:
 		####################
 		# - INSTALL: Blender Manifest => /blender_manifest.toml
 		####################
-		with console.status('Writing Extension Manifest...', spinner='dots'):
-			f_zip.writestr(
-				blext_spec.manifest_filename,
-				blext_spec.export_blender_manifest(fmt='toml'),
-			)
-		console.print('[✔] Wrote Extension Manifest')
+		cb_update_status('Writing `blender_manifest.toml`')
+		f_zip.writestr(
+			blext_spec.manifest_filename,
+			blext_spec.export_blender_manifest(fmt='toml'),
+		)
 
 		####################
 		# - INSTALL: Init Settings => /init_settings.toml
 		####################
-		with console.status('Writing Init Settings...', spinner='dots'):
-			f_zip.writestr(
-				blext_spec.init_settings_filename,
-				blext_spec.export_init_settings(fmt='toml'),
-			)
-		console.print('[✔] Wrote Init Settings')
+		cb_update_status('Writing `init_settings.toml`')
+		f_zip.writestr(
+			blext_spec.init_settings_filename,
+			blext_spec.export_init_settings(fmt='toml'),
+		)
+
+		####################
+		# - INSTALL: Lockfile => /uv.lock
+		####################
+		cb_update_status('Writing `uv.lock`')
+		import time
+
+		f_zip.write(
+			path_uv_lock,
+			'uv.lock',
+		)
 
 		####################
 		# - INSTALL: Addon Files => /*
 		####################
-		with console.status('Writing Addon Files...', spinner='dots'):
-			path_pypkg = path_pypkg
-			path_pysrc = path_pysrc
+		path_pypkg = path_pypkg
+		path_pysrc = path_pysrc
 
-			# Project: Write Extension Python Package
-			if path_pypkg is not None:
-				for file_to_zip in path_pypkg.rglob('*'):
-					f_zip.write(
-						file_to_zip,
-						file_to_zip.relative_to(path_pypkg),
-					)
-
-			# Script: Write Script String as __init__.py
-			elif path_pysrc is not None:
-				with path_pysrc.open('r') as f_pysrc:
-					pysrc = f_pysrc.read()
-
-				f_zip.writestr(
-					'__init__.py',
-					pysrc,
+		# Project: Write Extension Python Package
+		if path_pypkg is not None:
+			cb_update_status('Writing Python Files')
+			for file_to_zip in path_pypkg.rglob('*'):
+				f_zip.write(
+					file_to_zip,
+					file_to_zip.relative_to(path_pypkg),
 				)
-			else:
-				msg = 'Tried to pack an extension that is neither a project nor a script. Please report this bug.'
-				raise RuntimeError(msg)
 
-		console.print('[✔] Wrote Addon Files')
+		# Script: Write Script String as __init__.py
+		elif path_pysrc is not None:
+			cb_update_status('Writing Script as __init__.py')
+			with path_pysrc.open('r') as f_pysrc:
+				pysrc = f_pysrc.read()
 
-	console.print(f'[✔] Finished Writing: "{path_zip.name}"')
+			f_zip.writestr(
+				'__init__.py',
+				pysrc,
+			)
+		else:
+			msg = 'Tried to pack an extension that is neither a project nor a script. Please report this bug.'
+			raise RuntimeError(msg)
 
 
 ## TODO: Consider supporting a faster ZIP packer, ex. external 7-zip or a Rust module.

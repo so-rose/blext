@@ -56,4 +56,4 @@ def show_init_settings(
 		)
 
 	# Show BLExtSpec
-	CONSOLE.print(blext_spec.export_blender_manifest(fmt=format))
+	CONSOLE.print(blext_spec.export_init_settings(fmt=format))
