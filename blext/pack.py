@@ -35,12 +35,41 @@ console = rich.console.Console()
 ####################
 # - Pack Extension to ZIP
 ####################
-def prepack_bl_extension(blext_spec: spec.BLExtSpec) -> None:
+def prepack_bl_extension(
+	blext_spec: spec.BLExtSpec,
+	*,
+	vendor: bool = True,
+	path_zip_prepack: Path | None = None,
+	path_wheels: Path | None = None,
+	path_uv_lock: Path | None = None,
+) -> None:
 	"""Prepare a `.zip` file containing all wheels, but no code.
 
 	Since the wheels tend to be the slowest part of packing an extension, a two-step process allows reusing a base `.zip` file that already contains required wheels.
 	"""
-	path_zip_prepack = paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
+	path_zip_prepack = (
+		paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
+		if path_zip_prepack is None
+		else path_zip_prepack
+	)
+
+	if vendor:
+		path_wheels = (
+			paths.path_wheels(blext_spec) if path_wheels is None else path_wheels
+		)
+		found_wheel_filenames = [
+			path_wheel.name for path_wheel in path_wheels.rglob('*.whl')
+		]
+		if not all(
+			wheel.filename in found_wheel_filenames
+			for wheel in blext_spec.wheels_graph.wheels
+		):
+			msg = 'While pre-packing the extension, not all required extension wheels were available.'
+			raise ValueError(msg)
+	else:
+		path_uv_lock = (
+			paths.path_uv_lock(blext_spec) if path_uv_lock is None else path_uv_lock
+		)
 
 	# Overwrite
 	if path_zip_prepack.is_file():
@@ -49,49 +78,62 @@ def prepack_bl_extension(blext_spec: spec.BLExtSpec) -> None:
 	console.print()
 	console.rule('[bold green]Pre-Packing Extension')
 	with zipfile.ZipFile(path_zip_prepack, 'w', zipfile.ZIP_DEFLATED) as f_zip:
-		####################
-		# - INSTALL: Wheels => /wheels/*.whl
-		####################
-		total_wheel_size = sum(
-			f.stat().st_size
-			for f in paths.path_wheels(blext_spec).rglob('*')
-			if f.is_file()
-		)
+		if vendor:
+			####################
+			# - INSTALL: Wheels => /wheels/*.whl
+			####################
+			total_wheel_size = sum(
+				f.stat().st_size for f in path_wheels.rglob('*') if f.is_file()
+			)
 
-		# Setup Progress Bar
-		progress = rich.progress.Progress(
-			rich.progress.TextColumn(
-				'Writing Wheel: {task.description}...',
-				table_column=rich.progress.Column(ratio=2),  # pyright: ignore[reportPrivateLocalImportUsage]
-			),
-			rich.progress.BarColumn(
-				bar_width=None,
-				table_column=rich.progress.Column(ratio=2),  # pyright: ignore[reportPrivateLocalImportUsage]
-			),
-			expand=True,
-		)
-		progress_task = progress.add_task('Writing Wheels...', total=total_wheel_size)
+			# Setup Progress Bar
+			progress = rich.progress.Progress(
+				rich.progress.TextColumn(
+					'Writing Wheel: {task.description}...',
+					table_column=rich.progress.Column(ratio=2),  # pyright: ignore[reportPrivateLocalImportUsage]
+				),
+				rich.progress.BarColumn(
+					bar_width=None,
+					table_column=rich.progress.Column(ratio=2),  # pyright: ignore[reportPrivateLocalImportUsage]
+				),
+				expand=True,
+			)
+			progress_task = progress.add_task(
+				'Writing Wheels...', total=total_wheel_size
+			)
 
-		# Write Wheels
-		with rich.progress.Live(progress, console=console, transient=True) as live:
-			for wheel_to_zip in paths.path_wheels(blext_spec).rglob('*.whl'):
-				f_zip.write(wheel_to_zip, Path('wheels') / wheel_to_zip.name)
-				progress.update(
-					progress_task,
-					description=wheel_to_zip.name,
-					advance=wheel_to_zip.stat().st_size,
-				)
-				live.refresh()
+			# Write Wheels
+			with rich.progress.Live(progress, console=console, transient=True) as live:
+				for wheel_to_zip in path_wheels.rglob('*.whl'):
+					f_zip.write(wheel_to_zip, Path('wheels') / wheel_to_zip.name)
+					progress.update(
+						progress_task,
+						description=wheel_to_zip.name,
+						advance=wheel_to_zip.stat().st_size,
+					)
+					live.refresh()
 
-		# Report Done
-		console.print('[✔] Wrote Wheels')
+			# Report Done
+			console.print('[✔] Wrote Wheels')
+		else:
+			f_zip.write(
+				path_uv_lock,
+				'uv.lock',
+			)
 
 
 def pack_bl_extension(
 	blext_spec: spec.BLExtSpec,
 	*,
+	vendor: bool = True,
 	force_prepack: bool = False,
-	overwrite: bool = False,
+	overwrite: bool = True,
+	path_zip: Path | None = None,
+	path_zip_prepack: Path | None = None,
+	path_wheels: Path | None = None,
+	path_uv_lock: Path | None = None,
+	path_pypkg: Path | None = None,
+	path_pysrc: Path | None = None,
 ) -> None:
 	"""Pack all files needed by a Blender extension, into an installable `.zip`.
 
@@ -103,11 +145,28 @@ def pack_bl_extension(
 			When not set, the prepack step will always run.
 		overwrite: If packing to a zip file that already exists, replace it.
 	"""
-	path_zip = paths.path_build(blext_spec) / blext_spec.packed_zip_filename
-	path_zip_prepack = paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
+	path_zip = (
+		paths.path_build(blext_spec) / blext_spec.packed_zip_filename
+		if path_zip is None
+		else path_zip
+	)
+	path_zip_prepack = (
+		paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
+		if path_zip_prepack is None
+		else path_zip_prepack
+	)
+	is_path_py_given = path_pypkg is None and path_pysrc is None
+	path_pypkg = paths.path_pypkg(blext_spec) if is_path_py_given else path_pypkg
+	path_pysrc = paths.path_pysrc(blext_spec) if is_path_py_given else path_pysrc
 
 	if force_prepack or not path_zip_prepack.is_file():
-		prepack_bl_extension(blext_spec)
+		prepack_bl_extension(
+			blext_spec,
+			vendor=vendor,
+			path_zip_prepack=path_zip_prepack,
+			path_wheels=path_wheels,
+			path_uv_lock=path_uv_lock,
+		)
 		## TODO: More robust mechanism for deducing whether to do a prepack?
 
 	# Overwrite Existing ZIP
@@ -153,9 +212,8 @@ def pack_bl_extension(
 		# - INSTALL: Addon Files => /*
 		####################
 		with console.status('Writing Addon Files...', spinner='dots'):
-			path_pypkg = paths.path_pypkg(blext_spec)
-			path_pysrc = paths.path_pysrc(blext_spec)
-			print(path_pysrc)
+			path_pypkg = path_pypkg
+			path_pysrc = path_pysrc
 
 			# Project: Write Extension Python Package
 			if path_pypkg is not None:

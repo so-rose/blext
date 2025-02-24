@@ -149,3 +149,16 @@ def path_pysrc(blext_spec: spec.BLExtSpec) -> Path | None:
 		return _SCRIPT_SOURCE_PATHS[blext_spec]
 
 	return None
+
+
+def path_uv_lock(blext_spec: spec.BLExtSpec) -> Path:
+	"""Path to the Python package of the extension.
+
+	Returns:
+		None if the extension is a script extension.
+		Otherwise, the root path of the extension's Python package.
+	"""
+	if blext_spec in _SCRIPT_SOURCE_PATHS:
+		return path_root(blext_spec).parent / (path_root(blext_spec).name + '.lock')
+	else:
+		return path_root(blext_spec) / 'uv.lock'
