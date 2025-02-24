@@ -24,7 +24,7 @@ from pathlib import Path
 import pydantic as pyd
 
 import blext.exceptions as exc
-from blext import extyp, finders, loaders, pack, paths
+from blext import finders, loaders, pack, paths
 
 from ._context import APP, CONSOLE, PATH_BL_INIT_PY
 

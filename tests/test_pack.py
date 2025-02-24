@@ -16,11 +16,9 @@
 
 import tempfile
 import typing as typ
-from itertools import chain, combinations
 from pathlib import Path
 
 import hypothesis as hyp
-import pytest
 from hypothesis import strategies as st
 
 import blext

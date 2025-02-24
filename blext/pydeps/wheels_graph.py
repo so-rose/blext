@@ -308,9 +308,8 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		path_wheels: Path,
 		no_prompt: bool = False,
 	) -> bool:
-		"""
-		Returns:
-			Whether any change to downloaded wheels was made, incl. new downloads or deletions.
+		"""Returns:
+		Whether any change to downloaded wheels was made, incl. new downloads or deletions.
 		"""
 		return network.download_wheels(
 			self.wheels, path_wheels=path_wheels, no_prompt=no_prompt

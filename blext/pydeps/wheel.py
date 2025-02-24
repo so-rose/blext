@@ -17,7 +17,6 @@
 """Tools for managing wheel-based dependencies."""
 
 import functools
-from pathlib import Path
 
 import pydantic as pyd
 import wheel_filename

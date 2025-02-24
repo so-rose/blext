@@ -160,5 +160,4 @@ def path_uv_lock(blext_spec: spec.BLExtSpec) -> Path:
 	"""
 	if blext_spec in _SCRIPT_SOURCE_PATHS:
 		return path_root(blext_spec).parent / (path_root(blext_spec).name + '.lock')
-	else:
-		return path_root(blext_spec) / 'uv.lock'
+	return path_root(blext_spec) / 'uv.lock'

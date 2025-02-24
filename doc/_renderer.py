@@ -22,7 +22,7 @@ import os
 import re
 from importlib.resources import files
 from pathlib import Path
-from typing import Literal, Optional, TypedDict, Union
+from typing import Literal, TypedDict
 
 import quartodoc.ast as qast
 from griffe import (
@@ -64,7 +64,7 @@ class Renderer(MdRenderer):
 		return prefix_bare_functions_with_func(el.value)
 
 	@dispatch
-	def render(self, el: Union[Object, Alias]):
+	def render(self, el: Object | Alias):
 		# If `el` is a protocol class that only has a `__call__` method,
 		# then we want to display information about the method, not the class.
 		if len(el.members) == 1 and '__call__' in el.members.keys():
@@ -144,7 +144,7 @@ class Renderer(MdRenderer):
 	# Overload of `quartodoc.renderers.md_renderer` to fix bug where the descriptions
 	# are cut off and never display other places. Fixing by always displaying the
 	# documentation.
-	def summarize(self, obj: Union[Object, Alias]) -> str:
+	def summarize(self, obj: Object | Alias) -> str:
 		# get high-level description
 		doc = obj.docstring
 		if doc is None:
@@ -185,7 +185,7 @@ class Renderer(MdRenderer):
 		return ''
 
 	@dispatch
-	def signature(self, el: Function, source: Optional[Alias] = None):
+	def signature(self, el: Function, source: Alias | None = None):
 		if el.name == '__call__':
 			# Ex: experimental.ui._card.ImgContainer.__call__(self, *args: Tag) -> Tagifiable
 			sig = super().signature(el, source)
@@ -201,10 +201,9 @@ class Renderer(MdRenderer):
 
 
 def html_escape_except_backticks(s: str) -> str:
-	"""
-	HTML-escape a string, except for content inside of backticks.
+	"""HTML-escape a string, except for content inside of backticks.
 
-	Examples
+	Examples:
 	--------
 	    s = "This is a <b>test</b> string with `backticks <i>unescaped</i>`."
 	    print(html_escape_except_backticks(s))
@@ -224,8 +223,7 @@ def html_escape_except_backticks(s: str) -> str:
 
 
 def prefix_bare_functions_with_func(s: str) -> str:
-	"""
-	The See Also section in the Shiny docs has bare function references, ones that lack
+	"""The See Also section in the Shiny docs has bare function references, ones that lack
 	a leading :func: and backticks. This function fixes them.
 
 	If there are bare function references, like "~shiny.ui.sidebar", this will
@@ -253,7 +251,7 @@ def read_file(file: str | Path, root_dir: str | Path | None = None) -> FileConte
 	type: Literal['text', 'binary'] = 'text'
 
 	try:
-		with open(file, 'r') as f:
+		with open(file) as f:
 			file_content = f.read()
 			type = 'text'
 	except UnicodeDecodeError:
@@ -320,8 +318,7 @@ def check_if_missing_expected_example(el, converted):
 
 
 def assert_no_sphinx_comments(el, converted: str) -> None:
-	"""
-	Sphinx allows `..`-prefixed comments in docstrings, which are not valid markdown.
+	"""Sphinx allows `..`-prefixed comments in docstrings, which are not valid markdown.
 	We don't allow Sphinx comments or directives, sorry!
 	"""
 	pattern = r'\n[.]{2} .+(\n|$)'
