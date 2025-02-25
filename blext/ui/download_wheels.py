@@ -18,7 +18,6 @@ import collections.abc
 import contextlib
 import functools
 import typing as typ
-from ast import Call
 from pathlib import Path
 
 import pydantic as pyd
@@ -48,7 +47,6 @@ class CallbacksDownloadWheel(pyd.BaseModel):
 def ui_download_wheels(
 	wheels_to_download: frozenset[pydeps.BLExtWheel],
 	*,
-	path_wheels: Path,
 	console: rich.console.Console,
 	fps: int = 30,
 ) -> collections.abc.Generator[CallbacksDownloadWheel, None, None]:

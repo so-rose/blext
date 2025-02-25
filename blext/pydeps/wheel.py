@@ -111,7 +111,7 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 		return frozenset(
 			{
 				platform_tag
-				if not platform_tag in MANYLINUX_LEGACY_ALIASES
+				if platform_tag not in MANYLINUX_LEGACY_ALIASES
 				else MANYLINUX_LEGACY_ALIASES[platform_tag]
 				for platform_tag in self._parsed_wheel_filename.platform_tags
 				if not (

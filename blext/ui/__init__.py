@@ -15,8 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from .download_wheels import CallbacksDownloadWheel, ui_download_wheels
+from .prepack_extension import CallbacksPrepackExtension, ui_prepack_extension
 
 __all__ = [
 	'CallbacksDownloadWheel',
+	'CallbacksPrepackExtension',
 	'ui_download_wheels',
+	'ui_prepack_extension',
 ]

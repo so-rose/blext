@@ -18,7 +18,6 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "jax~=0.5.0",
-#   "mypy>=1.15.0",
 # ]
 #
 # [project]

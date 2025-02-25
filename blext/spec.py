@@ -196,13 +196,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		# Deduce Zip Filename
 		if self.is_universal:
 			return f'{self.id}__{self.version}.zip'
-
-		if len(self.bl_platforms) == 1:
-			only_supported_os = next(iter(self.bl_platforms))
-			return f'{self.id}__{self.version}_{only_supported_os}.zip'
-
-		msg = f"Cannot deduce filename of non-universal Blender extension when more than one 'BLPlatform' is supported: {', '.join(self.bl_platforms)}"
-		raise ValueError(msg)
+		return f'{self.id}__{self.version}_{"_".join(sorted(self.bl_platforms))}.zip'
 
 	####################
 	# - Exporters
@@ -252,12 +246,12 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				'blender_version_max',
 				'packed_platforms',
 				'packed_wheel_paths',
-				'permissions',
 				'tags',
 				'license',
 				'copyright',
 			}
-			| ({'website'} if self.website is not None else set()),
+			| ({'website'} if self.website is not None else set())
+			| ({'permissions'} if self.website is not None else set()),
 			by_alias=True,
 		)
 

@@ -17,16 +17,11 @@
 """Tools for managing wheel-based dependencies."""
 
 import functools
-import signal
-import sys
-import threading
 import typing as typ
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.request import urlopen
 
-import pypdl
-import pypdl.utils
 import rich
 import rich.markdown
 import rich.progress
@@ -80,7 +75,6 @@ def download_wheels(
 	wheels: frozenset[BLExtWheel],
 	*,
 	path_wheels: Path,
-	no_prompt: bool = False,
 	cb_start_wheel_download: typ.Callable[
 		[BLExtWheel, Path], typ.Any
 	] = lambda *_: None,
@@ -90,7 +84,7 @@ def download_wheels(
 	cb_finish_wheel_download: typ.Callable[
 		[BLExtWheel, Path], typ.Any
 	] = lambda *_: None,
-) -> bool:
+) -> None:
 	"""Download universal and binary wheels for all platforms defined in `pyproject.toml`.
 
 	Each blender-supported platform requires specifying a valid list of PyPi platform constraints.
@@ -106,7 +100,6 @@ def download_wheels(
 	Parameters:
 		blext_spec: The extension specification to pack the zip file base on.
 		bl_platform: The Blender platform to get wheels for.
-		no_prompt: Don't protect wheel deletion with an interactive prompt.
 	"""
 	path_wheels = path_wheels.resolve()
 	wheel_paths_current = frozenset(
@@ -122,20 +115,6 @@ def download_wheels(
 		if path_wheels / wheel.filename not in wheel_paths_current
 		and wheel.url is not None
 	}
-	wheel_paths_to_delete = wheel_paths_current - frozenset(
-		{path_wheels / wheel.filename for wheel in wheels}
-	)
-	## TODO: Check hash of existing wheels.
-
-	# Delete Superfluous Wheels
-	## TODO:
-	# if wheel_paths_to_delete:
-	# for path_wheel in wheel_paths_to_delete:
-	# if path_wheel.is_file() and path_wheel.name.endswith('.whl'):
-	# path_wheel.unlink()
-	# else:
-	# msg = f"While deleting superfluous wheels, a wheel path was computed that doesn't point to a valid .whl wheel: {path_wheel}"
-	# raise RuntimeError(msg)
 
 	# Download Missing Wheels
 	if wheels_to_download:
@@ -154,6 +133,4 @@ def download_wheels(
 					cb_finish_wheel_download=cb_finish_wheel_download,
 				)
 
-		# TODO: Check hashes of all downloaded wheels.
-
-	return bool(len(wheels_to_download) > 0 or len(wheel_paths_to_delete) > 0)
+		# TODO: Check hashes of all downloaded wheels; delete/raise exception if no good.

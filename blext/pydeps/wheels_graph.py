@@ -26,7 +26,6 @@ from frozendict import deepfreeze, frozendict
 
 from blext import extyp
 
-from . import network
 from .wheel import BLExtWheel
 
 
@@ -300,34 +299,50 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		)
 
 	####################
-	# - Wheel Download
+	# - Wheel Path Handling
 	####################
-	def download_wheels(
-		self,
-		*,
-		path_wheels: Path,
-		no_prompt: bool = False,
-		cb_start_wheel_download: typ.Callable[
-			[BLExtWheel, Path], typ.Any
-		] = lambda *_: None,
-		cb_update_wheel_download: typ.Callable[
-			[BLExtWheel, Path, int], typ.Any
-		] = lambda *_: None,
-		cb_finish_wheel_download: typ.Callable[
-			[BLExtWheel, Path], typ.Any
-		] = lambda *_: None,
-	) -> bool:
-		"""Returns:
-		Whether any change to downloaded wheels was made, incl. new downloads or deletions.
-		"""
-		return network.download_wheels(
-			self.wheels,
-			path_wheels=path_wheels,
-			no_prompt=no_prompt,
-			cb_start_wheel_download=cb_start_wheel_download,
-			cb_update_wheel_download=cb_update_wheel_download,
-			cb_finish_wheel_download=cb_finish_wheel_download,
+	def wheels_from_cache(self, path_wheels: Path) -> frozenset[BLExtWheel]:
+		"""Deduce which of `self.wheels` need to be downloaded, by comparing to wheels currently available in `path_wheels`."""
+		wheel_filenames_existing = frozenset(
+			{path_wheel.name for path_wheel in path_wheels.rglob('*.whl')}
 		)
+		return frozenset(
+			{
+				wheel
+				for wheel in self.wheels
+				if wheel.filename in wheel_filenames_existing
+				## TODO: or existing hash no match
+			}
+		)
+
+	def wheels_to_download_to(self, path_wheels: Path) -> frozenset[BLExtWheel]:
+		"""Deduce which of `self.wheels` need to be downloaded, by comparing to wheels currently available in `path_wheels`."""
+		wheel_filenames_existing = frozenset(
+			{path_wheel.name for path_wheel in path_wheels.rglob('*.whl')}
+		)
+		return frozenset(
+			{
+				wheel
+				for wheel in self.wheels
+				if wheel.filename not in wheel_filenames_existing
+				## TODO: or existing hash no match
+			}
+		)
+
+	def wheel_paths_to_prepack(self, path_wheels: Path) -> dict[Path, Path]:
+		"""Deduce a wheel path mapping suitable for packing into an extension `.zip`.
+
+		Notes:
+			Use the `|` dictionary operator to combine with other dictionaries specifying files to prepack.
+		"""
+		if not self.wheels_to_download_to(path_wheels):
+			return {
+				path_wheels / wheel.filename: Path('wheels') / wheel.filename
+				for wheel in self.wheels_from_cache(path_wheels)
+			}
+
+		msg = 'Tried to get wheel paths for pre-packing, but not all required wheels are downloaded.'
+		raise ValueError(msg)
 
 	####################
 	# - Creation

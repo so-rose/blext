@@ -109,7 +109,13 @@ def path_prepack(blext_spec: spec.BLExtSpec) -> Path:
 
 
 def path_build(blext_spec: spec.BLExtSpec) -> Path:
-	"""Path to the project's build folder, where extension `.zip`s are written to."""
+	"""Path to the project's build folder, where extension `.zip`s are written to.
+
+	For script extensions, the build folder is the folder containing the script.
+	"""
+	if blext_spec in _SCRIPT_SOURCE_PATHS:
+		return _SCRIPT_SOURCE_PATHS[blext_spec].parent
+
 	path_build = path_dev(blext_spec) / 'build'
 	path_build.mkdir(exist_ok=True)
 	return path_build
