@@ -25,15 +25,9 @@ from ._context_show_path import APP_SHOW_PATH, CONSOLE
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW_PATH.command(name='uv', group='Information')
+@APP_SHOW_PATH.command(name='uv')
 def show_path_uv() -> None:
-	"""Print the complete extension specification.
-
-	Parameters:
-		bl_platform: The Blender platform to build the extension for.
-		proj_path: Path to a `pyproject.toml` or a folder containing a `pyproject.toml`, which specifies the Blender extension.
-		release_profile: The release profile to bake into the extension.
-	"""
+	"""[Show] [path] to uv executable shipped with this program."""
 	# Show Found Blender EXE
 	with exc.handle(exc.pretty, ValueError):
 		uv_exe = finders.find_uv_exe()

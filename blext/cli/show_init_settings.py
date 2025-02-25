@@ -30,7 +30,7 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='init_settings', group='Information')
+@APP_SHOW.command(name='init_settings')
 def show_init_settings(
 	proj: Path | None = None,
 	*,
@@ -38,12 +38,15 @@ def show_init_settings(
 	profile: extyp.StandardReleaseProfile | str = 'release',
 	format: typ.Literal['json', 'toml'] = 'toml',  # noqa: A002
 ) -> None:
-	"""Print the complete extension specification.
+	"""[Show] initial settings of a project w/profile.
 
 	Parameters:
-		bl_platform: The Blender platform to build the extension for.
-		proj_path: Path to a `pyproject.toml` or a folder containing a `pyproject.toml`, which specifies the Blender extension.
-		release_profile: The release profile to bake into the extension.
+		proj: Path to Blender extension project.
+		platform: Platform to build extension for.
+			"detect" uses the current platform.
+		profile: Initial settings to build extension with.
+			Alters `initial_setings.toml` in the extension.
+		format: Text format to output.
 	"""
 	# Parse CLI
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):

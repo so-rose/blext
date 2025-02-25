@@ -30,7 +30,7 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='spec', group='Information')
+@APP_SHOW.command(name='spec')
 def show_spec(
 	proj: Path | None = None,
 	*,
@@ -38,14 +38,16 @@ def show_spec(
 	profile: extyp.StandardReleaseProfile | str = 'release',
 	format: typ.Literal['raw'] = 'raw',  # noqa: A002
 ) -> None:
-	"""Print the complete extension specification.
+	"""[Show] complete extension specification.
 
 	Parameters:
-		proj: Path to the Blender extension project.
-		bl_platform: Blender platform(s) to constrain the extension to.
-			Use "detect" to constrain to detect the current platform.
-		release_profile: The release profile to apply to the extension.
-		format: The text format to show the extension specification as.
+		proj: Path to Blender extension project.
+		platform: Platform to build extension for.
+			"detect" uses the current platform.
+		profile: Initial settings to build extension with.
+			Alters `initial_setings.toml` in the extension.
+		sort_by: Column to sort dependencies by.
+		format: Text format to output.
 	"""
 	# Parse BLExtSpec
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
@@ -60,3 +62,5 @@ def show_spec(
 	# Show BLExtSpec
 	if format == 'raw':
 		CONSOLE.print(blext_spec)
+
+	## TODO: Can we strategically truncate the BLExtWheel? Is that a good idea? Maybe a CLI option that selects certain elements of the specification to truncate?

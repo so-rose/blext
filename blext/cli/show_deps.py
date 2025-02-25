@@ -32,7 +32,7 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='deps', group='Information')
+@APP_SHOW.command(name='deps')
 def show_deps(
 	proj: Path | None = None,
 	*,
@@ -41,15 +41,16 @@ def show_deps(
 	sort_by: typ.Literal['filename', 'size'] = 'size',
 	format: typ.Literal['table'] = 'table',  # noqa: A002
 ) -> None:
-	"""Print the complete extension specification.
+	"""[Show] Python dependencies of extension project.
 
 	Parameters:
-		proj: Path to the Blender extension project.
-		bl_platform: Blender platform(s) to constrain the extension to.
-			Use "detect" to constrain to detect the current platform.
-		release_profile: The release profile to apply to the extension.
-		sort_by: How to sort the project dependencies table.
-		format: The text format to show the project dependencies with.
+		proj: Path to Blender extension project.
+		platform: Platform to build extension for.
+			"detect" uses the current platform.
+		profile: Initial settings to build extension with.
+			Alters `initial_setings.toml` in the extension.
+		sort_by: Column to sort dependencies by.
+		format: Text format to output.
 	"""
 	# Parse CLI
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
@@ -104,7 +105,7 @@ def show_deps(
 			f'={blext_spec.wheels_graph.total_size_bytes.human_readable(decimal=True, separator=" ")}',
 		)
 		## TODO: A column that checks whether the wheel is downloaded/cached?
-		## TODO: Export as ex.
+		## TODO: Export as csv
 
 		####################
 		# - UI: Print

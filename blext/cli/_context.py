@@ -31,10 +31,10 @@ __version__ = importlib.metadata.version('blext')
 CONSOLE = rich.console.Console()
 APP = cyclopts.App(
 	name='blext',
-	help='blext simplifies the development and management of Blender extensions.',
+	help='`blext` simplifies making Blender extensions.',
 	help_format='markdown',
 	version=__version__,
 )
 
-APP['--help'].group = 'Debug'
-APP['--version'].group = 'Debug'
+APP['--help'].group = 'Info'
+APP['--version'].group = 'Info'

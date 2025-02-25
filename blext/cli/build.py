@@ -37,19 +37,19 @@ def build(
 	overwrite: bool = True,
 	vendor: bool = True,
 ) -> None:
-	"""[Build] the extension to an installable `.zip` file.
+	"""[Build] extension project to installable `.zip`.
 
 	Parameters:
-		proj: Path to the Blender extension project.
-		bl_platform: Blender platform(s) to constrain the extension to.
-			Use "detect" to constrain to detect the current platform.
-		profile: The release profile ID to apply to the extension.
-		output: Path to the extension zip that will be built.
-			Specifying a folder will build the zip within that folder, using the default name.
-		overwrite: Whether to overwrite any existing extension `.zip`.
-			When `False`, an error will be thrown instead of overwriting an existing extension.
-		vendor: Whether to include Python wheel in the extension `.zip`.
-			When `False`, a `uv.lock` file will be written to the root of the `.zip` instead.
+		proj: Path to Blender extension project.
+		platform: Platform to build extension for.
+			"detect" uses the current platform.
+		profile: Initial settings to build extension with.
+			Alters `initial_setings.toml` in the extension.
+		output: Extension `.zip` to build.
+			Folder path can also be specified.
+		overwrite: Allow overwriting `.zip`.
+		vendor: Include dependencies as wheels in the `.zip`.
+			When `False`, write `uv.lock` to the extension.
 	"""
 	try:
 		blender_exe = finders.find_blender_exe()

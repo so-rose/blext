@@ -18,11 +18,13 @@ import cyclopts
 
 from ._context import APP, CONSOLE
 
-APP_SHOW = cyclopts.App(name='show', help='[Show] information about the extension.')
+APP_SHOW = cyclopts.App(
+	name='show', help='[Show] information about the extension.', group='Subcommands'
+)
 _ = APP.command(APP_SHOW)
 
-APP_SHOW['--help'].group = 'Debug'
-APP_SHOW['--version'].group = 'Debug'
+APP_SHOW['--help'].group = 'Info'
+APP_SHOW['--version'].group = 'Info'
 
 __all__ = [
 	'APP_SHOW',

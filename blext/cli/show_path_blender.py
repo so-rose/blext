@@ -25,9 +25,9 @@ from ._context_show_path import APP_SHOW_PATH, CONSOLE
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW_PATH.command(name='blender', group='Information')
+@APP_SHOW_PATH.command(name='blender')
 def show_path_blender() -> None:
-	"""Print the complete extension specification.
+	"""[Show] [path] to found Blender executable.
 
 	Parameters:
 		bl_platform: The Blender platform to build the extension for.

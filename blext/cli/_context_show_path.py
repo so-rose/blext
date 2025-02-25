@@ -18,11 +18,13 @@ import cyclopts
 
 from ._context_show import APP_SHOW, CONSOLE
 
-APP_SHOW_PATH = cyclopts.App(name='path', help='[Show] found [Path]s.')
+APP_SHOW_PATH = cyclopts.App(
+	name='path', help='[Show] paths found by `blext`.', group='Subcommands'
+)
 _ = APP_SHOW.command(APP_SHOW_PATH)
 
-APP_SHOW_PATH['--help'].group = 'Debug'
-APP_SHOW_PATH['--version'].group = 'Debug'
+APP_SHOW_PATH['--help'].group = 'Info'
+APP_SHOW_PATH['--version'].group = 'Info'
 
 __all__ = [
 	'APP_SHOW_PATH',

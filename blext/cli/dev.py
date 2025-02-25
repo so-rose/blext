@@ -34,14 +34,13 @@ def dev(
 	headless: bool = False,
 	factory_startup: bool = True,
 ) -> None:
-	"""Launch the extension locally, using Blender.
+	"""[Dev]elop extension live in local Blender.
 
 	Parameters:
-		proj: Path to the Blender extension project.
-		bl_platform: Blender platform(s) to constrain the extension to.
-			Use "detect" to constrain to detect the current platform.
-		release_profile: The release profile to apply to the extension.
-		format: The text format to show the Blender manifest as.
+		proj: Path to Blender extension project.
+		blend: `.blend` file to open after loading the extension.
+		headless: Run Blender without the GUI.
+		factory_startup: Run Blender with default "factory settings".
 	"""
 	with exc.handle(exc.pretty, ValueError):
 		blender_exe = finders.find_blender_exe()
@@ -70,5 +69,6 @@ def dev(
 			blender_exe,
 			path_zip=path_zip,
 			headless=headless,
+			factory_startup=factory_startup,
 			path_blend=blend,
 		)

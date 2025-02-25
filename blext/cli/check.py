@@ -34,7 +34,7 @@ def check(
 	*,
 	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
 ) -> None:
-	"""[Check] an extension without building it, or a built `.zip` for validity.
+	"""[Check] extension project or `.zip` for obvious issues.
 
 	Parameters:
 		path: Path to an extension project, or an already-built `.zip`.

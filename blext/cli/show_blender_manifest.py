@@ -30,7 +30,7 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='blender_manifest', group='Information')
+@APP_SHOW.command(name='blender_manifest')
 def show_blender_manifest(
 	proj: Path | None = None,
 	*,
