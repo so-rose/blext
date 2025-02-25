@@ -122,6 +122,53 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 			}
 		)
 
+	@property
+	def pretty_bl_platforms(self) -> str:
+		"""Retrieve prettified, unfiltered `bl_platforms` for this wheel."""
+		wheel_bl_platforms: set[extyp.BLPlatform | str] = set()
+		for platform_tag in self.platform_tags:
+			# Universal
+			if platform_tag == 'any':
+				wheel_bl_platforms.add('any')
+
+			# Windows
+			elif platform_tag.startswith('win'):
+				bl_platform = {
+					'win32': extyp.BLPlatform.windows_x64,
+					'win_amd64': extyp.BLPlatform.windows_x64,
+					'win_arm32': None,
+					'win_arm64': extyp.BLPlatform.windows_arm64,
+				}.get(platform_tag)
+
+				if bl_platform is not None:
+					wheel_bl_platforms.add(bl_platform)
+
+			# Mac
+			elif platform_tag.startswith('macos'):
+				for bl_platform in [
+					extyp.BLPlatform.macos_x64,
+					extyp.BLPlatform.macos_arm64,
+				]:
+					if any(
+						platform_tag.endswith(pypi_arch)
+						for pypi_arch in bl_platform.pypi_arches
+					):
+						wheel_bl_platforms.add(bl_platform)
+
+			# Linux
+			elif platform_tag.startswith('manylinux'):
+				for bl_platform in [
+					extyp.BLPlatform.linux_x64,
+					extyp.BLPlatform.linux_arm64,
+				]:
+					if any(
+						platform_tag.endswith(pypi_arch)
+						for pypi_arch in bl_platform.pypi_arches
+					):
+						wheel_bl_platforms.add(bl_platform)
+
+		return ', '.join(sorted(wheel_bl_platforms))
+
 	def glibc_version(self, platform_tag: str) -> tuple[int, int] | None:
 		"""The GLIBC version that this wheel was compiled with.
 
