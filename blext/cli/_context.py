@@ -15,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import importlib.metadata
-from pathlib import Path
 
 import cyclopts
 import rich
@@ -23,9 +22,6 @@ import rich
 ####################
 # - Static Constants
 ####################
-PATH_BL_INIT_PY: Path = (
-	Path(__file__).resolve().parent.parent / 'blender_python' / 'bl_init.py'
-)
 
 ####################
 # - Dynamic Constants

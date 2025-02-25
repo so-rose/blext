@@ -15,6 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import tomllib
+import zipfile
 from pathlib import Path
 
 import addon_utils
@@ -23,25 +25,11 @@ import bpy
 ####################
 # - Constants
 ####################
-# Addon Name
-if os.environ.get('BLEXT_ADDON_NAME') is not None:
-	BLEXT_ADDON_NAME = os.environ['BLEXT_ADDON_NAME']
-else:
-	msg = "The env var 'BLEXT_ADDON_NAME' must be available, but it is not"
-	raise ValueError(msg)
-
 # Zip Path
 if os.environ.get('BLEXT_ZIP_PATH') is not None:
 	BLEXT_ZIP_PATH = Path(os.environ['BLEXT_ZIP_PATH'])
 else:
 	msg = "The env var 'BLEXT_ZIP_PATH' must be available, but it is not"
-	raise ValueError(msg)
-
-# Local Path
-if os.environ.get('BLEXT_ZIP_PATH') is not None:
-	BLEXT_LOCAL_PATH = Path(os.environ['BLEXT_LOCAL_PATH'])
-else:
-	msg = "The env var 'BLEXT_LOCAL_PATH' must be available, but it is not"
 	raise ValueError(msg)
 
 BLEXT_DEV_REPO_NAME = 'blext_dev_repo'
@@ -51,10 +39,21 @@ BLEXT_DEV_REPO_NAME = 'blext_dev_repo'
 # - main()
 ####################
 if __name__ == '__main__':
+	# Parse Blender Manifest
+	with zipfile.ZipFile(BLEXT_ZIP_PATH) as f_zip:
+		blender_manifest_str = f_zip.read('blender_manifest.toml').decode('utf-8')
+		blender_manifest = tomllib.loads(blender_manifest_str)
+
+	####################
+	# - Set Preferences
+	####################
 	# Suppress Splash Screen
 	## - It just gets in the way.
 	bpy.context.preferences.view.show_splash = False
 
+	####################
+	# - Install Local Repository
+	####################
 	# Check for Local Dev Repo
 	## - Create if non-existant.
 	if BLEXT_DEV_REPO_NAME not in {
@@ -82,21 +81,19 @@ if __name__ == '__main__':
 		if repo.name == BLEXT_DEV_REPO_NAME
 	)
 
+	####################
+	# - Uninstall Existing Addon
+	####################
 	# Uninstall Existing Addon
-	blext_pkg = f'bl_ext.{BLEXT_DEV_REPO_NAME}.{BLEXT_ADDON_NAME}'
-	if BLEXT_ADDON_NAME in bpy.context.preferences.addons.keys() or blext_pkg in [  # noqa: SIM118
+	blext_pkg = f'bl_ext.{BLEXT_DEV_REPO_NAME}.{blender_manifest["id"]}'
+	if blender_manifest['id'] in bpy.context.preferences.addons.keys() or blext_pkg in [  # noqa: SIM118
 		addon_module.__name__ for addon_module in addon_utils.modules()
 	]:
 		bpy.ops.extensions.package_uninstall(
 			repo_index=dev_repo_idx,
-			pkg_id=BLEXT_ADDON_NAME,
+			pkg_id=blender_manifest['id'],
 		)
-
-		# Vacuum sys.modules (remove bl_ext.<addon_repo>.<addon_name>)
-		## - TODO: Start conversation upstream abt. overlapping dependencies.
-		# if blext_pkg in sys.modules:
-		# print('Vacuuming sys.modules')
-		# del sys.modules[BLEXT_ADDON_NAME]
+		## sys.modules is vacuumed (though not for deps) as part of package_uninstall.
 
 	# Install New Extension
 	bpy.ops.extensions.package_install_files(

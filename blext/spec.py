@@ -124,7 +124,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	version: str
 	tagline: pyd.constr(
 		max_length=64,
-		pattern=r'^[a-zA-Z0-9\ \=\+\!\@\#\$\%\^\&\*\(\)\-\_\\\|\;\:\'\"\/\?\{\[\}\]]{1,63}[a-zA-Z0-9]$',
+		# pattern=r'^[a-zA-Z0-9\ \=\+\!\@\#\$\%\^\&\*\(\)\-\_\\\|\;\:\'\"\/\?\{\[\}\]]{1,63}[a-zA-Z0-9]$',
 	)
 	maintainer: str
 

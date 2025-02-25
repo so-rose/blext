@@ -21,7 +21,7 @@
 # ]
 #
 # [project]
-# name = "minimal_ext_file"
+# name = "minimal_file_ext"
 # version = "0.1.0"
 # description = "A quick example of a one-file Blender w/Python dependencies"
 # authors = [

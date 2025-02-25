@@ -22,7 +22,7 @@ from pathlib import Path
 import pydantic as pyd
 
 import blext.exceptions as exc
-from blext import extyp, loaders, pack, paths, pydeps, ui
+from blext import blender, extyp, finders, loaders, pack, paths, pydeps, ui
 
 from ._context import APP, CONSOLE
 
@@ -51,6 +51,11 @@ def build(
 		vendor: Whether to include Python wheel in the extension `.zip`.
 			When `False`, a `uv.lock` file will be written to the root of the `.zip` instead.
 	"""
+	try:
+		blender_exe = finders.find_blender_exe()
+	except ValueError:
+		blender_exe = None
+
 	####################
 	# - Parse Specification and Paths
 	####################
@@ -62,9 +67,19 @@ def build(
 			),
 			bl_platform_ref=platform,
 		)
-	CONSOLE.print(
-		f'Selected [bold]{len(blext_spec.bl_platforms)} platform(s)[/bold]: [italic]{", ".join(sorted(blext_spec.bl_platforms))}[/italic]'
-	)
+
+	if platform is None:
+		CONSOLE.print(
+			f'Selected [bold]all {len(blext_spec.bl_platforms)} extension-supported platform(s)[/bold]: [italic]{", ".join(sorted(blext_spec.bl_platforms))}[/italic]'
+		)
+	elif platform == 'detect':
+		CONSOLE.print(
+			f'Selected [bold]local detected platform[/bold]: [italic]{next(iter(blext_spec.bl_platforms))}[/italic]'
+		)
+	else:
+		CONSOLE.print(
+			f'Selected [bold]{len(blext_spec.bl_platforms)} platform(s)[/bold]: [italic]{", ".join(sorted(blext_spec.bl_platforms))}[/italic]'
+		)
 
 	path_wheels = paths.path_wheels(blext_spec)
 	path_zip_prepack = paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
@@ -83,7 +98,9 @@ def build(
 	wheels_to_download = blext_spec.wheels_graph.wheels_to_download_to(path_wheels)
 
 	if wheels_from_cache:
-		CONSOLE.print(f'Found [bold]{len(wheels_from_cache)} wheel(s)[/bold] in cache')
+		CONSOLE.print(
+			f'Found [bold]{len(wheels_from_cache)} wheel(s)[/bold] in download cache'
+		)
 
 	with ui.ui_download_wheels(
 		wheels_to_download,
@@ -135,46 +152,15 @@ def build(
 			path_pysrc=path_pysrc,
 		)
 
+	####################
+	# - Validate Extension Officially
+	####################
+	if blender_exe is not None:
+		with exc.handle(exc.pretty, ValueError):
+			blender.validate_extension(blender_exe, path_zip=path_zip)
+
+	####################
+	# - Report Success
+	####################
 	CONSOLE.print()
 	CONSOLE.print(f'Built extension [bold]{blext_spec.id}[/bold]:', path_zip)
-
-	####################
-	# - Validate Extension
-	####################
-	# with exc.handle(exc.pretty, ValueError):
-	# blender_exe = finders.find_blender_exe()
-
-	### TODO: Dedicated functions so we can reuse this thing
-	# CONSOLE.print()
-	# CONSOLE.rule('[bold green]Extension Validation')
-	# CONSOLE.print('[italic]$ blender --factory-startup --command extension validate')
-	# CONSOLE.print()
-	# CONSOLE.rule(characters='--', style='gray')
-
-	# path_zip = paths.path_build(blext_spec) / blext_spec.packed_zip_filename
-	# bl_process = subprocess.Popen(
-	# [
-	# blender_exe,
-	# '--factory-startup',  ## Temporarily Disable All Addons
-	# '--command',  ## Validate an Extension
-	# 'extension',
-	# 'validate',
-	# str(path_zip),
-	# ],
-	# bufsize=0,  ## TODO: Check if -1 is OK
-	# env=os.environ,
-	# stdout=sys.stdout,
-	# stderr=sys.stderr,
-	# )
-	# return_code = bl_process.wait()
-
-	# CONSOLE.rule(characters='--', style='gray')
-	# CONSOLE.print()
-	# if return_code == 0:
-	# CONSOLE.print('[✔] Blender Extension Validation Succeeded')
-	# else:
-	# with exc.handle(exc.pretty, ValueError):
-	# msgs = [
-	# 'Blender failed to validate the packed extension. For more information, see the validation logs (above).',
-	# ]
-	# raise ValueError(*msgs)
