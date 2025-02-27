@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from . import blender, exceptions, loaders, pack, paths, pydeps, ui, utils
+from . import blender, config, exceptions, loaders, pack, paths, pydeps, ui, utils
 from .extyp import (
 	BLPlatform,
 	ReleaseProfile,
@@ -32,6 +32,7 @@ __all__ = [
 	'StrLogLevel',
 	'ValidBLTags',
 	'blender',
+	'config',
 	'exceptions',
 	'loaders',
 	'pack',

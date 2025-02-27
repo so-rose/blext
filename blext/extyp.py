@@ -26,6 +26,9 @@ import typing as typ
 
 import pydantic as pyd
 
+####################
+# - Blender Tags
+####################
 ValidBLTags: typ.TypeAlias = typ.Literal[
 	'3D View',
 	'Add Curve',
@@ -59,8 +62,12 @@ ValidBLTags: typ.TypeAlias = typ.Literal[
 	'User Interface',
 	'UV',
 ]
+# TODO: This shouldn't be hard-coded, but should rather be configured by-repository. Somehow.
 
 
+####################
+# - Blender Platform
+####################
 class BLPlatform(enum.StrEnum):
 	"""Operating systems supported by Blender extensions managed by BLExt.
 
@@ -90,8 +97,11 @@ class BLPlatform(enum.StrEnum):
 		}[self]
 
 
+####################
+# - Log Levels
+####################
 class StrLogLevel(enum.StrEnum):
-	"""String log-levels corresponding to log-levels in the `logging` stdlib module."""
+	"""String versions of `logging.*` log levels from the standard library."""
 
 	Debug = 'debug'
 	Info = 'info'
@@ -115,12 +125,40 @@ class StrLogLevel(enum.StrEnum):
 		}[self]
 
 
+####################
+# - Release Profiles
+####################
 StandardReleaseProfile: typ.TypeAlias = typ.Literal[
 	'test', 'dev', 'release', 'release-debug'
 ]
+## TODO: Should probably be a StrEnum to avoid the typ.get_args() popping up everywhere.
 
 
 class ReleaseProfile(pyd.BaseModel):
+	"""Settings baked into an extension, available from before `register()` is called.
+
+	"Release Profiles" give extension developers a way to make a "release" and/or "debug" version of an extension, in order to do things like:
+
+	- Preconfigure file-based logging in a "debug-release" version, making it easy to gather information from users.
+	- Run a "dev" version of the addon for development, ex. to include a web-server that hot-reloads the addon.
+	- Run a "test" version of the addon for development, ex. to include a web-server that hot-reloads the addon.
+
+	Notes:
+		For now, release profiles are quite limited:
+
+		- Possible options are hard-coded into `blext`; currently, this only includes the ability to set logging fields.
+		- Options cannot change an extension specification, beyond hard-coded options.
+		- Extensions must explicitly load `init_settings.toml` and use the fields within.
+	"""
+
+	# TODO: Expand release profiles to be able to alter the specification.
+	## - On parsing, "overrides" could be baked into a dictionary on ReleaseProfile.
+	## - These would then be preferred over any other parse result.
+	## - It may also be best to keep the release profile in the spec as a field.
+	## - Then, exporting init_settings could be done from this class, not from the spec as a whole.
+	## - On the flip side, it should be possible to have `profile=None`, aka. to not use a Release Profile. The result would simply be that no `init_settings` would be generated.
+	## - This would also help with reviews on the extension platform. They don't like extraneous files; therefore, addons that don't use `init_settings` shouldn't ship such a file.
+
 	use_log_file: bool
 	log_file_name: str
 	log_file_level: StrLogLevel
@@ -129,7 +167,7 @@ class ReleaseProfile(pyd.BaseModel):
 
 	@classmethod
 	def default_spec(cls, release_profile_id: StandardReleaseProfile) -> typ.Self:
-		"""A default, sensible release profile specification."""
+		"""A sensible default for common release profiles."""
 		log_file_name = 'addon.log'
 		return {
 			'test': cls(

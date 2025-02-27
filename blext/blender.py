@@ -27,15 +27,6 @@ PATH_BLENDER_PYTHON_SCRIPTS: Path = Path(__file__).resolve().parent / 'blender_p
 
 
 ####################
-# - Env Variable Getter
-####################
-def forward_env(*env_vars: str) -> dict[str, str]:
-	return {
-		env_var: os.environ[env_var] for env_var in env_vars if env_var in os.environ
-	}
-
-
-####################
 # - Blender Runner
 ####################
 def run_blender(
@@ -120,11 +111,8 @@ def run_extension(
 	headless: bool = False,
 	factory_startup: bool = True,
 ) -> None:
-	"""Run an extension inside of Blender.
-
-	Warnings:
-	"""
-	bl_process = run_blender(
+	"""Run an extension inside of Blender."""
+	_ = run_blender(
 		blender_exe,
 		startup_script=PATH_BLENDER_PYTHON_SCRIPTS / 'bl_init.py',
 		factory_startup=factory_startup,
@@ -139,5 +127,3 @@ def run_extension(
 		),
 		capture=False,
 	)
-
-	## TODO: CTRL+C really should quit Blender as well.

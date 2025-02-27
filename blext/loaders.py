@@ -21,7 +21,7 @@ import hashlib
 import typing as typ
 from pathlib import Path
 
-from . import extyp, finders, paths, spec
+from . import config, extyp, finders, paths, spec
 
 HASH_ALGO_SCRIPTPATH = 'sha256'
 
@@ -64,7 +64,7 @@ def load_blext_spec(
 			'utf-8'
 		)[:-1]  ## Slice to chop off the = at the end.
 
-		path_root = paths.PATH_GLOBAL_SCRIPT_CACHE / unique_script_id
+		path_root = config.CONFIG.path_global_script_cache / unique_script_id
 		path_root.mkdir(exist_ok=True)
 		paths.register_blext_spec(
 			blext_spec,
