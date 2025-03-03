@@ -18,10 +18,11 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "jax~=0.5.0",
+#   "scipy>=1.15.2",
 # ]
 #
 # [project]
-# name = "extension_file"
+# name = "minimal_file_ext"
 # version = "0.1.0"
 # description = "A quick example of a one-file Blender w/Python dependencies"
 # authors = [

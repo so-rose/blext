@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Manage Python dependencies of Blender extensions."""
+
 from . import network, uv
 from .wheel import MANYLINUX_LEGACY_ALIASES, BLExtWheel
 from .wheels_graph import BLExtWheelsGraph

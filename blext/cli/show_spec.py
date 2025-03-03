@@ -17,46 +17,47 @@
 """Implements the `show spec` command."""
 
 import typing as typ
-from pathlib import Path
 
 import pydantic as pyd
 
 from blext import exceptions as exc
-from blext import extyp, loaders
 
+from ._context import (
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
 from ._context_show import APP_SHOW, CONSOLE
 
 
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='spec', group='Information')
+@APP_SHOW.command(name='spec')
 def show_spec(
-	proj: Path | None = None,
 	*,
-	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
-	profile: extyp.StandardReleaseProfile | str = 'release',
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
 	format: typ.Literal['raw'] = 'raw',  # noqa: A002
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""Print the complete extension specification.
+	"""Inspect complete extension specification.
 
 	Parameters:
-		proj: Path to the Blender extension project.
-		bl_platform: Blender platform(s) to constrain the extension to.
-			Use "detect" to constrain to detect the current platform.
-		release_profile: The release profile to apply to the extension.
-		format: The text format to show the extension specification as.
+		proj: Path to Blender extension project.
+		platform: Platform to build extension for.
+			"detect" uses the current platform.
+		profile: Initial settings to build extension with.
+			Alters `initial_setings.toml` in the extension.
+		sort_by: Column to sort dependencies by.
+		format: Text format to output.
 	"""
 	# Parse BLExtSpec
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = loaders.load_bl_platform_into_spec(
-			loaders.load_blext_spec(
-				proj_uri=proj,
-				release_profile_id=profile,
-			),
-			bl_platform_ref=platform,
-		)
+		blext_spec = blext_info.blext_spec(config)
 
 	# Show BLExtSpec
 	if format == 'raw':
 		CONSOLE.print(blext_spec)
+
+	## TODO: Can we strategically truncate the wheels graph? Is that a good idea? Maybe a CLI option that selects certain elements of the specification to truncate?

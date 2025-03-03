@@ -82,7 +82,7 @@ def test_packed_wheel_paths(
 		proj_file_path,
 		release_profile_id=release_profile_id,
 	)
-	_ = blext_spec.packed_wheel_paths
+	_ = blext_spec.vendored_wheel_paths
 
 
 @hyp.settings(max_examples=10)

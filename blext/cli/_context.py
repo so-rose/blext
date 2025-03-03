@@ -14,31 +14,99 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Shared context for `blext` commands."""
+
 import importlib.metadata
+import typing as typ
 from pathlib import Path
 
 import cyclopts
+import platformdirs
 import rich
+import rich.theme
+
+from blext import ui
 
 ####################
-# - Static Constants
-####################
-PATH_BL_INIT_PY: Path = (
-	Path(__file__).resolve().parent.parent / 'blender_python' / 'bl_init.py'
-)
-
-####################
-# - Dynamic Constants
+# - Constants
 ####################
 __version__ = importlib.metadata.version('blext')
 
-CONSOLE = rich.console.Console()
-APP = cyclopts.App(
-	name='blext',
-	help='blext simplifies the development and management of Blender extensions.',
-	help_format='markdown',
-	version=__version__,
+CMDS_GROUP = cyclopts.Group('Commands', sort_key=0)
+SUBCMDS_GROUP = cyclopts.Group('Subcommands', sort_key=1)
+HELP_GROUP = cyclopts.Group('Help', sort_key=2)
+
+CONFIG_GROUP = cyclopts.Group('Global', sort_key=100)
+PARAMS_GROUP = cyclopts.Group('Options', sort_key=20)
+
+DEFAULT_BLEXT_INFO = ui.BLExtInfo()
+DEFAULT_CONFIG = ui.GlobalConfig()
+
+####################
+# - Parameter Types
+####################
+ParameterBLExtInfo: typ.TypeAlias = typ.Annotated[
+	ui.BLExtInfo,
+	cyclopts.Parameter(name='*'),
+]
+ParameterConfig: typ.TypeAlias = typ.Annotated[
+	ui.GlobalConfig,
+	cyclopts.Parameter(name='cfg', group=CONFIG_GROUP),
+]
+####################
+# - Console
+####################
+CONSOLE = rich.console.Console(
+	tab_size=4,
+	theme=rich.theme.Theme(
+		styles={
+			'markdown.code': 'italic dim',
+			'cyan': 'green',
+		}
+	),
 )
 
-APP['--help'].group = 'Debug'
-APP['--version'].group = 'Debug'
+
+####################
+# - App
+####################
+APP = cyclopts.App(
+	name='blext',
+	help='`blext` simplifies making Blender extensions.',
+	help_format='markdown',
+	console=CONSOLE,
+	version=__version__,
+	version_format='plaintext',
+	default_parameter=cyclopts.Parameter(
+		show_env_var=False,
+	),
+	group_arguments=PARAMS_GROUP,
+	group_parameters=PARAMS_GROUP,
+	group_commands=CMDS_GROUP,
+	config=[
+		# 0. CLI Arguments (Implicit)
+		# 1. Env Vars
+		cyclopts.config.Env(
+			prefix='BLEXT_',
+			command=True,
+		),
+		# 2. Global Config
+		cyclopts.config.Toml(
+			path=Path(
+				platformdirs.user_config_dir(
+					ui.APPNAME,
+					ui.APPAUTHOR,
+					ensure_exists=True,
+				)
+			)
+			/ 'config.toml',
+			root_keys=(),
+			must_exist=False,
+			search_parents=False,
+			allow_unknown=False,
+			use_commands_as_keys=False,
+		),
+	],
+)
+APP['--help'].group = HELP_GROUP
+APP['--version'].group = HELP_GROUP

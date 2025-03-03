@@ -14,17 +14,42 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Abstrctions useful for working with Blender extension types.
+"""Extension types serving as meaningful abstractions for managing Blender extensions.
 
-String enumerations are used to provide meaningful, editor-friendly choices that are enforced when appropriate ex. in the CLI interface.
+Attributes:
+	ValidBLExtPerms: Hardcoded list of valid extension permissions.
+		- `files`: Access to any filesystem operations.
+		- `network`: Access to the internet.
+		- `clipboard`: Permission to read and/or write the system clipboard.
+		- `camera`: Permission to capture photos or videos from system sources.
+		- `microphone`: Permission to capture audio from system sources.
+
+	ValidBLTags: Hardcoded list of valid extension tags.
+	StandardReleaseProfile: Strings identifying standardized release profiles, for which a default `ReleaseProfile` object is available.
 """
 
 import enum
 import functools
+import json
 import logging
 import typing as typ
 
 import pydantic as pyd
+import tomli_w
+from frozendict import frozendict
+
+from blext.utils.pydantic_frozen_dict import FrozenDict
+
+####################
+# - Blender Tags
+####################
+ValidBLExtPerms: typ.TypeAlias = typ.Literal[
+	'files',
+	'network',
+	'clipboard',
+	'camera',
+	'microphone',
+]
 
 ValidBLTags: typ.TypeAlias = typ.Literal[
 	'3D View',
@@ -59,12 +84,25 @@ ValidBLTags: typ.TypeAlias = typ.Literal[
 	'User Interface',
 	'UV',
 ]
+# TODO: This shouldn't be hard-coded, but should rather be configured by-repository. Somehow.
 
 
+####################
+# - Blender Platform
+####################
 class BLPlatform(enum.StrEnum):
-	"""Operating systems supported by Blender extensions managed by BLExt.
+	"""Identifier for a particular kind of OS/Architecture supported by Blender.
+
+	Notes:
+		Values correspond perfectly to the platforms defined in the official Blender extension manifest specification.
+
+		**However**, note that there are many nuances and conventions when it comes to cross-platform identification of architectures.
+		When interacting with other systems, ensure this is taken into account.
 
 	Corresponds perfectly to the platforms defined in the Blender Extension Manifest.
+
+	See Also:
+		- `blext.finders`: Tools for detecting `BLPlatform`s.
 	"""
 
 	linux_x64 = 'linux-x64'
@@ -76,7 +114,22 @@ class BLPlatform(enum.StrEnum):
 
 	@functools.cached_property
 	def pypi_arches(self) -> frozenset[str]:
-		"""Set of matching architecture string in PyPi platform tags."""
+		"""Set of PyPi CPU-architecture tags supported by this BLPlatform.
+
+		Notes:
+			PyPi is the official platform for distributing Python dependencies as ex. wheels.
+			For example, it is the default source for `pip install *`.
+
+			PyPi has its own conventions for tagging CPU architectures, including the `universal*` tags for MacOS.
+			Therefore, a bridge must be built, by asking the following question:
+
+				- Each `BLPlatform` **implicitly** supports a number of CPU architectures.
+				- Each Python dependency wheel **implicitly** supports a number of CPU architectures.
+				- _What's the overlap?_
+
+			This property answers that question using a hard-coded mapping from each BLPlatform,
+			to the set of all PyPi CPU architecture tags that should be considered identical.
+		"""
 		BLP = BLPlatform
 		return {
 			BLP.linux_x64: frozenset({'x86_64'}),
@@ -90,8 +143,11 @@ class BLPlatform(enum.StrEnum):
 		}[self]
 
 
+####################
+# - Log Levels
+####################
 class StrLogLevel(enum.StrEnum):
-	"""String log-levels corresponding to log-levels in the `logging` stdlib module."""
+	"""Enumeration mapping strings to `logging.*` log levels from the standard library."""
 
 	Debug = 'debug'
 	Info = 'info'
@@ -115,21 +171,47 @@ class StrLogLevel(enum.StrEnum):
 		}[self]
 
 
+####################
+# - Release Profiles
+####################
 StandardReleaseProfile: typ.TypeAlias = typ.Literal[
 	'test', 'dev', 'release', 'release-debug'
 ]
+## TODO: Should probably be a StrEnum to avoid the typ.get_args() popping up everywhere.
+## - AKA. Flip the task - put this under ReleaseProfile, and let it generate a ReleaseProfile.
+## - Then, ReleaseProfile would have no special logic for transforming StandardReleaseProfile to itself.
 
 
-class ReleaseProfile(pyd.BaseModel):
+class ReleaseProfile(pyd.BaseModel, frozen=True):
+	"""Settings baked into an extension, available from before `register()` is called.
+
+	"Release Profiles" give extension developers a way to make a "release" and/or "debug" version of an extension, in order to do things like:
+
+	- Preconfigure file-based logging in a "debug-release" version, making it easy to gather information from users.
+	- Run a "dev" version of the addon for development, ex. to include a web-server that hot-reloads the addon.
+	- Run a "test" version of the addon for development, ex. to include a web-server that hot-reloads the addon.
+
+	Notes:
+		For now, release profiles are quite limited:
+
+		- Possible options are hard-coded into `blext`; currently, this only includes the ability to set logging fields.
+		- Options cannot change an extension specification, beyond hard-coded options.
+		- Extensions must explicitly load `init_settings.toml` and use the fields within.
+	"""
+
+	init_settings_filename: typ.Literal['init_settings.toml'] = 'init_settings.toml'
+
 	use_log_file: bool
 	log_file_name: str
 	log_file_level: StrLogLevel
 	use_log_console: bool
 	log_console_level: StrLogLevel
 
+	overrides: FrozenDict[str, typ.Any] = frozendict()
+
 	@classmethod
 	def default_spec(cls, release_profile_id: StandardReleaseProfile) -> typ.Self:
-		"""A default, sensible release profile specification."""
+		"""A sensible default for common release profiles."""
 		log_file_name = 'addon.log'
 		return {
 			'test': cls(
@@ -161,3 +243,35 @@ class ReleaseProfile(pyd.BaseModel):
 				log_console_level=StrLogLevel.Info,
 			),
 		}[release_profile_id]
+
+	def export_init_settings(self, *, fmt: typ.Literal['json', 'toml']) -> str:
+		"""Initialization settings for this release profile, as a string.
+
+		Parameters:
+			fmt: String format to export initialization settings to.
+
+		Returns:
+			Initialization settings as a formatted string.
+		"""
+		# Parse Model to JSON
+		## - JSON is used like a Rosetta Stone, since it is best supported by pydantic.
+		json_str = self.model_dump_json(
+			include={
+				'use_log_file',
+				'log_file_name',
+				'log_file_level',
+				'use_log_console',
+				'log_console_level',
+			},
+			by_alias=True,
+		)
+
+		# Return String as Format
+		if fmt == 'json':
+			return json_str
+		if fmt == 'toml':
+			json_dict: dict[str, typ.Any] = json.loads(json_str)
+			return tomli_w.dumps(json_dict)
+
+		msg = f'Cannot export init settings to the given unknown format: {fmt}'  # pyright: ignore[reportUnreachable]
+		raise ValueError(msg)

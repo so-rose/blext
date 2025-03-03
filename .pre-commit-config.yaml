@@ -21,11 +21,11 @@ repos:
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.9.1
+    rev: v0.9.9
     hooks:
       # ruff lint
-      #- id: ruff
-        #args: [ --fix ]
+      - id: ruff
+        files: "blext/*"
       # ruff fmt
       - id: ruff-format
 

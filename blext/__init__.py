@@ -14,7 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from . import exceptions, loaders, pack, paths, pydeps, utils
+"""`blext` is a project manager for Blender extension development."""
+
+from . import blender, exceptions, location, pack, pydeps, ui, utils
 from .extyp import (
 	BLPlatform,
 	ReleaseProfile,
@@ -31,10 +33,11 @@ __all__ = [
 	'StandardReleaseProfile',
 	'StrLogLevel',
 	'ValidBLTags',
+	'blender',
 	'exceptions',
-	'loaders',
+	'location',
 	'pack',
-	'paths',
 	'pydeps',
+	'ui',
 	'utils',
 ]

@@ -14,46 +14,47 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the `show init_settings` command."""
+"""Implements `blext show init_settings`."""
 
 import typing as typ
-from pathlib import Path
 
 import pydantic as pyd
 
 from blext import exceptions as exc
-from blext import extyp, loaders
 
+from ._context import (
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
 from ._context_show import APP_SHOW, CONSOLE
 
 
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='init_settings', group='Information')
-def show_init_settings(
-	proj: Path | None = None,
+@APP_SHOW.command(name='profile')
+def show_profile(
 	*,
-	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
-	profile: extyp.StandardReleaseProfile | str = 'release',
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
 	format: typ.Literal['json', 'toml'] = 'toml',  # noqa: A002
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""Print the complete extension specification.
+	"""Show release -profile settings.
 
 	Parameters:
-		bl_platform: The Blender platform to build the extension for.
-		proj_path: Path to a `pyproject.toml` or a folder containing a `pyproject.toml`, which specifies the Blender extension.
-		release_profile: The release profile to bake into the extension.
+		proj: Path to Blender extension project.
+		platform: Platform to build extension for.
+			"detect" uses the current platform.
+		profile: Initial settings to build extension with.
+			Alters `initial_setings.toml` in the extension.
+		format: Text format to output.
 	"""
 	# Parse CLI
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = loaders.load_bl_platform_into_spec(
-			loaders.load_blext_spec(
-				proj_uri=proj,
-				release_profile_id=profile,
-			),
-			bl_platform_ref=platform,
-		)
+		blext_spec = blext_info.blext_spec(config)
 
 	# Show BLExtSpec
-	CONSOLE.print(blext_spec.export_blender_manifest(fmt=format))
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		CONSOLE.print(blext_spec.export_init_settings(fmt=format), markup=False, end='')

@@ -19,95 +19,12 @@
 import os
 import platform
 import shutil
+import typing as typ
 from pathlib import Path
 
-from . import extyp
+import pydantic as pyd
 
-
-####################
-# - Project Information
-####################
-def search_in_parents(path: Path, filename: str) -> Path | None:
-	"""Search all parents of a path for a file.
-
-	Notes:
-		The input `path` is itself searched for the filename, but only if it is a directory.
-
-	Parameters:
-		path: The path to search the parents of.
-
-	Returns:
-		Absolute path to the found file, else `None` if no file was found.
-	"""
-	# No File Found
-	if path == Path(path.root) or path == path.parent:
-		return None
-
-	# File Found
-	if path.is_dir():
-		file_path = path / filename
-		if file_path.is_file():
-			return file_path.resolve()
-
-	# Recurse
-	return search_in_parents(path.parent, filename)
-
-
-def find_proj_spec(proj_uri: Path | None) -> Path:
-	"""Locate the project specification by scanning the given project path.
-
-	Parameters:
-		proj_uri: Use to search for a project specification.
-			May refer to any of:
-
-			- File (`pyproject.toml`): Must contain `[tool.blext]` fields.'
-			- Script (`*.py`): Must contain `[tool.blext]` fields as "inline script metadata".'
-			- Folder (w/`pyproject.toml`): Must contain a valid `pyproject.toml` file.'
-			'- `None`: Will search upwards for `pyproject.toml` from the current folder ({Path.cwd()}).'
-
-	Returns:
-		The path to a file that **might** support a `blext` project specificaiton.
-
-	Raises:
-		ValueError: If no project specificaiton can be found.
-
-	References:
-		- Inline Script Metadata: <https://packaging.python.org/en/latest/specifications/inline-script-metadata/#reference-implementation>
-	"""
-	# Search for Project Specification
-	if proj_uri is None:
-		path_proj_spec = search_in_parents(Path.cwd(), 'pyproject.toml')
-	elif proj_uri.is_file() and (
-		proj_uri.name.endswith('.py') or proj_uri.name == 'pyproject.toml'
-	):
-		path_proj_spec = proj_uri
-	elif proj_uri.is_dir():
-		path_proj_spec = proj_uri / 'pyproject.toml'
-	else:
-		path_proj_spec = None
-
-	## TODO: Handle using URLs as proj_uri:
-	## - git URL (w/optional ref): blext handles cloning to a cached path.
-	## - Online .py (w/inline metadata): blext handles downloading to a cached path and running.
-	## TODO: OR, hear me out.
-	## - We could go ahead and *only* download the pyproject.toml (or, well, we'd need to get the entire .py).
-	## - We could then register the URL as the project path in 'paths'.
-	## - Then, whenever 'paths' is asked for 'path_pypkg', THEN AND ONLY THEN does it 'git clone'.
-	## - This allows for ex. analyzing the dependencies of remote repos without a full clone.
-
-	# Found Project Spec
-	if path_proj_spec is not None:
-		return path_proj_spec.resolve()
-
-	msgs = [
-		f'No Blender extension information could be found from the given path "{proj_uri}".',
-		'Path must be one of:',
-		'- File (`pyproject.toml`): Must contain `[tool.blext]` fields.',
-		'- Script (`*.py`): Must contain `[tool.blext]` fields as "inline script metadata".',
-		'- Folder (w/`pyproject.toml`): Must contain a valid `pyproject.toml` file.',
-		f'- `None`: Will search upwards for `pyproject.toml` from the current folder ({Path.cwd()}).',
-	]
-	raise ValueError(*msgs)
+from . import extyp, location
 
 
 ####################
@@ -116,48 +33,58 @@ def find_proj_spec(proj_uri: Path | None) -> Path:
 def detect_local_blplatform() -> extyp.BLPlatform:
 	"""Deduce the local Blender platform from `platform.system()` and `platform.machine()`.
 
-	References:
-		Architecture Strings on Linus: <https://stackoverflow.com/questions/45125516/possible-values-for-uname-m>
-
 	Warning:
-		This method is mostly untested, especially on Windows.
+		This method is reasoned through, not thoroughly tested.
 
 	Returns:
 		A local operating system supported by Blender, conforming to the format expected by Blender's extension manifest.
 
 	Raises:
 		ValueError: If a Blender-supported operating system could not be detected locally.
+
+	References:
+		- Possible Values from `uname -m`: <https://stackoverflow.com/questions/45125516/possible-values-for-uname-m>
+		- Possible Values from `sys.platform`: https://stackoverflow.com/questions/446209/possible-values-from-sys-platform
 	"""
 	platform_system = platform.system().lower()
 	platform_machine = platform.machine().lower()
 
 	match (platform_system, platform_machine):
-		case ('linux', 'x86_64' | 'amd64'):
+		case ('linux' | 'linux2', 'x86_64' | 'amd64'):
 			return extyp.BLPlatform.linux_x64
-		case ('linux', arch) if arch.startswith(('aarch64', 'arm')):
+		case ('linux' | 'linux2', arch) if arch.startswith(('aarch64', 'arm')):
 			return extyp.BLPlatform.linux_arm64
 		case ('darwin', 'x86_64' | 'amd64'):
 			return extyp.BLPlatform.macos_x64
 		case ('darwin', arch) if arch.startswith(('aarch64', 'arm')):
 			return extyp.BLPlatform.macos_arm64
-		case ('windows', 'x86_64' | 'amd64'):
+		case ('win32' | 'cygwin' | 'msys', 'x86_64' | 'amd64'):
 			return extyp.BLPlatform.windows_x64
-		case ('windows', arch) if arch.startswith(('aarch64', 'arm')):
+		case ('win32' | 'cygwin' | 'msys', arch) if arch.startswith(('aarch64', 'arm')):
 			return extyp.BLPlatform.windows_arm64
 		case _:
-			msg = "Could not detect a local operating system supported by Blender from 'platform.system(), platform.machine() = {platform_system}, {platform_machine}'"
+			msg = f"Could not detect a local operating system supported by Blender from 'platform.system(), platform.machine() = {platform_system}, {platform_machine}'"
 			raise ValueError(msg)
 
 
 ####################
 # - Executables
 ####################
-def find_blender_exe() -> Path:
+def find_blender_exe(*, override_path_blender_exe: Path | None = None) -> Path:  # noqa: C901
 	"""Locate the Blender executable, using the current platform as a hint.
 
 	Returns:
 		Absolute path to a valid Blender executable, as a string.
 	"""
+	if override_path_blender_exe is not None:
+		blender_exe = override_path_blender_exe
+		if blender_exe.exists():
+			return blender_exe
+		# TODO: Do more checks ex. is it executable?
+
+		msg = f"Couldn't find Blender executable at specified path: {blender_exe}"
+		raise ValueError(msg)
+
 	bl_platform = detect_local_blplatform()
 	match bl_platform:
 		case extyp.BLPlatform.linux_x64 | extyp.BLPlatform.linux_arm64:
@@ -197,18 +124,146 @@ def find_blender_exe() -> Path:
 			raise ValueError(msg)
 
 
-def find_uv_exe(search_venv: bool = True) -> Path:
+def find_uv_exe(
+	*,
+	search_venv: bool = True,
+	override_path_uv_exe: Path | None = None,
+) -> Path:
 	"""Locate the `uv` executable.
 
+	Parameters:
+		search_venv: Search an active virtual environment based on the `VIRTUAL_ENV` env var.
+		override_path_uv_exe: Override the path to search for a `uv` executable.
+
 	Returns:
-		Absolute path to a valid Blender executable, as a string.
+		Absolute path to a valid `uv` executable.
 	"""
+	if override_path_uv_exe is not None:
+		uv_exe = override_path_uv_exe
+		if uv_exe.exists():
+			return uv_exe.resolve()
+
+		msg = f"Couldn't find `uv` executable at specified path: {uv_exe}"
+		raise ValueError(msg)
+
 	if search_venv and 'VIRTUAL_ENV' in os.environ:
 		path_venv = Path(os.environ['VIRTUAL_ENV'])
 		path_uv = path_venv / 'bin' / 'uv'
 
 		if path_uv.is_file():
-			return path_uv
+			return path_uv.resolve()
 
 	msg = "Could not find a 'uv' executable."
 	raise ValueError(msg)
+
+
+####################
+# - Finder: Project Specification
+####################
+@typ.runtime_checkable
+class GitInfo(typ.Protocol):
+	"""An object that references a specific `git` repository and commit."""
+
+	@property
+	def url(self) -> str:  # pyright: ignore[reportReturnType]
+		"""Link to the `git` repository."""
+
+	@property
+	def rev(self) -> str | None:
+		"""Identifier for the commit in the `git` repository.
+
+		Notes:
+			When given, `self.tag` and `self.branch` must be `None`.
+		"""
+
+	@property
+	def tag(self) -> str | None:
+		"""Identifier for the tag in the `git` repository.
+
+		Notes:
+			When given, `self.rev` and `self.branch` must be `None`.
+		"""
+
+	@property
+	def branch(self) -> str | None:
+		"""Identifier for the branch in the `git` repository.
+
+		Notes:
+			When given, `self.rev` and `self.tag` must be `None`.
+		"""
+
+	@property
+	def entrypoint(self) -> Path | None:
+		"""Path to an extension specification file, relative to the repository root."""
+
+
+def find_proj_spec(
+	proj_uri: GitInfo | pyd.HttpUrl | Path | None,
+	*,
+	path_global_project_cache: Path,
+	path_global_download_cache: Path,
+) -> location.BLExtLocation:
+	"""Locate the project specification.
+
+	Parameters:
+		proj_uri: Use to search for a project specification.
+
+			- Current Project (`None -> **/pyproject.toml`): Search upwards for `pyproject.toml`, from current folder ({Path.cwd().resolve()}).
+			- Project File (`pyproject.toml`): In the root folder of an extension project.
+			- Project Folder (`*/pyproject.toml`): Folder containing a `pyproject.toml`.
+			- Script File (`*.py`): Single-file extension.
+			- Git URL: Local copy of repository containing `pyproject.toml`.
+			- HTTP URL File: Local downloaded copy of a single-file extension.
+
+		path_script_cache: Cache location to use for a single-file script extension.
+		path_download_cache: Cache location to use for downloading extensions.
+
+	Returns:
+		Object specifying all paths needed to use/manage a Blender extension.
+
+	Raises:
+		ValueError: If no extension project could be located from `proj_uri`.
+
+	See Also:
+		- `blext.location.BLExtLocation`: Abstracts the discovery, creation, and use of paths associated with a particular Blender extension.
+
+	References:
+		- Inline Script Metadata: <https://packaging.python.org/en/latest/specifications/inline-script-metadata/#reference-implementation>
+	"""
+	match proj_uri:
+		case Path() | None:
+			return location.BLExtLocationPath(
+				path=proj_uri,
+				path_global_project_cache=path_global_project_cache,
+				path_global_download_cache=path_global_download_cache,
+			)
+
+		case pyd.HttpUrl():
+			return location.BLExtLocationHttp(
+				url=proj_uri,
+				path_global_project_cache=path_global_project_cache,
+				path_global_download_cache=path_global_download_cache,
+			)
+
+		case GitInfo():
+			return location.BLExtLocationGit(
+				url=proj_uri.url,
+				rev=proj_uri.rev,
+				tag=proj_uri.tag,
+				branch=proj_uri.branch,
+				entrypoint=proj_uri.entrypoint,
+				path_global_project_cache=path_global_project_cache,
+				path_global_download_cache=path_global_download_cache,
+			)
+
+	msgs = [  # pyright: ignore[reportUnreachable]
+		f'No Blender extension information could be found from the given URI "{proj_uri}".',
+		'The following URIs are supported:',
+		'- Current Project (`**/pyproject.toml`): Search upwards for `pyproject.toml`, from current folder ({Path.cwd().resolve()}).',
+		'- Project File (`pyproject.toml`): In the root folder of an extension project.',
+		'- Project Folder (`*/pyproject.toml`): Folder containing a `pyproject.toml`.',
+		'- Script File (`*.py`): Single-file extension.',
+		'- Git URL: Local copy of repository containing `pyproject.toml`.',
+		'- HTTP URL File: Local downloaded copy of a single-file extension.',
+	]
+	raise ValueError(*msgs)

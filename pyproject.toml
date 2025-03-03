@@ -192,7 +192,7 @@ reportMissingImports = "error"
 reportMissingTypeStubs = true
 
 executionEnvironments = [
-  { root = "blext/blender_python", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages", ".venv/lib/python3.11/site-packages/bpy/4.3/scripts/modules" ] },
+  { root = "blext/utils_blender", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages", ".venv/lib/python3.11/site-packages/bpy/4.3/scripts/modules" ] },
   #{ root = "blext", pythonVersion = "3.11" },
   { root = ".", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages" ] },
 ]

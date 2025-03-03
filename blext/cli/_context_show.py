@@ -14,16 +14,28 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Shared context for `blext show` commands."""
+
 import cyclopts
 
-from ._context import APP, CONSOLE
+from ._context import APP, CONSOLE, HELP_GROUP, SUBCMDS_GROUP
 
-APP_SHOW = cyclopts.App(name='show', help='[Show] information about the extension.')
+####################
+# - App
+####################
+APP_SHOW = cyclopts.App(
+	name='show',
+	help='Extract information about an extension project.',
+	group=SUBCMDS_GROUP,
+)
 _ = APP.command(APP_SHOW)
 
-APP_SHOW['--help'].group = 'Debug'
-APP_SHOW['--version'].group = 'Debug'
+APP_SHOW['--help'].group = HELP_GROUP
+APP_SHOW['--version'].group = HELP_GROUP
 
+####################
+# - Export
+####################
 __all__ = [
 	'APP_SHOW',
 	'CONSOLE',

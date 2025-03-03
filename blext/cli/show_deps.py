@@ -14,52 +14,50 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the `show deps` command."""
+"""Implements `blext show deps`."""
 
 import typing as typ
-from pathlib import Path
 
 import pydantic as pyd
 import rich.markdown
 import rich.table
 
 from blext import exceptions as exc
-from blext import extyp, loaders
 
+from ._context import (
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
 from ._context_show import APP_SHOW, CONSOLE
 
 
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='deps', group='Information')
+@APP_SHOW.command(name='deps')
 def show_deps(
-	proj: Path | None = None,
 	*,
-	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
-	profile: extyp.StandardReleaseProfile | str = 'release',
-	sort_by: typ.Literal['filename', 'size'] = 'size',
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
+	sort_by: typ.Literal['filename', 'size'] = 'filename',
 	format: typ.Literal['table'] = 'table',  # noqa: A002
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""Print the complete extension specification.
+	"""Inspect all Python dependencies.
 
 	Parameters:
-		proj: Path to the Blender extension project.
-		bl_platform: Blender platform(s) to constrain the extension to.
-			Use "detect" to constrain to detect the current platform.
-		release_profile: The release profile to apply to the extension.
-		sort_by: How to sort the project dependencies table.
-		format: The text format to show the project dependencies with.
+		proj: Path to Blender extension project.
+		platform: Platform to build extension for.
+			"detect" uses the current platform.
+		profile: Initial settings to build extension with.
+			Alters `initial_setings.toml` in the extension.
+		sort_by: Column to sort dependencies by.
+		format: Text format to output.
 	"""
 	# Parse CLI
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = loaders.load_bl_platform_into_spec(
-			loaders.load_blext_spec(
-				proj_uri=proj,
-				release_profile_id=profile,
-			),
-			bl_platform_ref=platform,
-		)
+		blext_spec = blext_info.blext_spec(config)
 
 	# Sort Wheels
 	with exc.handle(exc.pretty, ValueError):
@@ -104,7 +102,7 @@ def show_deps(
 			f'={blext_spec.wheels_graph.total_size_bytes.human_readable(decimal=True, separator=" ")}',
 		)
 		## TODO: A column that checks whether the wheel is downloaded/cached?
-		## TODO: Export as ex.
+		## TODO: Export as csv
 
 		####################
 		# - UI: Print
