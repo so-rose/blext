@@ -14,3 +14,33 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Implements `blext show config`."""
+
+import typing as typ
+
+from ._context import (
+	DEFAULT_CONFIG,
+	ParameterConfig,
+)
+from ._context_show import APP_SHOW, CONSOLE
+
+
+####################
+# - Command: Show Spec
+####################
+@APP_SHOW.command(name='config')
+def show_config(
+	*,
+	format: typ.Literal['raw', 'json', 'toml'] = 'toml',  # noqa: A002
+	config: ParameterConfig = DEFAULT_CONFIG,
+) -> None:
+	"""Inspect all Python dependencies.
+
+	Parameters:
+		format: Column to sort dependencies by.
+		config: Global configuration overrides.
+	"""
+	if format == 'raw':
+		CONSOLE.print(config)
+	else:
+		CONSOLE.print(config.export_config(fmt=format), markup=False, end='')

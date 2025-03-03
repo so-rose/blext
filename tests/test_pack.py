@@ -50,7 +50,7 @@ def test_pack_example_extension(
 		proj_file_path,
 		release_profile_id=release_profile_id,
 	)
-	blext_spec = blext_spec.constrain_to_bl_platform(bl_platform)
+	blext_spec = blext_spec.set_bl_platforms(bl_platform)
 	with tempfile.TemporaryDirectory() as path_tmpdir_str:
 		path_tmpdir = Path(path_tmpdir_str)
 

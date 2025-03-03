@@ -34,7 +34,7 @@ def test_paths(
 	proj_uri: Path,
 	release_profile_id: blext.StandardReleaseProfile,
 ) -> None:
-	blext_spec = blext.loaders.load_blext_spec(
+	blext_spec = blext.blext_info.load_blext_spec(
 		proj_uri, release_profile_id=release_profile_id
 	)
 	_ = paths.path_root(blext_spec)

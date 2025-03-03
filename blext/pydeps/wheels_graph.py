@@ -30,7 +30,7 @@ from .wheel import BLExtWheel
 
 
 class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
-	"""A graph of Python dependencies needed by a Blender extension."""
+	"""All Python dependencies needed by a Blender extension."""
 
 	all_wheels: frozenset[BLExtWheel]
 
@@ -141,9 +141,10 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		)  #  pyright: ignore[reportAny]
 
 	@functools.cached_property
-	def validated_graph(
+	def validated_graph(  # noqa: C901
 		self,
 	) -> frozendict[str, frozendict[extyp.BLPlatform, BLExtWheel]]:
+		"""A graph that guarantees exactly one valid wheel per-dependency, per-platform."""
 		# Construct Mutable Platform Graph
 		## - A mutable, ordered copy preserves the cache semantics of complete_platform_graph.
 		wheel_graph: dict[str, dict[extyp.BLPlatform, list[BLExtWheel]]] = {
@@ -265,7 +266,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		# - Process and Return
 		####################
 		return frozendict(
-			{
+			{  # pyright: ignore[reportUnknownArgumentType]
 				wheel_project: frozendict(
 					{
 						bl_platform: wheels[0]
@@ -281,6 +282,11 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 	####################
 	@functools.cached_property
 	def wheels(self) -> frozenset[BLExtWheel]:
+		"""All wheels needed for a Blender extension.
+
+		Notes:
+			Computed from `self.validated_graph`.
+		"""
 		return frozenset(
 			{
 				wheel
@@ -291,6 +297,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 
 	@functools.cached_property
 	def total_size_bytes(self) -> pyd.ByteSize:
+		"""Total size of all wheels."""
 		return pyd.ByteSize(
 			sum(
 				int(wheel.size) if wheel.size is not None else 0
@@ -301,7 +308,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 	####################
 	# - Wheel Path Handling
 	####################
-	def wheels_from_cache(self, path_wheels: Path) -> frozenset[BLExtWheel]:
+	def wheels_in_cache(self, path_wheels: Path) -> frozenset[BLExtWheel]:
 		"""Deduce which of `self.wheels` need to be downloaded, by comparing to wheels currently available in `path_wheels`."""
 		wheel_filenames_existing = frozenset(
 			{path_wheel.name for path_wheel in path_wheels.rglob('*.whl')}
@@ -338,7 +345,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		if not self.wheels_to_download_to(path_wheels):
 			return {
 				path_wheels / wheel.filename: Path('wheels') / wheel.filename
-				for wheel in self.wheels_from_cache(path_wheels)
+				for wheel in self.wheels_in_cache(path_wheels)
 			}
 
 		msg = 'Tried to get wheel paths for pre-packing, but not all required wheels are downloaded.'
@@ -352,16 +359,16 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		cls,
 		uv_lock: frozendict[str, typ.Any],
 		*,
+		requirements_txt: tuple[str, ...],
 		supported_bl_platforms: frozenset[extyp.BLPlatform],
 		min_glibc_version: tuple[int, int],
 		min_macos_version: tuple[int, int],
 	) -> typ.Self:
-		# Parse Dependencies and Packages
-
+		"""Create from a `uv.lock` file."""
 		packages = tuple(
 			[
 				package
-				for package in uv_lock['package']
+				for package in uv_lock['package']  # pyright: ignore[reportAny]
 				if 'name' in package
 				and not (
 					'source' in package
@@ -374,36 +381,33 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		# Parse Wheels: URL
 		wheels_url = {
 			BLExtWheel(
-				url=wheel_info['url'],
-				hash=wheel_info.get('hash'),
-				size=wheel_info.get('size'),
+				url=wheel_info['url'],  # pyright: ignore[reportAny]
+				hash=wheel_info.get('hash'),  # pyright: ignore[reportAny]
+				size=wheel_info.get('size'),  # pyright: ignore[reportAny]
 			)
-			for package in packages
-			for wheel_info in package.get('wheels', [])
+			for package in packages  # pyright: ignore[reportAny]
+			for wheel_info in package.get('wheels', [])  # pyright: ignore[reportAny]
 			if (
 				'source' in package
 				and 'registry' in package['source']
+				## TODO: Global list of acceptable wheel registries
 				and 'url' in wheel_info
+				and 'hash' in wheel_info
+				and 'size' in wheel_info
 			)
-		}
-		wheels_path_editable = {
-			BLExtWheel(
-				path=package['source']['editable'].resolve(),
-			)
-			for package in packages
-			if ('source' in package and 'editable' in package['source'])
-		}
-		wheels_path_directory = {
-			BLExtWheel(
-				path=package['source']['directory'].resolve(),
-			)
-			for package in packages
-			if ('source' in package and 'directory' in package['source'])
 		}
 
 		return cls(
 			all_wheels=frozenset(
-				wheels_url | wheels_path_editable | wheels_path_directory
+				{
+					wheel
+					for wheel in wheels_url
+					if any(
+						wheel.project
+						== pydep_str.split('==')[0].replace('-', '_').lower()
+						for pydep_str in requirements_txt
+					)
+				}
 			),
 			supported_bl_platforms=supported_bl_platforms,
 			min_glibc_version=min_glibc_version,
@@ -422,4 +426,5 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		raise ValueError(msg)
 
 	def __getitem__(self, key: extyp.BLPlatform | typ.Any) -> frozenset[BLExtWheel]:
+		"""Call `self.search` using the indexing operator."""
 		return self.search(key)

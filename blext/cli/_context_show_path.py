@@ -14,19 +14,31 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Shared context for `blext show path` commands."""
+
 import cyclopts
 
-from ._context_show import APP_SHOW, CONSOLE
+from ._context import CONSOLE, HELP_GROUP, SUBCMDS_GROUP
+from ._context_show import APP_SHOW
 
+####################
+# - App
+####################
 APP_SHOW_PATH = cyclopts.App(
-	name='path', help='[Show] paths found by `blext`.', group='Subcommands'
+	name='path',
+	help='[Show] paths found by `blext`.',
+	group=SUBCMDS_GROUP,
 )
 _ = APP_SHOW.command(APP_SHOW_PATH)
 
-APP_SHOW_PATH['--help'].group = 'Info'
-APP_SHOW_PATH['--version'].group = 'Info'
+APP_SHOW_PATH['--help'].group = HELP_GROUP
+APP_SHOW_PATH['--version'].group = HELP_GROUP
 
+####################
+# - Export
+####################
 __all__ = [
 	'APP_SHOW_PATH',
 	'CONSOLE',
+	'SUBCMDS_GROUP',
 ]

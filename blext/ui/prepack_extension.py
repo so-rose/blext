@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Implements a UI that reports the progress of extension pre-packing."""
+
 import collections.abc
 import contextlib
 import functools
@@ -30,11 +32,44 @@ import rich.table
 ####################
 # - Structs
 ####################
-class CallbacksPrepackExtension(pyd.BaseModel):
-	"""Simple callback-storage, for use with `blext.pydeps.network.download_wheels."""
+@typ.runtime_checkable
+class PrepackCallback(typ.Protocol):
+	"""Callback for use in `CallbacksPrepackExtension`."""
 
-	cb_pre_file_write: typ.Callable[[Path, Path], typ.Any]
-	cb_post_file_write: typ.Callable[[Path, Path], typ.Any]
+	def __call__(  # pyright: ignore[reportAny]
+		self,
+		path: Path,
+		zipfile_path: Path,
+		*,
+		live: rich.live.Live,
+	) -> typ.Any:
+		"""Signature of the callback."""
+
+
+class CallbacksPrepackExtension(pyd.BaseModel, arbitrary_types_allowed=True):
+	"""Callbacks to trigger in the process of pre-packing an extension.
+
+	Notes:
+		- All callbacks additionally take a `live=` keyword argument
+		- All that a pre-pack agent has to ensure, is to allow the user to specify
+		equivalent callbacks to these.
+		- The callback return values are never used for any purpose.
+
+	Attributes:
+		cb_pre_file_write: Called as a file is about to be pre-packed.
+			Called with the host path, and the zipfile path.
+			_Always called before `cb_post_file_write` for a file._
+		cb_post_file_write: Called after a file has been pre-packed.
+			Called with the host path, and the zipfile path.
+			_Always called before `cb_post_file_write` for a file._
+
+	See Also:
+		- `blext.pack.prepack_extension`: Prepack agent that uses equivalent callbacks.
+		- `blext.ui.ui_prepack_extension`: Context manager that provides this object.
+	"""
+
+	cb_pre_file_write: PrepackCallback
+	cb_post_file_write: PrepackCallback
 
 
 ####################
@@ -45,8 +80,20 @@ def ui_prepack_extension(
 	files_to_prepack: dict[Path, Path],
 	*,
 	console: rich.console.Console,
-	fps: int = 30,
 ) -> collections.abc.Generator[CallbacksPrepackExtension, None, None]:
+	"""Context manager creating a terminal UI to communicate extension prepacking progress.
+
+	Parameters:
+		files_to_prepack: Files to be prepack.
+			Maps an absolute host filesystem path, to a relative zipfile path.
+		console: `rich` console to print the UI to.
+
+	Yields:
+		Callbacks to call during the download progress, in order for the UI to update correctly.
+
+	See Also:
+		`blext.ui.download_wheels.CallbacksDownloadWheel`: For more on when to call each callback.
+	"""
 	file_sizes = {path: path.stat().st_size for path in files_to_prepack}
 	bytes_to_prepack = sum(file_size for file_size in file_sizes.values())
 
@@ -73,17 +120,12 @@ def ui_prepack_extension(
 	####################
 	# - Callbacks
 	####################
-	def cb_pre_file_write(
-		path: Path,
-		zipfile_path: Path,
-		*,
-		live: rich.live.Live,
-	) -> None:
+	def cb_pre_file_write(*_, **__) -> None:  # pyright: ignore[reportUnusedParameter, reportMissingParameterType, reportUnknownParameterType]
 		pass
 
 	def cb_post_file_write(
 		path: Path,
-		zipfile_path: Path,
+		_: Path,
 		*,
 		live: rich.live.Live,
 	) -> None:
@@ -121,10 +163,11 @@ def ui_prepack_extension(
 		for i, path in enumerate(
 			sorted(remaining_files_to_prepack, key=lambda path: file_sizes[path])
 		):
+			style = {'style': 'green'} if i == 0 else {}
 			table_wheel_progress.add_row(
 				pyd.ByteSize(file_sizes[path]).human_readable(decimal=True),
 				str(Path('wheels') / path.name),
-				**({'style': 'green'} if i == 0 else {}),
+				**style,  # pyright: ignore[reportArgumentType]
 			)
 
 		return rich.console.Group(
@@ -146,4 +189,4 @@ def ui_prepack_extension(
 			cb_post_file_write=functools.partial(cb_post_file_write, live=live),
 		)
 
-	progress_prepack.stop_task(task_prepack)
+		progress_prepack.stop_task(task_prepack)

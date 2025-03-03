@@ -14,31 +14,34 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the `show init_settings` command."""
+"""Implements `blext show init_settings`."""
 
 import typing as typ
-from pathlib import Path
 
 import pydantic as pyd
 
 from blext import exceptions as exc
-from blext import extyp, loaders
 
+from ._context import (
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
 from ._context_show import APP_SHOW, CONSOLE
 
 
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='init_settings')
-def show_init_settings(
-	proj: Path | None = None,
+@APP_SHOW.command(name='profile')
+def show_profile(
 	*,
-	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
-	profile: extyp.StandardReleaseProfile | str = 'release',
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
 	format: typ.Literal['json', 'toml'] = 'toml',  # noqa: A002
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""[Show] initial settings of a project w/profile.
+	"""Show release -profile settings.
 
 	Parameters:
 		proj: Path to Blender extension project.
@@ -50,13 +53,8 @@ def show_init_settings(
 	"""
 	# Parse CLI
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = loaders.load_bl_platform_into_spec(
-			loaders.load_blext_spec(
-				proj_uri=proj,
-				release_profile_id=profile,
-			),
-			bl_platform_ref=platform,
-		)
+		blext_spec = blext_info.blext_spec(config)
 
 	# Show BLExtSpec
-	CONSOLE.print(blext_spec.export_init_settings(fmt=format))
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		CONSOLE.print(blext_spec.export_init_settings(fmt=format), markup=False, end='')

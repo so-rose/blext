@@ -14,101 +14,105 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the `build` command."""
+"""Implements `blext build`."""
 
 import typing as typ
 from pathlib import Path
 
+import cyclopts
 import pydantic as pyd
 
 import blext.exceptions as exc
-from blext import blender, extyp, finders, loaders, pack, paths, pydeps, ui
+from blext import pack, pydeps, ui
 
-from ._context import APP, CONSOLE
+from ._context import (
+	APP,
+	CONSOLE,
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
+from .check import check
 
 
 @APP.command()
 def build(
-	proj: Path | None = None,
 	*,
-	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
-	profile: extyp.StandardReleaseProfile | str = 'release',
-	output: Path | None = None,
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
+	output: typ.Annotated[
+		Path | None,
+		cyclopts.Parameter(name=['--output', '-o']),
+	] = None,
 	overwrite: bool = True,
 	vendor: bool = True,
+	check_output: bool = True,
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""[Build] extension project to installable `.zip`.
+	"""Build an extension project.
 
 	Parameters:
-		proj: Path to Blender extension project.
-		platform: Platform to build extension for.
-			"detect" uses the current platform.
-		profile: Initial settings to build extension with.
-			Alters `initial_setings.toml` in the extension.
-		output: Extension `.zip` to build.
-			Folder path can also be specified.
+		info: Information about the extension.
+		output: Write built extension to this file / folder.
 		overwrite: Allow overwriting `.zip`.
 		vendor: Include dependencies as wheels in the `.zip`.
 			When `False`, write `uv.lock` to the extension.
 	"""
-	try:
-		blender_exe = finders.find_blender_exe()
-	except ValueError:
-		blender_exe = None
+	blext_location = blext_info.blext_location(config)
 
 	####################
 	# - Parse Specification and Paths
 	####################
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = loaders.load_bl_platform_into_spec(
-			loaders.load_blext_spec(
-				proj_uri=proj,
-				release_profile_id=profile,
-			),
-			bl_platform_ref=platform,
-		)
+		blext_spec = blext_info.blext_spec(config)
 
-	if platform is None:
-		CONSOLE.print(
-			f'Selected [bold]all {len(blext_spec.bl_platforms)} extension-supported platform(s)[/bold]: [italic]{", ".join(sorted(blext_spec.bl_platforms))}[/italic]'
-		)
-	elif platform == 'detect':
-		CONSOLE.print(
-			f'Selected [bold]local detected platform[/bold]: [italic]{next(iter(blext_spec.bl_platforms))}[/italic]'
-		)
-	else:
-		CONSOLE.print(
-			f'Selected [bold]{len(blext_spec.bl_platforms)} platform(s)[/bold]: [italic]{", ".join(sorted(blext_spec.bl_platforms))}[/italic]'
-		)
-
-	path_wheels = paths.path_wheels(blext_spec)
-	path_zip_prepack = paths.path_prepack(blext_spec) / blext_spec.packed_zip_filename
+	path_zip_prepack = (
+		blext_location.path_prepack_cache / blext_spec.packed_zip_filename
+	)
 	path_zip = (
-		paths.path_build(blext_spec) / blext_spec.packed_zip_filename
+		blext_location.path_build_cache / blext_spec.packed_zip_filename
 		if output is None
 		else (output / blext_spec.packed_zip_filename if output.is_dir() else output)
 	)
-	path_pypkg = paths.path_pypkg(blext_spec)
-	path_pysrc = paths.path_pysrc(blext_spec)
+
+	####################
+	# - Report Platform Detection
+	####################
+	match blext_info.platform:
+		case ():
+			CONSOLE.print(
+				f'Selected [bold]all {len(blext_spec.bl_platforms)} extension-supported platform(s)[/bold]: [italic]{", ".join(sorted(blext_spec.bl_platforms))}[/italic]'
+			)
+		case ('detect',):
+			CONSOLE.print(
+				f'Selected [bold]only detected platform[/bold]: [italic]{next(iter(blext_spec.bl_platforms))}[/italic]'
+			)
+		case _:
+			CONSOLE.print(
+				f'Selected [bold]{len(blext_spec.bl_platforms)} platform(s)[/bold]: [italic]{", ".join(sorted(blext_spec.bl_platforms))}[/italic]'
+			)
 
 	####################
 	# - Download Wheels
 	####################
-	wheels_from_cache = blext_spec.wheels_graph.wheels_from_cache(path_wheels)
-	wheels_to_download = blext_spec.wheels_graph.wheels_to_download_to(path_wheels)
-
-	if wheels_from_cache:
+	wheels_in_cache = blext_spec.wheels_graph.wheels_in_cache(
+		blext_location.path_wheel_cache
+	)
+	if wheels_in_cache:
 		CONSOLE.print(
-			f'Found [bold]{len(wheels_from_cache)} wheel(s)[/bold] in download cache'
+			f'Found [bold]{len(wheels_in_cache)} wheel(s)[/bold] in download cache'
 		)
 
+	wheels_to_download = blext_spec.wheels_graph.wheels_to_download_to(
+		blext_location.path_wheel_cache
+	)
 	with ui.ui_download_wheels(
 		wheels_to_download,
 		console=CONSOLE,
 	) as ui_callbacks:
 		pydeps.network.download_wheels(
 			wheels_to_download,
-			path_wheels=path_wheels,
+			path_wheels=blext_location.path_wheel_cache,
 			cb_start_wheel_download=ui_callbacks.cb_start_wheel_download,
 			cb_update_wheel_download=ui_callbacks.cb_update_wheel_download,
 			cb_finish_wheel_download=ui_callbacks.cb_finish_wheel_download,
@@ -118,29 +122,45 @@ def build(
 		CONSOLE.print(f'Downloaded [bold]{len(wheels_to_download)} wheel(s)[/bold]')
 
 	####################
-	# - Pre-Pack the Blender Extension
+	# - Pre-Pack Extension
 	####################
 	if vendor:
-		files_to_prepack = blext_spec.wheels_graph.wheel_paths_to_prepack(path_wheels)
+		files_to_prepack = blext_spec.wheels_graph.wheel_paths_to_prepack(
+			blext_location.path_wheel_cache
+		)
 	else:
-		files_to_prepack = {paths.path_uv_lock(blext_spec): Path('uv.lock')}
+		raise NotImplementedError
+		# TODO: Add uv.lock or similar to unvendored wheels.
 
+	existing_prepacked_zipfiles = pack.existing_prepacked_files(
+		files_to_prepack, path_zip_prepack=path_zip_prepack
+	)
+	if existing_prepacked_zipfiles:
+		CONSOLE.print(
+			f'Found [bold]{len(existing_prepacked_zipfiles)} file(s)[/bold] in pre-pack cache'
+		)
+
+	files_to_prepack = {
+		path: zipfile_path
+		for path, zipfile_path in files_to_prepack.items()
+		if zipfile_path not in existing_prepacked_zipfiles
+	}
 	with ui.ui_prepack_extension(
 		files_to_prepack,
 		console=CONSOLE,
 	) as ui_callbacks:
-		prepacked_files = pack.prepack_extension(
+		pack.prepack_extension(
 			files_to_prepack,
 			path_zip_prepack=path_zip_prepack,
 			cb_pre_file_write=ui_callbacks.cb_pre_file_write,
 			cb_post_file_write=ui_callbacks.cb_post_file_write,
 		)
 
-	if prepacked_files:
-		CONSOLE.print(f'Pre-packed [bold]{len(prepacked_files)} file(s)[/bold]')
+	if files_to_prepack:
+		CONSOLE.print(f'Pre-packed [bold]{len(files_to_prepack)} file(s)[/bold]')
 
 	####################
-	# - Pack the Blender Extension
+	# - Pack Extension
 	####################
 	with exc.handle(exc.pretty, ValueError):
 		pack.pack_bl_extension(
@@ -148,16 +168,14 @@ def build(
 			overwrite=overwrite,
 			path_zip_prepack=path_zip_prepack,
 			path_zip=path_zip,
-			path_pypkg=path_pypkg,
-			path_pysrc=path_pysrc,
+			path_pysrc=blext_location.path_pysrc(blext_spec.id),
 		)
 
 	####################
-	# - Validate Extension Officially
+	# - Check Extension
 	####################
-	if blender_exe is not None:
-		with exc.handle(exc.pretty, ValueError):
-			blender.validate_extension(blender_exe, path_zip=path_zip)
+	if check_output:
+		check(blext_info=ui.BLExtInfo(path=path_zip), config=config)
 
 	####################
 	# - Report Success

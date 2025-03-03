@@ -14,11 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the `show manifest` command."""
+"""Implements `show manifest`."""
 
 from blext import exceptions as exc
 from blext import finders
 
+from ._context import (
+	DEFAULT_CONFIG,
+	ParameterConfig,
+)
 from ._context_show_path import APP_SHOW_PATH, CONSOLE
 
 
@@ -26,16 +30,15 @@ from ._context_show_path import APP_SHOW_PATH, CONSOLE
 # - Command: Show Spec
 ####################
 @APP_SHOW_PATH.command(name='blender')
-def show_path_blender() -> None:
-	"""[Show] [path] to found Blender executable.
-
-	Parameters:
-		bl_platform: The Blender platform to build the extension for.
-		proj_path: Path to a `pyproject.toml` or a folder containing a `pyproject.toml`, which specifies the Blender extension.
-		release_profile: The release profile to bake into the extension.
-	"""
+def show_path_blender(
+	*,
+	config: ParameterConfig = DEFAULT_CONFIG,
+) -> None:
+	"""Path to `blender` executable used by `blext`."""
 	# Show Found Blender EXE
 	with exc.handle(exc.pretty, ValueError):
-		blender_exe = finders.find_blender_exe()
+		blender_exe = finders.find_blender_exe(
+			override_path_blender_exe=config.path_blender_exe
+		)
 
 	CONSOLE.print(blender_exe)

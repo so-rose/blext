@@ -14,29 +14,35 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements `blext show path uv`."""
+"""Tools for finding common information and files using platform-specific methods."""
 
-from blext import exceptions as exc
-from blext import finders
-
-from ._context import (
-	DEFAULT_CONFIG,
-	ParameterConfig,
-)
-from ._context_show_path import APP_SHOW_PATH, CONSOLE
+from pathlib import Path
 
 
 ####################
-# - Command: Show Spec
+# - Utilities
 ####################
-@APP_SHOW_PATH.command(name='uv')
-def show_path_uv(
-	*,
-	config: ParameterConfig = DEFAULT_CONFIG,
-) -> None:
-	"""Path to `uv` executable used by `blext`."""
-	# Show Found Blender EXE
-	with exc.handle(exc.pretty, ValueError):
-		uv_exe = finders.find_uv_exe(override_path_uv_exe=config.path_uv_exe)
+def search_in_parents(path: Path, filename: str) -> Path | None:
+	"""Search all parents of a path for a file.
 
-	CONSOLE.print(uv_exe)
+	Notes:
+		The input `path` is itself searched for the filename, but only if it is a directory.
+
+	Parameters:
+		path: The path to search the parents of.
+
+	Returns:
+		Absolute path to the found file, else `None` if no file was found.
+	"""
+	# No File Found
+	if path == Path(path.root) or path == path.parent:
+		return None
+
+	# File Found
+	if path.is_dir():
+		file_path = path / filename
+		if file_path.is_file():
+			return file_path.resolve()
+
+	# Recurse
+	return search_in_parents(path.parent, filename)

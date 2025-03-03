@@ -14,56 +14,65 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the `check` command."""
+"""Implements `blext check`."""
 
 import sys
-import typing as typ
 from pathlib import Path
 
 import pydantic as pyd
 
 import blext.exceptions as exc
-from blext import blender, extyp, finders, loaders
+from blext import blender, finders
 
-from ._context import APP, CONSOLE
+from ._context import (
+	APP,
+	CONSOLE,
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
 
 
 @APP.command()
 def check(
-	path: Path | None = None,
 	*,
-	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""[Check] extension project or `.zip` for obvious issues.
+	"""Check an extension project for problems.
 
 	Parameters:
 		path: Path to an extension project, or an already-built `.zip`.
 		platform: Blender platform(s) to constrain validation.
 			Use "detect" to constrain to detect the current platform.
 	"""
+	check_target_name = str(blext_info.proj_uri)
+
 	with exc.handle(exc.pretty, ValueError):
-		blender_exe = finders.find_blender_exe()
+		blender_exe = finders.find_blender_exe(
+			override_path_blender_exe=config.path_blender_exe
+		)
 
 	checks: dict[str, bool] = {}
 
 	####################
 	# - Check ZIP
 	####################
-	if path is not None and path.name.endswith('.zip'):
-		# CONSOLE.print('Checking [bold]built extension[/bold]:', str(path))
+	if isinstance(blext_info.proj_uri, Path) and blext_info.proj_uri.name.endswith(
+		'.zip'
+	):
+		check_target_name = blext_info.proj_uri.name
+		path_zip = blext_info.proj_uri
 
 		# TODO: Specification validation from .zip
-		# checks['blender_manifest.toml ([italic]not implemented[/italic])'] = False
-		# CONSOLE.print(
-		# f'    ...[italic]skipping since check is not yet implemented.[/italic]'
-		# )
 
 		####################
 		# - Check: Validate w/Blender
 		####################
 		checks['blender --command extension validate'] = True
 		try:
-			blender.validate_extension(blender_exe, path_zip=path)
+			blender.validate_extension(blender_exe, path_zip=path_zip)
 		except ValueError:
 			checks['$ blender --command extension validate'] = False
 
@@ -77,21 +86,24 @@ def check(
 		####################
 		# - Check: Load and Validate Specification
 		####################
+		checks['Find Extension Specification'] = True
+		try:
+			blext_location = blext_info.blext_location(config)
+			check_target_name = blext_location.path_spec
+		except ValueError:
+			checks['Find Extension Specification'] = False
+
 		checks['Load Extension Specification'] = True
 		checks['Validate Extension Specification'] = True
 		try:
-			_ = loaders.load_bl_platform_into_spec(
-				loaders.load_blext_spec(
-					proj_uri=path,
-					release_profile_id='release',
-				),
-				bl_platform_ref=platform,
-			)
+			blext_spec = blext_info.blext_spec(config)
+			check_target_name = blext_spec.id
+
 		except (ValueError, pyd.ValidationError) as ex:
-			if isinstance(ex, ValueError):
-				checks['Load Extension Specification'] = False
 			if isinstance(ex, pyd.ValidationError):
 				checks['Validate Extension Specification'] = False
+			else:
+				checks['Load Extension Specification'] = False
 
 		# TODO: Really, most of the cheap checks should be part of BLExtSpec. However, what could be interesting is project-defined checks such as:
 		## - tools [ruff, basedpyright, pytest]: Does the extension project pass checks made by project-defined tooling?
@@ -113,7 +125,9 @@ def check(
 	checks_passed_str = f'{checks_passed}/{len(checks)}'
 
 	CONSOLE.print()
-	CONSOLE.print(all_pass_str + f' [bold]{path}[/bold] ({checks_passed_str})')
+	CONSOLE.print(
+		all_pass_str + f' [bold]{check_target_name}[/bold] ({checks_passed_str})'
+	)
 	for check_text, check_status in checks.items():
 		CONSOLE.print(
 			'   ',
@@ -128,5 +142,3 @@ def check(
 	####################
 	if not all(checks.values()):
 		sys.exit(1)
-	else:
-		sys.exit(0)

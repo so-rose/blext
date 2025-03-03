@@ -14,9 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from . import inline_script_metadata, pydantic_frozen_dict
+"""Standalone utilities used by `blext`."""
+
+from . import inline_script_metadata, pydantic_frozen_dict, search_in_parents
 
 __all__ = [
 	'inline_script_metadata',
 	'pydantic_frozen_dict',
+	'search_in_parents',
 ]

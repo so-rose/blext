@@ -21,7 +21,7 @@ import hypothesis as hyp
 from hypothesis import strategies as st
 
 import blext
-from blext import loaders
+from blext import blext_info
 
 from ._context import EXAMPLES_PROJ_FILES_VALID
 
@@ -37,7 +37,7 @@ def test_load_path_uri(
 	proj_uri: Path,
 	release_profile_id: blext.StandardReleaseProfile,
 ) -> None:
-	_ = loaders.load_blext_spec(proj_uri, release_profile_id=release_profile_id)
+	_ = blext_info.load_blext_spec(proj_uri, release_profile_id=release_profile_id)
 
 
 @hyp.given(
@@ -48,14 +48,14 @@ def test_load_path_registration(
 	proj_uri: Path,
 	release_profile_id: blext.StandardReleaseProfile,
 ) -> None:
-	blext_spec = loaders.load_blext_spec(
+	blext_spec = blext_info.load_blext_spec(
 		proj_uri, release_profile_id=release_profile_id
 	)
 	assert (
 		blext.paths.path_root(blext_spec) == proj_uri
 		or proj_uri.is_relative_to(blext.paths.path_root(blext_spec))
 		or blext.paths.path_root(blext_spec).is_relative_to(
-			blext.paths.PATH_GLOBAL_SCRIPT_CACHE
+			blext.paths.CONFIG.path_global_script_cache
 		)
 	)
 
@@ -76,8 +76,8 @@ def test_load_spec_and_inject_bl_platform(
 	release_profile_id: blext.StandardReleaseProfile,
 	bl_platform: blext.BLPlatform,
 ) -> None:
-	blext_spec = loaders.load_bl_platform_into_spec(
-		loaders.load_blext_spec(proj_uri, release_profile_id=release_profile_id),
+	blext_spec = blext_info.load_bl_platform_into_spec(
+		blext_info.load_blext_spec(proj_uri, release_profile_id=release_profile_id),
 		bl_platform_ref=bl_platform,
 	)
 	assert next(iter(blext_spec.bl_platforms)) == bl_platform

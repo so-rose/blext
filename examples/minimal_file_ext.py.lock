@@ -7,7 +7,10 @@ resolution-markers = [
 ]
 
 [manifest]
-requirements = [{ name = "jax", specifier = "~=0.5.0" }]
+requirements = [
+    { name = "jax", specifier = "~=0.5.0" },
+    { name = "scipy", specifier = ">=1.15.2" },
+]
 
 [[package]]
 name = "jax"

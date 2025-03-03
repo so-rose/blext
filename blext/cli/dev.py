@@ -14,27 +14,30 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the `dev` command."""
+"""Implements `blext dev`."""
 
-import tempfile
 from pathlib import Path
 
-import blext.exceptions as exc
-from blext import blender, finders
-
-from ._context import APP, CONSOLE
-from .build import build
+from ._context import (
+	APP,
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
+from .run import run
 
 
 @APP.command()
 def dev(
-	proj: Path | None = None,
 	*,
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
 	blend: Path | None = None,
 	headless: bool = False,
 	factory_startup: bool = True,
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""[Dev]elop extension live in local Blender.
+	"""Run an extension live in Blender (w/`debug` profile).
 
 	Parameters:
 		proj: Path to Blender extension project.
@@ -42,33 +45,16 @@ def dev(
 		headless: Run Blender without the GUI.
 		factory_startup: Run Blender with default "factory settings".
 	"""
-	with exc.handle(exc.pretty, ValueError):
-		blender_exe = finders.find_blender_exe()
-
-	with tempfile.TemporaryDirectory() as tmp_build_dir:
-		path_zip = Path(tmp_build_dir) / 'blext-dev-extension.zip'
-
-		####################
-		# - Build Extension
-		####################
-		build(
-			proj,
-			platform='detect',
-			profile='dev',
-			output=path_zip,
-			overwrite=True,
-			vendor=True,
-		)
-
-		####################
-		# - Run Extension in Blender
-		####################
-		CONSOLE.print()
-		CONSOLE.rule('[bold]Running Extension w/Blender[/bold]')
-		blender.run_extension(
-			blender_exe,
-			path_zip=path_zip,
-			headless=headless,
-			factory_startup=factory_startup,
-			path_blend=blend,
-		)
+	blext_info = blext_info.model_copy(
+		update={
+			'profile': 'debug' if blext_info.profile is None else blext_info.platform,
+		},
+		deep=True,
+	)
+	run(
+		blext_info=blext_info,
+		blend=blend,
+		headless=headless,
+		factory_startup=factory_startup,
+		config=config,
+	)

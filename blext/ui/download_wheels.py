@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Implements a UI that reports the download progress of Python wheels."""
+
 import collections.abc
 import contextlib
 import functools
@@ -33,7 +35,27 @@ from blext import pydeps
 # - Structs
 ####################
 class CallbacksDownloadWheel(pyd.BaseModel):
-	"""Simple callback-storage, for use with `blext.pydeps.network.download_wheels."""
+	"""Callbacks to trigger in the process of downloading wheels.
+
+	Notes:
+		- All that a download agent has to ensure, is to allow the user to specify
+		equivalent callbacks to these.
+		- The callback return values are never used for any purpose.
+
+	Attributes:
+		cb_start_wheel_download: Called as a wheel is starting to be downloaded.
+			Called with the wheel, and with its download path.
+			_Always called before `cb_update_wheel_download` for a wheel._
+		cb_update_wheel_download: Called when an actively downloading wheel
+			Called with the wheel, and its download path, and newly downloaded bytes.
+			_Always called after `cb_start_wheel_download` for a wheel._
+		cb_finish_wheel_download: Called when an actively downloading wheel
+			_No other callbacks are called for a wheel after this._
+
+	See Also:
+		- `blext.pydeps.network.download_wheels`: Download agent that uses equivalent callbacks.
+		- `blext.ui.ui_download_wheels`: Context manager that provides this object.
+	"""
 
 	cb_start_wheel_download: typ.Callable[[pydeps.BLExtWheel, Path], typ.Any]
 	cb_update_wheel_download: typ.Callable[[pydeps.BLExtWheel, Path, int], typ.Any]
@@ -48,8 +70,21 @@ def ui_download_wheels(
 	wheels_to_download: frozenset[pydeps.BLExtWheel],
 	*,
 	console: rich.console.Console,
-	fps: int = 30,
+	fps: int = 24,
 ) -> collections.abc.Generator[CallbacksDownloadWheel, None, None]:
+	"""Context manager creating a terminal UI to communicate wheel downloading.
+
+	Parameters:
+		wheels_to_download: Set of wheels to download.
+		console: `rich` console to print the UI to.
+		fps: Number of updates to the terminal, per second.
+
+	Yields:
+		Callbacks to call during the download progress, in order for the UI to update correctly.
+
+	See Also:
+		`blext.ui.download_wheels.CallbacksDownloadWheel`: For more on when to call each callback.
+	"""
 	bytes_to_download = sum(
 		int(wheel.size) if wheel.size is not None else 0 for wheel in wheels_to_download
 	)
@@ -97,8 +132,6 @@ def ui_download_wheels(
 	def cb_start_wheel_download(
 		wheel: pydeps.BLExtWheel,
 		_: Path,
-		*,
-		live: rich.live.Live,
 	) -> None:
 		task_download_wheels.update(
 			{
@@ -113,8 +146,6 @@ def ui_download_wheels(
 		wheel: pydeps.BLExtWheel,
 		_: Path,
 		advance: int,
-		*,
-		live: rich.live.Live,
 	) -> None:
 		task_download_wheel = task_download_wheels[wheel]
 		if task_download_wheel is not None:
@@ -130,8 +161,6 @@ def ui_download_wheels(
 	def cb_finish_wheel_download(
 		wheel: pydeps.BLExtWheel,
 		_: Path,
-		*,
-		live: rich.live.Live,
 	) -> None:
 		del task_download_wheels[wheel]
 		del progress_download_wheels[wheel]
@@ -198,16 +227,16 @@ def ui_download_wheels(
 		console=console,
 		transient=True,
 		refresh_per_second=fps,
-	) as live:
+	):
 		yield CallbacksDownloadWheel(
 			cb_start_wheel_download=functools.partial(
-				cb_start_wheel_download, live=live
+				cb_start_wheel_download,
 			),
 			cb_update_wheel_download=functools.partial(
-				cb_update_wheel_download, live=live
+				cb_update_wheel_download,
 			),
 			cb_finish_wheel_download=functools.partial(
-				cb_finish_wheel_download, live=live
+				cb_finish_wheel_download,
 			),
 		)
 

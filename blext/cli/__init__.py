@@ -14,24 +14,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the CLI interface, one command per module."""
+"""CLI interface for `blext`."""
 
 from . import (
 	build,
 	check,
-	clean,
 	dev,
-	edit_sign,
-	edit_unvendor,
-	edit_vendor,
-	init,
-	inject,
 	run,
 	show_blender_manifest,
+	show_config,
 	show_deps,
-	show_init_settings,
 	show_path_blender,
 	show_path_uv,
+	show_profile,
 	show_spec,
 )
 from ._context import APP
@@ -40,18 +35,13 @@ __all__ = [
 	'APP',
 	'build',
 	'check',
-	'clean',
 	'dev',
-	'edit_sign',
-	'edit_unvendor',
-	'edit_vendor',
-	'init',
-	'inject',
 	'run',
 	'show_blender_manifest',
+	'show_config',
 	'show_deps',
-	'show_init_settings',
 	'show_path_blender',
 	'show_path_uv',
+	'show_profile',
 	'show_spec',
 ]

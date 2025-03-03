@@ -16,31 +16,27 @@
 
 """Tools for managing wheel-based dependencies."""
 
+import concurrent.futures
 import functools
+import sys
 import typing as typ
-from concurrent.futures import ThreadPoolExecutor
+import urllib.error
+import urllib.request
 from pathlib import Path
-from urllib.request import urlopen
-
-import rich
-import rich.markdown
-import rich.progress
-import rich.prompt
 
 from .wheel import BLExtWheel
 
-CONSOLE = rich.console.Console()
-
-DELAY_DOWNLOAD_PROGRESS = 0.01
-DOWNLOAD_DONE_THRESHOLD = 99
-# EVENT_DONE = threading.Event()
+if typ.TYPE_CHECKING:
+	import collections.abc
 
 
-# def handle_sigint(signum, frame):
-# EVENT_DONE.set()
-#
-#
-# signal.signal(signal.SIGINT, handle_sigint)
+####################
+# - Constants
+####################
+DOWNLOAD_THREADS = 32768
+DOWNLOAD_CHUNK_BYTES = 32768
+
+SIGNAL_ABORT: bool = False
 
 
 ####################
@@ -53,22 +49,52 @@ def download_wheel(
 	wheel: BLExtWheel,
 	cb_update_wheel_download: typ.Callable[
 		[BLExtWheel, Path, int], list[None] | None
-	] = lambda *_: None,
+	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 	cb_finish_wheel_download: typ.Callable[
 		[BLExtWheel, Path], list[None] | None
-	] = lambda *_: None,
+	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 ) -> None:
-	response = urlopen(wheel_url)
-	with wheel_path.open('wb') as f_wheel:
-		for raw_data in iter(functools.partial(response.read, 32768), b''):
-			f_wheel.write(raw_data)
-			cb_update_wheel_download(wheel, wheel_path, len(raw_data))
+	"""Download a Python wheel.
 
-			# if EVENT_DONE.is_set():
-			# wheel_path.unlink()
-			# return
+	Notes:
+		This function is designed to be run in a background thread.
 
-	cb_finish_wheel_download(wheel, wheel_path)
+	Parameters:
+		wheel_url: URL to download the wheel from.
+		wheel_path: Path to download the wheel to.
+		wheel: The wheel spec to be downloaded.
+		cb_update_wheel_download: Callback to trigger whenever more data has been downloaded.
+		cb_finish_wheel_download: Callback to trigger whenever a wheel has finished downloading.
+	"""
+	with (
+		urllib.request.urlopen(wheel_url, timeout=10) as www_wheel,  # pyright: ignore[reportAny]
+		wheel_path.open('wb') as f_wheel,
+	):
+		raw_data_iterator: collections.abc.Iterator[bytes] = iter(
+			functools.partial(
+				www_wheel.read,  # pyright: ignore[reportAny]
+				DOWNLOAD_CHUNK_BYTES,
+			),
+			b'',
+		)
+		for raw_data in raw_data_iterator:
+			if SIGNAL_ABORT:
+				wheel_path.unlink()
+				return
+
+			_ = f_wheel.write(raw_data)
+			_ = cb_update_wheel_download(wheel, wheel_path, len(raw_data))
+
+	if not wheel.is_wheel_path_valid(wheel_path):
+		wheel_path.unlink()
+		msg = f'Hash of downloaded wheel at path {wheel_path} did not match expected hash: {wheel.hash}'
+		raise ValueError(msg)
+
+	_ = cb_finish_wheel_download(wheel, wheel_path)
+
+	# TODO: Handle URLError and HTTPError
+	# TODO: Return some kind of message if something went wrong?
+	# TODO: Detect conditions for early exit and delete partial wheel path.
 
 
 def download_wheels(
@@ -77,13 +103,13 @@ def download_wheels(
 	path_wheels: Path,
 	cb_start_wheel_download: typ.Callable[
 		[BLExtWheel, Path], typ.Any
-	] = lambda *_: None,
+	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 	cb_update_wheel_download: typ.Callable[
 		[BLExtWheel, Path, int], typ.Any
-	] = lambda *_: None,
+	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 	cb_finish_wheel_download: typ.Callable[
 		[BLExtWheel, Path], typ.Any
-	] = lambda *_: None,
+	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 ) -> None:
 	"""Download universal and binary wheels for all platforms defined in `pyproject.toml`.
 
@@ -101,12 +127,14 @@ def download_wheels(
 		blext_spec: The extension specification to pack the zip file base on.
 		bl_platform: The Blender platform to get wheels for.
 	"""
+	global SIGNAL_ABORT  # noqa: PLW0603
+
 	path_wheels = path_wheels.resolve()
 	wheel_paths_current = frozenset(
 		{path_wheel.resolve() for path_wheel in path_wheels.rglob('*.whl')}
 	)
 
-	# Compute Wheel Diff
+	# Compute Wheels to Download
 	## - Missing: Will be downloaded.
 	## - Superfluous: Will be deleted.
 	wheels_to_download = {
@@ -118,19 +146,47 @@ def download_wheels(
 
 	# Download Missing Wheels
 	if wheels_to_download:
-		with ThreadPoolExecutor(max_workers=8) as pool:
+		with concurrent.futures.ThreadPoolExecutor(
+			max_workers=DOWNLOAD_THREADS
+		) as pool:
+			futures: set[concurrent.futures.Future[None]] = set()
 			for path_wheel, wheel in sorted(
 				wheels_to_download.items(),
 				key=lambda el: el[1].filename,
 			):
 				cb_start_wheel_download(wheel, path_wheel)
-				pool.submit(
-					download_wheel,
-					str(wheel.url),
-					path_wheel,
-					wheel=wheel,
-					cb_update_wheel_download=cb_update_wheel_download,
-					cb_finish_wheel_download=cb_finish_wheel_download,
+				futures.add(
+					pool.submit(
+						download_wheel,
+						str(wheel.url),
+						path_wheel,
+						wheel=wheel,
+						cb_update_wheel_download=cb_update_wheel_download,
+						cb_finish_wheel_download=cb_finish_wheel_download,
+					)
 				)
 
-		# TODO: Check hashes of all downloaded wheels; delete/raise exception if no good.
+			try:
+				for future in concurrent.futures.as_completed(futures):
+					try:
+						future.result()
+					except (
+						urllib.error.URLError,
+						urllib.error.HTTPError,
+						urllib.error.ContentTooShortError,
+					) as ex:
+						SIGNAL_ABORT = True  # pyright: ignore[reportConstantRedefinition]
+						pool.shutdown(wait=True, cancel_futures=True)
+
+						SIGNAL_ABORT = False  # pyright: ignore[reportConstantRedefinition]
+						msg = (
+							'A wheel download aborted with the following message: {ex}'
+						)
+						raise ValueError(msg) from ex
+
+			except KeyboardInterrupt:
+				SIGNAL_ABORT = True  # pyright: ignore[reportConstantRedefinition]
+				pool.shutdown(wait=True, cancel_futures=True)
+
+				SIGNAL_ABORT = False  # pyright: ignore[reportConstantRedefinition]
+				sys.exit(1)

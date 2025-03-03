@@ -17,13 +17,17 @@
 """Implements the `show spec` command."""
 
 import typing as typ
-from pathlib import Path
 
 import pydantic as pyd
 
 from blext import exceptions as exc
-from blext import extyp, loaders
 
+from ._context import (
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
 from ._context_show import APP_SHOW, CONSOLE
 
 
@@ -32,13 +36,12 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 @APP_SHOW.command(name='spec')
 def show_spec(
-	proj: Path | None = None,
 	*,
-	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
-	profile: extyp.StandardReleaseProfile | str = 'release',
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
 	format: typ.Literal['raw'] = 'raw',  # noqa: A002
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""[Show] complete extension specification.
+	"""Inspect complete extension specification.
 
 	Parameters:
 		proj: Path to Blender extension project.
@@ -51,16 +54,10 @@ def show_spec(
 	"""
 	# Parse BLExtSpec
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = loaders.load_bl_platform_into_spec(
-			loaders.load_blext_spec(
-				proj_uri=proj,
-				release_profile_id=profile,
-			),
-			bl_platform_ref=platform,
-		)
+		blext_spec = blext_info.blext_spec(config)
 
 	# Show BLExtSpec
 	if format == 'raw':
 		CONSOLE.print(blext_spec)
 
-	## TODO: Can we strategically truncate the BLExtWheel? Is that a good idea? Maybe a CLI option that selects certain elements of the specification to truncate?
+	## TODO: Can we strategically truncate the wheels graph? Is that a good idea? Maybe a CLI option that selects certain elements of the specification to truncate?

@@ -14,16 +14,20 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements the `show blender_manifest` command."""
+"""Implements `blext show blender_manifest`."""
 
 import typing as typ
-from pathlib import Path
 
 import pydantic as pyd
 
 from blext import exceptions as exc
-from blext import extyp, loaders
 
+from ._context import (
+	DEFAULT_BLEXT_INFO,
+	DEFAULT_CONFIG,
+	ParameterBLExtInfo,
+	ParameterConfig,
+)
 from ._context_show import APP_SHOW, CONSOLE
 
 
@@ -32,11 +36,10 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 @APP_SHOW.command(name='blender_manifest')
 def show_blender_manifest(
-	proj: Path | None = None,
 	*,
-	platform: extyp.BLPlatform | typ.Literal['detect'] | None = None,
-	profile: extyp.StandardReleaseProfile | str = 'release',
+	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
 	format: typ.Literal['json', 'toml'] = 'toml',  # noqa: A002
+	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
 	"""Print the complete extension specification.
 
@@ -49,13 +52,7 @@ def show_blender_manifest(
 	"""
 	# Parse CLI
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = loaders.load_bl_platform_into_spec(
-			loaders.load_blext_spec(
-				proj_uri=proj,
-				release_profile_id=profile,
-			),
-			bl_platform_ref=platform,
-		)
+		blext_spec = blext_info.blext_spec(config)
 
 	# Show Blender Manifest
-	CONSOLE.print(blext_spec.export_blender_manifest(fmt=format))
+	CONSOLE.print(blext_spec.export_blender_manifest(fmt=format), markup=False, end='')

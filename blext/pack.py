@@ -14,10 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Contains tools and procedures that deterministically and reliably packages the Blender extension.
-
-This involves parsing and validating the plugin configuration from `pyproject.toml`, generating the extension manifest, downloading the correct platform-specific binary wheels for distribution, and zipping it all up together.
-"""
+"""Packing and pre-packing of Blender extension zipfiles from a specification and raw files."""
 
 import shutil
 import typing as typ
@@ -30,60 +27,93 @@ from . import spec
 ####################
 # - Pack Extension to ZIP
 ####################
-def prepack_extension(
-	files_to_prepack: dict[Path, Path],
+def existing_prepacked_files(
+	all_files_to_prepack: dict[Path, Path],
 	*,
 	path_zip_prepack: Path,
-	cb_pre_file_write: typ.Callable[[Path, Path], typ.Any] = lambda *_: None,
-	cb_post_file_write: typ.Callable[[Path, Path], typ.Any] = lambda *_: None,
-) -> dict[Path, Path]:
-	"""Prepare a `.zip` file containing all wheels, but no code.
-
-	Notes:
-		Since the wheels tend to be the slowest part of packing an extension, a two-step process allows reusing a base `.zip` file that already contains required wheels.
+) -> frozenset[Path]:
+	"""Determine which files do not need to be pre-packed again, since they already exist in a pre-packed zipfile.
 
 	Parameters:
-		blext_spec: The Blender extension specification to pre-pack.
-		vendor: Whether to pack all wheel dependencies.
-			When false, `uv.lock` will be written to the `.zip` root.
-		path_zip_prepack: Path to the prepacked `.zip` file.
-			Defaults to `paths.path_zip_prepack(blext_spec) / blext_spec.packed_zip_filename`
-		path_wheels: Path to downloaded wheels, when `vendor=True`.
-			Defaults to `paths.path_zip_prepack(blext_spec) / blext_spec.packed_zip_filename`
+		all_files_to_prepack: Mapping from host files to files in the zip.
+			All files specified here should be available in the final pre-packed zip.
+		path_zip_prepack: Path to an existing pre-packed zipfile.
+			If no file exists, then all files are assumed to need pre-packing.
 
-	Raises:
-		ValueError: When not all wheels required by `blext_spec` are found in `path_wheels`.
+	Returns:
+		Set of files that need to be pre-packed.
+
+	See Also:
+		`blext.pack.prepack_extension`: The output should be passed to this function, to perform the actual pre-packing.
 	"""
-	file_sizes = {path: path.stat().st_size for path in files_to_prepack}
-
 	if path_zip_prepack.is_file():
 		with zipfile.ZipFile(path_zip_prepack, 'r') as f_zip:
 			existing_prepacked_files = set({Path(name) for name in f_zip.namelist()})
+
+		## TODO: This effectively uses filenames as cache keys.
+		## - This is appropriate for wheels.
+		## - This is not appropriate for arbitrary files.
+		## - Ideally, we can retrieve file hashes of pre-packed files, and compare them.
 
 		# Re-Pack to Delete Files
 		## - Deleting a single file from a .zip archive is not always a good idea.
 		## - See https://github.com/python/cpython/pull/103033
 		## - Instead, when a file should be deleted, we repack the entire `.zip`.
-		_files_to_prepack_values = frozenset(files_to_prepack.values())
+		_files_to_prepack_values = frozenset(all_files_to_prepack.values())
 		if any(
 			existing_zipfile_path not in _files_to_prepack_values
 			for existing_zipfile_path in existing_prepacked_files
 		):
 			path_zip_prepack.unlink()
 			existing_prepacked_files.clear()
-	else:
-		existing_prepacked_files: set[Path] = set()
+
+		return frozenset(existing_prepacked_files)
+	return frozenset()
+
+
+def prepack_extension(
+	files_to_prepack: dict[Path, Path],
+	*,
+	path_zip_prepack: Path,
+	cb_pre_file_write: typ.Callable[[Path, Path], typ.Any] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
+	cb_post_file_write: typ.Callable[[Path, Path], typ.Any] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
+) -> None:
+	"""Pre-pack zipfile containing large files, but not the extension code.
+
+	Notes:
+		Writing extension source code to a zipfile is very fast.
+		However, when working with ex. wheel dependencies, large files can quickly dominate the build time.
+
+		Therefore, `blext` first generates "pre-packed" zipfile extensions.
+		This takes awhile, but is only done once (and/or when a big file changes).
+		Then, `blext` copies the pre-packed zip and adds the extension source code.
+
+		Since **changing source code doesn't re-pack large files**, iteration speed is preserved.
+
+	Parameters:
+		files_to_prepack: Mapping from host files to files in the zip.
+			All files specified here will be packed.
+		path_zip_prepack: The zip file to pre-pack.
+		cb_pre_file_write: Called before each file is written to the zip.
+			Defaults is no-op.
+		cb_post_file_write: Called after each file is written to the zip.
+			Defaults is no-op.
+
+	Raises:
+		ValueError: When not all wheels required by `blext_spec` are found in `path_wheels`.
+
+	See Also:
+		- `blext.pack.existing_prepacked_files`: Use to pre-filter `files_to_prepack`,
+		in order to only pack files that aren't already present.
+	"""
+	file_sizes = {path: path.stat().st_size for path in files_to_prepack}
 
 	# Create Zipfile
 	with zipfile.ZipFile(path_zip_prepack, 'a', zipfile.ZIP_DEFLATED) as f_zip:
 		####################
 		# - INSTALL: Files => /wheels/*.whl
 		####################
-		remaining_files_to_prepack = {
-			path: zipfile_path
-			for path, zipfile_path in files_to_prepack.items()
-			if zipfile_path not in existing_prepacked_files
-		}
+		remaining_files_to_prepack = files_to_prepack.copy()
 
 		for path, zipfile_path in sorted(
 			remaining_files_to_prepack.items(), key=lambda el: file_sizes[el[0]]
@@ -92,8 +122,6 @@ def prepack_extension(
 			f_zip.write(path, zipfile_path)
 			cb_post_file_write(path, zipfile_path)
 
-	return remaining_files_to_prepack
-
 
 def pack_bl_extension(
 	blext_spec: spec.BLExtSpec,
@@ -101,9 +129,8 @@ def pack_bl_extension(
 	overwrite: bool = True,
 	path_zip_prepack: Path,
 	path_zip: Path,
-	path_pypkg: Path | None,
-	path_pysrc: Path | None,
-	cb_update_status: typ.Callable[[str], list[None] | None] = lambda *_: None,
+	path_pysrc: Path,
+	cb_update_status: typ.Callable[[str], list[None] | None] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 ) -> None:
 	"""Pack all files needed by a Blender extension, into an installable `.zip`.
 
@@ -127,14 +154,14 @@ def pack_bl_extension(
 		path_zip.unlink()
 
 	# Copy Pre-Packed ZIP
-	cb_update_status('Copying Pre-Packed Extension ZIP')
+	_ = cb_update_status('Copying Pre-Packed Extension ZIP')
 	_ = shutil.copyfile(path_zip_prepack, path_zip)
 
 	with zipfile.ZipFile(path_zip, 'a', zipfile.ZIP_DEFLATED) as f_zip:
 		####################
 		# - INSTALL: Blender Manifest => /blender_manifest.toml
 		####################
-		cb_update_status('Writing `blender_manifest.toml`')
+		_ = cb_update_status('Writing `blender_manifest.toml`')
 		f_zip.writestr(
 			blext_spec.manifest_filename,
 			blext_spec.export_blender_manifest(fmt='toml'),
@@ -143,27 +170,28 @@ def pack_bl_extension(
 		####################
 		# - INSTALL: Init Settings => /init_settings.toml
 		####################
-		cb_update_status('Writing `init_settings.toml`')
-		f_zip.writestr(
-			blext_spec.init_settings_filename,
-			blext_spec.export_init_settings(fmt='toml'),
-		)
+		if blext_spec.release_profile is not None:
+			_ = cb_update_status('Writing Release Profile to `init_settings.toml`')
+			f_zip.writestr(
+				blext_spec.release_profile.init_settings_filename,
+				blext_spec.export_init_settings(fmt='toml'),
+			)
 
 		####################
 		# - INSTALL: Addon Files => /*
 		####################
 		# Project: Write Extension Python Package
-		if path_pypkg is not None:
-			cb_update_status('Writing Python Files')
-			for file_to_zip in path_pypkg.rglob('*'):
+		if path_pysrc.is_dir():
+			_ = cb_update_status('Writing Python Files')
+			for file_to_zip in path_pysrc.rglob('*'):
 				f_zip.write(
 					file_to_zip,
-					file_to_zip.relative_to(path_pypkg),
+					file_to_zip.relative_to(path_pysrc),
 				)
 
 		# Script: Write Script String as __init__.py
-		elif path_pysrc is not None:
-			cb_update_status('Writing Script as __init__.py')
+		elif path_pysrc.is_file():
+			_ = cb_update_status('Writing Extension Script to __init__.py')
 			with path_pysrc.open('r') as f_pysrc:
 				pysrc = f_pysrc.read()
 
@@ -172,7 +200,7 @@ def pack_bl_extension(
 				pysrc,
 			)
 		else:
-			msg = 'Tried to pack an extension that is neither a project nor a script. This is most likely a bug in `blext`; consider reporting it.'
+			msg = "Tried to pack an extension that is neither a project nor a script. This shouldn't happen."
 			raise ValueError(msg)
 
 

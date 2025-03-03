@@ -18,6 +18,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "jax~=0.5.0",
+#   "scipy>=1.15.2",
 # ]
 #
 # [project]
