@@ -17,8 +17,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "jax~=0.5.0",
-#   "scipy>=1.15.2",
+#   "scipy==1.15.2",
 # ]
 #
 # [project]
@@ -47,10 +46,10 @@
 # ///
 
 import bpy
-import jax.numpy as jnp
+import numpy as np
 import scipy as sc
 
-ADDON_NAME = 'extension_file'
+ADDON_NAME = 'minimal_file_ext'
 
 
 ####################
@@ -71,7 +70,7 @@ class SimpleOperator(bpy.types.Operator):
 		"""Display a simple message on execution."""
 		self.report(
 			{'INFO'},
-			f'jnp.array([1, 2, 3])={jnp.array([1, 2, 3])} and sc.constants.speed_of_light={sc.constants.speed_of_light}',
+			f'sc.constants.speed_of_light={sc.constants.speed_of_light}, scipy.__version={sc.__version__}, numpy.__version__={np.__version__}',
 		)
 
 		return {'FINISHED'}
