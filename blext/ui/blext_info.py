@@ -85,10 +85,12 @@ class BLExtInfo(pyd.BaseModel, frozen=True):
 
 	Attributes:
 		path: Path to a Blender extension project:
+
 			- **Current Directory** (**default**): Search upwards for a `pyproject.toml`.
 			- **Project File** (`pyproject.toml`): Configure using the `[tool.blext]` table.
 			- **Project Folder** (`*/pyproject.toml`): Folder containing a `pyproject.toml`.
 			- **Script File** (`*.py`): Identical configuration using "inline script metadata".
+
 		url: URL to a Blender extension _Script File_.
 		git: A `git` repository containing `pyproject.toml`.
 		platform: Blender platform(s) to target.

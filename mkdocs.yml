@@ -1,0 +1,90 @@
+site_name: blext
+
+nav:
+  - Overview: index.md
+  - Features: features.md
+  - Installation: installation.md
+  - User Guides:
+    - Getting Started: user_guides/getting_started.md
+    - Extension Projects:
+      - Creating: user_guides/extension_projects/creating.md
+      - Packing: user_guides/extension_projects/packing.md
+      - Running: user_guides/extension_projects/running.md
+      - Analyzing: user_guides/extension_projects/analyzing.md
+    - Single-File Extensions: user_guides/single_file_extensions.md
+    - Integrations:
+      - CI/CD: user_guides/integrations/ci_cd.md
+      - Linting: user_guides/integrations/linting.md
+      - Testing: user_guides/integrations/testing.md
+      - Static Typing: user_guides/integrations/static_typing.md
+      - podman / docker: user_guides/integrations/podman_docker.md
+      - pre-commit: user_guides/integrations/pre_commit.md
+    - Migrating:
+      - from Existing Extension: user_guides/migrating/from_existing_extension.md
+      - from Legacy Addon: user_guides/migrating/from_legacy_addon.md
+  - Resources:
+    - Official Extension Guidelines: resources/official_extension_guidelines.md
+  - Reference:
+    - Release Notes: reference/release_notes.md
+    - Policies:
+      - reference/policies/versioning.md
+      - reference/policies/cache_schemas.md
+      - reference/policies/licensing.md
+    - Python API:
+      - reference/python_api/blext.md
+      - reference/python_api/blext_cli.md
+      - reference/python_api/blext_pydeps.md
+      - reference/python_api/blext_ui.md
+      - reference/python_api/blext_utils.md
+      - reference/python_api/blext_utils_blender.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+theme:
+  language: en
+  name: "material"
+  palette:
+    scheme: slate
+    primary: red
+    accent: blue
+  features:
+    - navigation.sections
+    - content.tabs.link
+  extra:
+    version:
+      provider: mike
+
+plugins:
+- termynal
+- search
+- autorefs
+- privacy
+- offline
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          allow_inspection: true
+          parameter_headings: false
+          show_root_heading: true
+          group_by_category: true
+          show_category_heading: false
+          show_symbol_type_heading: true
+          show_symbol_type_toc: true
+          docstring_style: google
+          merge_init_into_class: true
+          separate_signature: true
+          show_signature_annotations: true
+          show_overloads: true
+          signature_crossrefs: true
+          unwrap_annotated: true
+          docstring_section_style: spacy
+          extensions:
+            - griffe_pydantic:
+              schema: true
+        inventories:
+          - https://installer.readthedocs.io/en/stable/objects.inv

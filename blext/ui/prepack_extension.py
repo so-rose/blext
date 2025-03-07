@@ -83,13 +83,14 @@ def ui_prepack_extension(
 ) -> collections.abc.Generator[CallbacksPrepackExtension, None, None]:
 	"""Context manager creating a terminal UI to communicate extension prepacking progress.
 
+	Notes:
+		Yields callbacks to call during the download progress, in order for the UI to update correctly.
+
 	Parameters:
 		files_to_prepack: Files to be prepack.
 			Maps an absolute host filesystem path, to a relative zipfile path.
 		console: `rich` console to print the UI to.
 
-	Yields:
-		Callbacks to call during the download progress, in order for the UI to update correctly.
 
 	See Also:
 		`blext.ui.download_wheels.CallbacksDownloadWheel`: For more on when to call each callback.

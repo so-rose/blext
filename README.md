@@ -1,123 +1,88 @@
-# `blext`
-_NOTE: This software should be considered alpha aka. **unstable**. It is not ready for production use. The feature-set is incomplete. The documentation is still very sparse._
+# `blext`: Modern Blender Extension Development
 
-_With that said, we already find it **quite useful**. We hope you'll consider sharing your experiences with us, good and bad - for example, in the Discussions / Issues sections!_
+---
 
-A project manager for [Blender](https://www.blender.org/) extensions, facilitating rapid and reliable development.
+**Documentation**: <https://docs.sofus.io/blext>
+
+**Source Code**: <https://codeberg.org/so-rose/>
+
+**PyPi Package**: <https://pypi.org/project/blext/>
+
+---
+`blext` makes it easy to develop Python extensions for [Blender 3D](https://www.blender.org/).
+
+!!! danger "Danger: Alpha Software"
+	`blext` should be considered alpha software aka. **unstable**.
+
+	- The UX may have unsolved frustrations or hiccups.
+	- Features may be incomplete, buggy, or misleadingly documented.
+	- The documentation may be incomplete or outdated.
+	- The test suite has no guarantees of coverage or passing.
+
+	With that said, we already personally find `blext` **quite useful**, and hope you will too.
 
 
 
-## Features
-- **All You Need is `uv`**: The absolute only prerequisite is [`uv`](https://docs.astral.sh/uv/getting-started/installation/) and `blender`.
-	_Another opinionated Python packager?_ Trust me, it's great.
-- **Intuitive and Fast**: `uvx blext dev` runs Blender with your extension.
-	If you only changed some code, it runs nearly instantly!
-- **Effortless Deps**: Need a Python package for your addon?
-	Just `uv add <pkgname>`.
-	The next time you run `blext dev`, your package will be available from your extension code.
-- **Single Source of Truth**: Manage your Blender extension entirely from `pyproject.toml`, using the new table `[tool.blext]`.
-	`blext` is explicit about any mistakes you might make, and for your trouble, generates a correct `blender_manifest.toml` when making the addon.
-- **Extension Analysis**: "Look inside" your extension with ease.
-	Need to check the generated `blender_manifest.toml`?
-	Re-run Blender's own extension validation?
-	Or just check a platform-specific deduction?
-	Just use `blext show`!
+## Highlights
+- 🛠 **Extensions are Python Projects**: `blext` manages "Blender extensions" as standard Python projects, defined using either `pyproject.toml` or single-file scripts with [`PEP 723` inline script metadata](https://packaging.python.org/en/latest/specifications/inline-script-metadata/#inline-script-metadata).
+- 💭  **Helpful and Opinionated**: By being opinionated about how Blender extensions should be made, `blext` can often offer not only a description, but a solution, when errors are encountered that would prevent a standards-compliant extension from being built.
+- 🚀 **Snappy at Scale**: Build, run, and edit your Blender extension with minimal overhead, even for extensions that use _gigabytes_ of wheels.
+- 📦 **Fearless PyDeps**: Fearlessly add Python dependencies, confident that `blext` will work out all the gritty cross-platform details. _No more vendorizing, tracking down platform tags, and other such nonsense: If your extension needs `scipy`, just `uv add scipy`_.
+- 🏢 **Robust by Design**: `blext` aims to be your _swiss-army knife_ of extension development.
+Our analysis suite consists of `ruff` and strict-mode `basedpyright`, and our design process emphasizes immutable, narrowly types parsing.
+Finally, **`blext` follows [semantic versioning](https://semver.org/)**, helping you judge which updates are safe for your extension project.
+- 🌐 **Respects your Freedoms**: `blext` preserves your freedom to use, modify, fork, redistribute, or even sell `blext`, **so long as you extend the same freedoms as you were granted**. For more, see the [AGPL](https://www.gnu.org/licenses/agpl-3.0.html) software license.
 
-## Running `blext`
-If you have `uv`, just run:
-```bash
-uvx blext
+**For more details** see [Features ](features.md).
+
+_If you'd like to use `blext`, but your organization prohibits the use of AGPL software, please contact the authors - we would be happy to arrange a different licensing scheme, for a fee._
+
+
+
+## Quickstart
+**Ready to make extensions**? Check out the [First Steps Guide](user_guide/first_steps.md).
+
+**Just want to give it a try**? If [`uv`](https://docs.astral.sh/uv/) is [correctly installed](https://docs.astral.sh/uv/getting-started/installation/), you can start using `blext` command without any special installation steps:
+
+<!-- termynal -->
+```
+$ uvx blext@latest --help
+Usage: blext COMMAND
+...
 ```
 
-This relies on [`uv` tools](https://docs.astral.sh/uv/concepts/tools/), which is similar to `pipx`.
 
-This is the recommended way of using `blext`.
 
-## Using `blext`
-For now, see `examples/simple` in this repository for an example of a working Blender extension.
+### Installation
+See the [Installation](installation.md) docs.
 
-Particular attention should be paid to the `[tool.blext]` section of `pyproject.toml`.
+!!! tip
+	You can follow the [First Steps Guide](user_guide/first_steps.md) without installing `blext`, using `uvx` like this.
 
-More in-depth documentation TBD.
-
-## Installing `blext`
-Apart from `uvx`, installation can be one more or less as with any Python package:
-
-- `pip install --user blext`: The standard `pip` package manager should work fine. _It is strongly suggested to use a venv._
-- `uv tool install blext`: This allows running `blext` without prepending `uvx blext`.
-- `uv add --dev blext`: This enables running `uv run blext` from any other `uv` project.
-- **Install from Source**: See the `Contributing` section.
-
-## Documentation
-For now, run `blext` alone, or run `blext --help` explicitly.
-
-Subcommands also have help text available.
-For example, `blext dev --help`.
-
-More documentation TBD
+	Just make sure to write `uvx blext@latest` instead of `blext` whenever you're outside of an extension project.
 
 
 
-# Contributing to `blext`
-## How do I...
-**Get Started**?
-```bash
-# Install uv.
+## Contributing
+!!! feedback "Hot Takes Wanted"
+	**Please share your experiences** with us in our [Issues system](https://codeberg.org/so-rose/blext/issues), which supports GitHub login.
 
-# Clone the Repository
-git clone URL
-cd blext
+	We would appreciate if you took a moment to _assign a tag_ to your the Issues:
 
-# Install pre-commit hooks
-uvx pre-commit install
+	- `user-experience`: You tried it, and have some constructive opinions to share!
+	- `ux`: Something was frustrating that didn't need to be.
+	- `bug`: Something's not working the way it's supposed to.
 
-# That's it! Change some code!
-```
+	See all labels here: <https://codeberg.org/so-rose/blext/labels>
 
-**Test some Local Changes**?
-```bash
-# Run the Local 'blext'
-## - Add any CLI options you want!
-uv run blext
-```
 
-**Make a Commit**?
-```bash
-# Stage Files for the Commit
-## - Generally, make sure that "one commit is one change".
-git add ...  ## 'git add -A' works too, due to thorough .gitignores.
 
-# Use 'commitizen' for Semantic Commits
-## - Commit messages **are** CHANGELOG messages, and can also ref/close issues.
-## - So make them good! `cz c` makes that easy.
-uv run cz c  ## 'git commit' always works, but is less convenient.
+## Acknowledgements
+`blext` is a love letter to the [Blender](https://www.blender.org/) community.
+Having spent months solving problems that we ourselves encounter and see, we dearly hope this little tool can be of use.
 
-# When pre-commit Makes Changes
-## - For example, adding a license header or reformatting something.
-## - Just re-stage and re-commit - `cz c` will remember the commit message.
-git add ...  ## 'git add -A' works too, due to thorough .gitignores.
-uv run cz c
-```
+We would like to thank [Astral](https://astral.sh/) for creating `uv`, an exceptionally crafted tool that makes `blext` possible.
+The Rust project manager, [`cargo`](https://github.com/rust-lang/cargo) also deserves a lot of credit for inspiring `blext`.
 
-## Overview of Tools
-Development of `blext` relies on the following tools:
-
-- `uv`: Package and project manager. **Required**.
-- `pre-commit`: Enforces conventions at commit-time. **Strongly suggested**.
-- `commitizen`: Commit and release manager. **Enforced** by `pre-commit`.
-- `ruff fmt`: Deterministic code formatter. **Enforced** by `pre-commit`.
-- `ruff lint`: Code linter. **Not enforced** (planned).
-- `mypy`: Static type analysis. **Not enforced** (planned).
-
-## Making Commits
-Commits are subject to `pre-commit` hooks, if installed.
-To set this up, simply run:
-```bash
-uvx pre-commit install
-```
-Then, all pre-commit hooks will run after each commit.
-
-Sometimes it's nice to run all of the `pre-commit` hooks manually:
-```bash
-uvx pre-commit run --all-files
-```
+Finally, we encourage you to peruse `uv tree` of dependencies.
+We stand on the shoulders of giants

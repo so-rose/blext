@@ -74,13 +74,14 @@ def ui_download_wheels(
 ) -> collections.abc.Generator[CallbacksDownloadWheel, None, None]:
 	"""Context manager creating a terminal UI to communicate wheel downloading.
 
+	Notes:
+		Yields callbacks to call during the download progress, in order for the UI to update correctly.
+
 	Parameters:
 		wheels_to_download: Set of wheels to download.
 		console: `rich` console to print the UI to.
 		fps: Number of updates to the terminal, per second.
 
-	Yields:
-		Callbacks to call during the download progress, in order for the UI to update correctly.
 
 	See Also:
 		`blext.ui.download_wheels.CallbacksDownloadWheel`: For more on when to call each callback.
