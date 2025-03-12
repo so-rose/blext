@@ -26,7 +26,6 @@ from . import (
 	show_path_blender,
 	show_path_uv,
 	show_profile,
-	show_spec,
 )
 from ._context import APP
 
@@ -41,5 +40,4 @@ __all__ = [
 	'show_path_blender',
 	'show_path_uv',
 	'show_profile',
-	'show_spec',
 ]
