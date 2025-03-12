@@ -13,6 +13,8 @@
 
 ---
 
+**Please submit Issues to the [Codeberg repository](https://codeberg.org/so-rose/)** (_you can login with GitHub_)
+
 !!! warning "Warning: Alpha Software"
 	`blext` should be considered alpha software aka. **unstable**.
 

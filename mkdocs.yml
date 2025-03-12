@@ -6,13 +6,13 @@ nav:
   - installation.md
   - User Guides:
     - user_guides/getting_started.md
+    - user_guides/project_extensions.md
+    - user_guides/script_extensions.md
     - CLI:
       - user_guides/cli/commands.md
       - user_guides/cli/locating.md
       - user_guides/cli/conforming.md
       - user_guides/cli/global_config.md
-    - user_guides/project_extensions.md
-    - user_guides/script_extensions.md
     - Integrations:
       - user_guides/integrations/ci_cd.md
       - user_guides/integrations/linting.md
