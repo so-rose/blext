@@ -19,7 +19,6 @@
 from . import (
 	build,
 	check,
-	dev,
 	run,
 	show_blender_manifest,
 	show_config,
@@ -35,7 +34,6 @@ __all__ = [
 	'APP',
 	'build',
 	'check',
-	'dev',
 	'run',
 	'show_blender_manifest',
 	'show_config',
