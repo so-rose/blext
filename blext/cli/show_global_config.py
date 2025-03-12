@@ -28,8 +28,8 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 # - Command: Show Spec
 ####################
-@APP_SHOW.command(name='config')
-def show_config(
+@APP_SHOW.command(name='global_config')
+def show_global_config(
 	*,
 	format: typ.Literal['raw', 'json', 'toml'] = 'toml',  # noqa: A002
 	config: ParameterConfig = DEFAULT_CONFIG,
