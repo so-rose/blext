@@ -16,7 +16,63 @@
 
 """Execute the command-line interface of `blext."""
 
+import os
+import subprocess
+import sys
+
+from blext import finders
+
 if __name__ == '__main__':
 	from blext.cli import APP
+
+	####################
+	# - Alias: blext blender
+	####################
+	if len(sys.argv) > 1 and sys.argv[1] == 'blender':
+		# TODO: Find via GlobalConfig
+		blender_exe = finders.find_blender_exe()
+
+		bl_process = subprocess.Popen(
+			[blender_exe, *sys.argv[2:]],
+			bufsize=0,
+			env=os.environ,
+			stdin=sys.stdin,
+			stdout=sys.stdout,
+			stderr=sys.stderr,
+			text=True,
+		)
+
+		try:
+			return_code = bl_process.wait()
+		except KeyboardInterrupt:
+			bl_process.terminate()
+			sys.exit(1)
+
+		sys.exit(return_code)
+
+	####################
+	# - Alias: blext uv
+	####################
+	if len(sys.argv) > 1 and sys.argv[1] == 'uv':
+		# TODO: Find via GlobalConfig
+		uv_exe = finders.find_uv_exe()
+
+		uv_process = subprocess.Popen(
+			[uv_exe, *sys.argv[2:]],
+			bufsize=0,
+			env=os.environ,
+			stdin=sys.stdin,
+			stdout=sys.stdout,
+			stderr=sys.stderr,
+			text=True,
+		)
+
+		try:
+			return_code = uv_process.wait()
+		except KeyboardInterrupt:
+			uv_process.terminate()
+			sys.exit(1)
+
+		sys.exit(return_code)
 
 	APP()
