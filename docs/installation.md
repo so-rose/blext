@@ -1,38 +1,24 @@
 !!! abstract
-	We **strongly suggest** installing `blext` as a [global `uv tool`][install-wuv-tool-recommended], **in addition** to [per-project `blext`][install-wuv-add-dev-recommended] versions.
+	**Confused what to do?** See [Getting Started](user_guides/getting_started.md)!
 
-	See [First Steps](first_steps.md) for more.
+	**Which installation method is best?** We _strongly suggest_ installing `blext` as a [global `uv tool`][install-wuv-tool-recommended].
+	Then, into each extension project as [per-project `blext`][install-wuv-add-dev-recommended] - this is done automatically if you use `blext init`.
 
-# Installation Guide
-Beyond the basics, `blext` can be installed in two kinds of ways:
+# Installation
+In general, there are two main ways you'll want to install and use `blext`:
 
-- [**Global**][blext-installation-methods]: Install the `blext` command for a user.
-	- **Usage**: `blext *` from anywhere, where `*` are CLI options.
-
+- [**Global**][install-wuv-tool-recommended]: Install the `blext` command for a user.
 - [**Per-Project**][install-wuv-add-dev-recommended]: Install `blext` as a `uv run` command for a specific project.
-	- **Usage**: `uv run blext *` from anywhere, where `*` are CLI options.
+
+!!! note
+	To use the `blext` installed in a project, you would usually have to `uv run blext`.
+	
+	`blext` automatically does this for you.
+	It will always automatically check if you're in a project with a local `blext` version installed, and forward your command to `uv run blext`.
 
 
 
 ## Standard Installation Methods
-!!! info
-	Any **global** installation of `blext` ensures that you can run `blext` commands from anywhere, like this:
-
-	```bash
-	blext --help
-	```
-
-!!! info
-	A **per-project** installation of `blext` ensures that you can run `blext` commands from within that project, like this:
-
-	```bash
-	uv run blext --help
-	```
-
-	**With a per-project install, the ability to build an extension is protected from changes to `blext`.**
-
-
-
 ### Install w/`uv tool` (**recommended**)
 **Global** method using `uv`'s "tool" interface.
 
@@ -41,7 +27,7 @@ Beyond the basics, `blext` can be installed in two kinds of ways:
  
 	Please refer to the [`uv` installation guide](https://docs.astral.sh/uv/getting-started/installation/).
 
-=== "Stable"
+=== "Latest"
 	```bash
 	uv tool install blext
 	```
@@ -86,7 +72,7 @@ Beyond the basics, `blext` can be installed in two kinds of ways:
 
 **Then**, install `blext`.
 
-=== "Stable"
+=== "Latest"
 	```bash
 	uv add --dev blext  ## --dev keeps blext out of your extension
 	```
@@ -237,8 +223,6 @@ pip install --user blext
 
 
 ## Alternative Installation Methods
-Besides the standard methods, installing
-
 ### Run w/`uvx`
 Launches `blext` without explicit installation, using the `uvx` command from the [`uv` project manager](https://docs.astral.sh/uv/).
 
@@ -247,9 +231,7 @@ Launches `blext` without explicit installation, using the `uvx` command from the
  
 	Please refer to the [`uv` installation guide](https://docs.astral.sh/uv/getting-started/installation/).
 
-There's nothing to install!
-
-Instead, whever you wish to run `blext`, you should write `uvx blext@latest` instead, like this:
+Whenever you wish to run `blext`, you should write `uvx blext@latest` instead, like this:
 ```
 $ uvx blext@latest --help  # equiv. to 'blext --help'
 Usage: blext COMMAND
@@ -268,26 +250,26 @@ For more on how this works, see the [`uv` tools documentation](https://docs.astr
 	```
 	and it will use the cached version of `blext`, even if it's older than the latest version.
 
-
-
-
-
-
-
+	**Note that `blext` won't automatically update when running this command.**
 
 
 
 ## Troubleshooting
-!!! question "Do I have to install [`uv`](https://docs.astral.sh/uv/) in order to use `blext`?"
-	**Not strictly**, but not installing `uv` is probably a bad idea.
+!!! info
+	Any **global** installation of `blext` ensures that you can run `blext` commands from anywhere, like this:
 
-	`blext` assumes that several things about managing Python projects are easy.
-	Without `uv`, they are not always so easy:
+	```bash
+	blext --help
+	```
 
-	- **Dependency Management**: `uv add` and `uv add --script` is a very convenient way to manage dependencies of `pyproject.toml` files / of inline script metadata.
-	- **Project Management**: `uv sync` builds a `.venv` that is _almost_ identical to the one inside of Blender. `uv tree` gives you an overview of your extension's platform-independent dependency graph. _These features are out-of-scope for `blext`, since `uv` already does the job really well_.
+!!! info
+	A **per-project** installation of `blext` ensures that you can run `blext` commands from within that project, like this:
 
-	If this is something you need, we'd love to hear more - feel free to contact us, and at the very least, we can help clarify things.
+	```bash
+	uv run blext --help
+	```
+
+	**With a per-project install, the ability to build an extension is protected from changes to `blext`.**
 
 !!! question "How do I install a specific `git` tag/branch/commit?"
 	Any `uv`-based method (including [`uv tool`][install-wuv-tool-recommended] and [`uv add --dev`][install-wuv-add-dev-recommended]) works with any so-called `uv` source.
@@ -309,3 +291,14 @@ For more on how this works, see the [`uv` tools documentation](https://docs.astr
 	```
 	uvx ruff@latest --version
 	```
+
+!!! question "Do I have to install [`uv`](https://docs.astral.sh/uv/) in order to use `blext`?"
+	**Not strictly**, but not installing `uv` is probably a bad idea.
+
+	`blext` assumes that several things about managing Python projects are easy.
+	Without `uv`, they are not always so easy:
+
+	- **Dependency Management**: `uv add` and `uv add --script` is a very convenient way to manage dependencies of `pyproject.toml` files / of inline script metadata.
+	- **Project Management**: `uv sync` builds a `.venv` that is _almost_ identical to the one inside of Blender. `uv tree` gives you an overview of your extension's platform-independent dependency graph. _These features are out-of-scope for `blext`, since `uv` already does the job really well_.
+
+	If this is something you need, we'd love to hear more - feel free to contact us, and at the very least, we can help clarify things.

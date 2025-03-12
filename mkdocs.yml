@@ -2,34 +2,36 @@ site_name: blext
 
 nav:
   - Overview: index.md
-  - Features: features.md
-  - Installation: installation.md
+  - features.md
+  - installation.md
   - User Guides:
-    - Getting Started: user_guides/getting_started.md
-    - Extension Projects:
-      - Creating: user_guides/extension_projects/creating.md
-      - Packing: user_guides/extension_projects/packing.md
-      - Running: user_guides/extension_projects/running.md
-      - Analyzing: user_guides/extension_projects/analyzing.md
-    - Single-File Extensions: user_guides/single_file_extensions.md
+    - user_guides/getting_started.md
+    - CLI:
+      - user_guides/cli/commands.md
+      - user_guides/cli/locating.md
+      - user_guides/cli/conforming.md
+      - user_guides/cli/global_config.md
+    - user_guides/project_extensions.md
+    - user_guides/script_extensions.md
     - Integrations:
-      - CI/CD: user_guides/integrations/ci_cd.md
-      - Linting: user_guides/integrations/linting.md
-      - Testing: user_guides/integrations/testing.md
-      - Static Typing: user_guides/integrations/static_typing.md
-      - podman / docker: user_guides/integrations/podman_docker.md
-      - pre-commit: user_guides/integrations/pre_commit.md
+      - user_guides/integrations/ci_cd.md
+      - user_guides/integrations/linting.md
+      - user_guides/integrations/testing.md
+      - user_guides/integrations/static_typing.md
+      - user_guides/integrations/podman_docker.md
+      - user_guides/integrations/pre_commit.md
     - Migrating:
       - from Existing Extension: user_guides/migrating/from_existing_extension.md
       - from Legacy Addon: user_guides/migrating/from_legacy_addon.md
   - Resources:
-    - Official Extension Guidelines: resources/official_extension_guidelines.md
+    - resources/extension_resources.md
+    - resources/git_resources.md
   - Reference:
     - Release Notes: reference/release_notes.md
     - Policies:
       - reference/policies/versioning.md
-      - reference/policies/cache_schemas.md
       - reference/policies/licensing.md
+      - reference/policies/contributing.md
     - Python API:
       - reference/python_api/blext.md
       - reference/python_api/blext_cli.md
@@ -41,6 +43,7 @@ nav:
 markdown_extensions:
   - admonition
   - pymdownx.superfences
+  - footnotes
   - pymdownx.tabbed:
       alternate_style: true
 
