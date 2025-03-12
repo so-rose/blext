@@ -42,7 +42,7 @@ _`blext` strives to become your swiss-army knife of extension-making._
 
 
 ## Quickstart
-**Ready to make extensions**? Skip directly to [Getting Started](https://docs.sofus.io/blext/stable/user_guides/getting_started.md).
+**Ready to make extensions**? Skip directly to [Getting Started](https://docs.sofus.io/blext/stable/user_guides/getting_started.html).
 
 **Just want to give it a try**? If [`uv`](https://docs.astral.sh/uv/) is [correctly installed](https://docs.astral.sh/uv/getting-started/installation/), you can start using `blext` right away:
 
@@ -54,11 +54,11 @@ Usage: blext COMMAND
 ```
 
 > [!TIP]
-> You can follow the [Getting Started Guide](https://docs.sofus.io/blext/stable/user_guides/getting_started.md) without installing `blext`, using `uvx` like this.
+> You can follow the [Getting Started Guide](https://docs.sofus.io/blext/stable/user_guides/getting_started.html) without installing `blext`, using `uvx` like this.
 > 
 > Just make sure to write `uvx blext@latest` instead of `blext`, whenever you run a `blext` command.
 
-**Want to install `blext` permanantly**? See our [Installation Guide](https://docs.sofus.io/blext/stable/installation.md).
+**Want to install `blext` permanantly**? See our [Installation Guide](https://docs.sofus.io/blext/stable/installation.html).
 
 > [!NOTE]
 > **NOTICE: Hot Takes Wanted**
