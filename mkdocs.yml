@@ -57,9 +57,6 @@ theme:
   features:
     - navigation.sections
     - content.tabs.link
-  extra:
-    version:
-      provider: mike
 
 plugins:
 - termynal
@@ -67,6 +64,8 @@ plugins:
 - autorefs
 - privacy
 - offline
+- gh-admonitions
+- macros
 - mkdocstrings:
     handlers:
       python:

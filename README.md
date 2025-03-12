@@ -13,17 +13,18 @@
 
 ---
 
-**Please submit Issues to the [Codeberg repository](https://codeberg.org/so-rose/)** (_you can login with GitHub_)
+> [!NOTE]
+> **Please submit Issues to the [Codeberg repository](https://codeberg.org/so-rose/)** (_you can login with GitHub_)
 
-!!! warning "Warning: Alpha Software"
-	`blext` should be considered alpha software aka. **unstable**.
-
-	- The UX may have unsolved frustrations or hiccups.
-	- Features may be incomplete, buggy, or misleadingly documented.
-	- The documentation may be incomplete or outdated.
-	- The test suite has no guarantees of coverage or passing.
-
-	With that said, we already personally find `blext` **quite useful**, and hope you will too.
+> [!WARNING]
+> `blext` should be considered **alpha software** aka. **unstable**.
+> 
+> - The UX may have unsolved frustrations or hiccups.
+> - Features may be incomplete, buggy, or misleadingly documented.
+> - The documentation may be incomplete or outdated.
+> - The test suite has no guarantees of coverage or passing.
+> 
+> With that said, we already personally find `blext` **quite useful**, and hope you will too.
 
 
 
@@ -34,14 +35,14 @@
 - 🏢 **Robust by Design**: We believe that great tools comes from well-chosen, well-integrated abstractions, presented concisely.
 We keep ourselves honest with static typing, strict linting, and `pydantic`-powered data modelling.
 _`blext` strives to become your swiss-army knife of extension-making._
-- 🌐 **Respects your Freedoms**: `blext` preserves your freedom to use, modify, fork, redistribute, or even sell `blext`, **so long as you extend the same freedoms as you were granted** under the [AGPL](https://www.gnu.org/licenses/agpl-3.0.html) software license. _For more details, see our [License Policy](reference/policies/licensing.md)._
+- 🌐 **Respects your Freedoms**: `blext` preserves your freedom to use, modify, fork, redistribute, or even sell `blext`, **so long as you extend the same freedoms as you were granted** under the [AGPL](https://www.gnu.org/licenses/agpl-3.0.html) software license. _For more details, see our [License Policy](https://docs.sofus.io/blext/stable/reference/policies/licensing.html)._
 
-**Want to know more?** See [Features](features.md).
+**Want to know more?** See [Features](https://docs.sofus.io/blext/stable/features.html).
 
 
 
 ## Quickstart
-**Ready to make extensions**? Skip directly to [Getting Started](user_guides/getting_started.md).
+**Ready to make extensions**? Skip directly to [Getting Started](https://docs.sofus.io/blext/stable/user_guides/getting_started.md).
 
 **Just want to give it a try**? If [`uv`](https://docs.astral.sh/uv/) is [correctly installed](https://docs.astral.sh/uv/getting-started/installation/), you can start using `blext` right away:
 
@@ -52,23 +53,25 @@ Usage: blext COMMAND
 ...
 ```
 
-!!! tip
-	You can follow the [Getting Started Guide](user_guides/getting_started.md) without installing `blext`, using `uvx` like this.
+> [!TIP]
+> You can follow the [Getting Started Guide](https://docs.sofus.io/blext/stable/user_guides/getting_started.md) without installing `blext`, using `uvx` like this.
+> 
+> Just make sure to write `uvx blext@latest` instead of `blext`, whenever you run a `blext` command.
 
-	Just make sure to write `uvx blext@latest` instead of `blext`, whenever you run a `blext` command.
+**Want to install `blext` permanantly**? See our [Installation Guide](https://docs.sofus.io/blext/stable/installation.md).
 
-**Want to install `blext` permanantly**? See our [Installation Guide](installation.md).
+> [!NOTE]
+> **NOTICE: Hot Takes Wanted**
 
-!!! feedback "NOTICE: Hot Takes Wanted"
-	**Share your experience** with us in our [Issues system](https://codeberg.org/so-rose/blext/issues) (supports GitHub login)!
-
-	We would appreciate if you took a moment to _assign a label_ to your the Issues:
-
-	- `user-experience`: You tried it, and have some constructive opinions to share!
-	- `ux`: Something was frustrating that didn't need to be.
-	- `bug`: Something's not working the way it's supposed to.
-
-	See all labels here: <https://codeberg.org/so-rose/blext/labels>
+> **Share your experience** with us in our [Issues system](https://codeberg.org/so-rose/blext/issues) (supports GitHub login)!
+> 
+> We would appreciate if you took a moment to _assign a label_ to your the Issues:
+> 
+> - `user-experience`: You tried it, and have some constructive opinions to share!
+> - `ux`: Something was frustrating that didn't need to be.
+> - `bug`: Something's not working the way it's supposed to.
+> 
+> See all labels here: <https://codeberg.org/so-rose/blext/labels>
 
 
 ## Acknowledgements
