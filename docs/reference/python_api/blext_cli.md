@@ -9,10 +9,6 @@
 
 ---
 
-::: blext.cli.dev
-
----
-
 ::: blext.cli.run
 
 ## `blext show`
@@ -20,7 +16,7 @@
 
 ---
 
-::: blext.cli.show_config
+::: blext.cli.show_global_config
 
 ---
 
@@ -29,10 +25,6 @@
 ---
 
 ::: blext.cli.show_profile
-
----
-
-::: blext.cli.show_spec
 
 ### `blext show path`
 ::: blext.cli.show_path_blender

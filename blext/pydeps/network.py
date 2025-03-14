@@ -85,16 +85,12 @@ def download_wheel(
 			_ = f_wheel.write(raw_data)
 			_ = cb_update_wheel_download(wheel, wheel_path, len(raw_data))
 
-	if not wheel.is_wheel_path_valid(wheel_path):
+	if not wheel.is_download_valid(wheel_path):
 		wheel_path.unlink()
 		msg = f'Hash of downloaded wheel at path {wheel_path} did not match expected hash: {wheel.hash}'
 		raise ValueError(msg)
 
 	_ = cb_finish_wheel_download(wheel, wheel_path)
-
-	# TODO: Handle URLError and HTTPError
-	# TODO: Return some kind of message if something went wrong?
-	# TODO: Detect conditions for early exit and delete partial wheel path.
 
 
 def download_wheels(

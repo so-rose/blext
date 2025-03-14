@@ -18,25 +18,36 @@
 
 import functools
 import hashlib
+import typing as typ
 from pathlib import Path
 
 import pydantic as pyd
 import wheel_filename
+from frozendict import frozendict
 
 from blext import extyp
 
-MANYLINUX_LEGACY_ALIASES = {
-	'manylinux1_x86_64': 'manylinux_2_5_x86_64',
-	'manylinux1_i686': 'manylinux_2_5_i686',
-	'manylinux2010_x86_64': 'manylinux_2_12_x86_64',
-	'manylinux2010_i686': 'manylinux_2_12_i686',
-	'manylinux2014_x86_64': 'manylinux_2_17_x86_64',
-	'manylinux2014_i686': 'manylinux_2_17_i686',
-	'manylinux2014_aarch64': 'manylinux_2_17_aarch64',
-	'manylinux2014_armv7l': 'manylinux_2_17_armv7l',
-	'manylinux2014_ppc64': 'manylinux_2_17_ppc64',
-	'manylinux2014_ppc64le': 'manylinux_2_17_ppc64le',
-	'manylinux2014_s390x': 'manylinux_2_17_s390x',
+MANYLINUX_LEGACY_ALIASES: frozendict[str, str] = frozendict(
+	{
+		'manylinux1_x86_64': 'manylinux_2_5_x86_64',
+		'manylinux1_i686': 'manylinux_2_5_i686',
+		'manylinux2010_x86_64': 'manylinux_2_12_x86_64',
+		'manylinux2010_i686': 'manylinux_2_12_i686',
+		'manylinux2014_x86_64': 'manylinux_2_17_x86_64',
+		'manylinux2014_i686': 'manylinux_2_17_i686',
+		'manylinux2014_aarch64': 'manylinux_2_17_aarch64',
+		'manylinux2014_armv7l': 'manylinux_2_17_armv7l',
+		'manylinux2014_ppc64': 'manylinux_2_17_ppc64',
+		'manylinux2014_ppc64le': 'manylinux_2_17_ppc64le',
+		'manylinux2014_s390x': 'manylinux_2_17_s390x',
+	}
+)
+
+WIN_PLATFORM_TAGS_TO_BL_PLATFORMS = {
+	'win32': extyp.BLPlatform.windows_x64,
+	'win_amd64': extyp.BLPlatform.windows_x64,
+	'win_arm32': None,
+	'win_arm64': extyp.BLPlatform.windows_arm64,
 }
 
 
@@ -63,27 +74,7 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 		raise RuntimeError(msg)
 
 	####################
-	# - Validation
-	####################
-	def is_wheel_path_valid(self, wheel_path: Path) -> bool:
-		"""Check whether a file is a valid copy of this wheel.
-
-		Notes:
-			Implemented by comparing the file hash to the expected hash.
-
-		Raises:
-			ValueError: If the hash digest of `wheel_path` does not match `self.hash`.
-		"""
-		if self.hash is None:
-			return True
-
-		with wheel_path.open('rb', buffering=0) as f:
-			file_digest = hashlib.file_digest(f, 'sha256').hexdigest()
-
-		return 'sha256:' + file_digest == self.hash
-
-	####################
-	# - Wheel Filename Parsing
+	# - Parsed Properties
 	####################
 	@functools.cached_property
 	def _parsed_wheel_filename(self) -> wheel_filename.ParsedWheelFilename:
@@ -95,7 +86,7 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 		"""
 		return wheel_filename.parse_wheel_filename(self.filename)
 
-	@property
+	@functools.cached_property
 	def project(self) -> str:
 		"""The name of the project represented by the wheel.
 
@@ -107,29 +98,41 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 			.lower()
 		)
 
-	@property
+	@functools.cached_property
 	def version(self) -> str:
 		"""The version of the project represented by the wheel."""
 		return self._parsed_wheel_filename.version
 
-	@property
+	@functools.cached_property
 	def build(self) -> str | None:
 		"""The build-tag of the project represented by the wheel, if any."""
 		return self._parsed_wheel_filename.build
 
-	@property
+	@functools.cached_property
 	def python_tags(self) -> frozenset[str]:
 		"""The Python tags of the wheel."""
 		return frozenset(self._parsed_wheel_filename.python_tags)
 
-	@property
+	@functools.cached_property
 	def abi_tags(self) -> frozenset[str]:
 		"""The ABI tags of the wheel."""
 		return frozenset(self._parsed_wheel_filename.abi_tags)
 
-	@property
+	@functools.cached_property
 	def platform_tags(self) -> frozenset[str]:
-		"""The platform tags of the wheel."""
+		"""The platform tags of the wheel.
+
+		Notes:
+			Legacy `manylinux` tags (such as `2014`) are normalized to their
+			explicit `PEP600` equivalents (ex. `2014 -> 2_17`).
+
+			This is done to avoid irregularities in how `glibc` versions are parsed
+			for `manylinux` wheels in later methods.
+
+		See Also:
+			- `PEP600`: https://peps.python.org/pep-0600/
+
+		"""
 		return frozenset(
 			{
 				MANYLINUX_LEGACY_ALIASES.get(platform_tag, platform_tag)
@@ -142,78 +145,63 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 			}
 		)
 
-	@property
-	def pretty_bl_platforms(self) -> str:  # noqa: C901
-		"""Retrieve prettified, unfiltered `bl_platforms` for this wheel."""
-		wheel_bl_platforms: set[extyp.BLPlatform | str] = set()
-		for platform_tag in self.platform_tags:
-			# Universal
-			if platform_tag == 'any':
-				wheel_bl_platforms.add('any')
+	####################
+	# - Platform Information
+	####################
+	@functools.cached_property
+	def glibc_versions(self) -> frozendict[str, tuple[int, int] | None]:
+		"""Minimum GLIBC versions supported by this wheel.
 
-			# Windows
-			elif platform_tag.startswith('win'):
-				bl_platform = {
-					'win32': extyp.BLPlatform.windows_x64,
-					'win_amd64': extyp.BLPlatform.windows_x64,
-					'win_arm32': None,
-					'win_arm64': extyp.BLPlatform.windows_arm64,
-				}.get(platform_tag)
-
-				if bl_platform is not None:
-					wheel_bl_platforms.add(bl_platform)
-
-			# Mac
-			elif platform_tag.startswith('macos'):
-				for bl_platform in [
-					extyp.BLPlatform.macos_x64,
-					extyp.BLPlatform.macos_arm64,
-				]:
-					if any(
-						platform_tag.endswith(pypi_arch)
-						for pypi_arch in bl_platform.pypi_arches
-					):
-						wheel_bl_platforms.add(bl_platform)
-
-			# Linux
-			elif platform_tag.startswith('manylinux'):
-				for bl_platform in [
-					extyp.BLPlatform.linux_x64,
-					extyp.BLPlatform.linux_arm64,
-				]:
-					if any(
-						platform_tag.endswith(pypi_arch)
-						for pypi_arch in bl_platform.pypi_arches
-					):
-						wheel_bl_platforms.add(bl_platform)
-
-		return ', '.join(sorted(wheel_bl_platforms))
-
-	def glibc_version(self, platform_tag: str) -> tuple[int, int] | None:
-		"""The GLIBC version that this wheel was compiled with.
-
-		Examine all the supported GLIBC versions specified by platform tags, then select the smallest one.
+		Notes:
+			- The smallest available GLIBC version indicates the minimum GLIBC support for this wheel.
+			- Non-`manylinux` platform tags will always map to `None`.
 		"""
-		if platform_tag in self.platform_tags:
-			platform_tag = MANYLINUX_LEGACY_ALIASES.get(platform_tag, platform_tag)
-
-			if platform_tag.startswith('manylinux_'):
-				version_elements = platform_tag.split('_')
-				return (
-					int(version_elements[1]),
-					int(version_elements[2]),
+		return frozendict(
+			{
+				tuple(
+					int(glibc_version_part)
+					for glibc_version_part in platform_tag.split('_')
 				)
-		return None
+				if platform_tag.startswith('manylinux')
+				else None
+				for platform_tag in self.platform_tags
+			}
+		)
 
-	def macos_version(self, platform_tag: str) -> tuple[int, int] | None:
-		"""The platform tags of the wheel."""
-		if platform_tag in self.platform_tags and platform_tag.startswith('macosx'):
-			version_elements = platform_tag.split('_')
-			return (
-				int(version_elements[1]),
-				int(version_elements[2]),
-			)
-		return None
+	@functools.cached_property
+	def macos_versions(self) -> frozendict[str, tuple[int, int] | None]:
+		"""Minimum MacOS versions supported by this wheel.
+
+		Notes:
+			- The smallest available MacOS version indicates the minimum GLIBC support for this wheel.
+			- Non-`macosx` platform tags will always map to `None`.
+		"""
+		return frozendict(
+			{
+				tuple(
+					int(macos_version_part)
+					for macos_version_part in platform_tag.split('_')
+				)
+				if platform_tag.startswith('macosx')
+				else None
+				for platform_tag in self.platform_tags
+			}
+		)
+
+	@functools.cached_property
+	def windows_versions(self) -> frozendict[str, typ.Literal['win32'] | None]:
+		"""Windows ABI versions supported by this wheel.
+
+		Notes:
+			- In terms of ABI, there is only one on Windows: `win32`.
+			- Non-`win` platform tags will always map to `None`.
+		"""
+		return frozendict(
+			{
+				'win32' if platform_tag.startswith('win') else None
+				for platform_tag in self.platform_tags
+			}
+		)
 
 	####################
 	# - Wheel Sorting
@@ -236,8 +224,14 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 			Higher values will be chosen over lower values.
 			The value should be deterministic from the platform tags.
 		"""
-		return -int(self.size) if self.size is not None else 0
-		## TODO: Sort such that highest supported GLIBC version gets picked first.
+		return -sum(
+			[
+				1000 * glibc_version[0] + glibc_version[1]
+				for glibc_version in self.glibc_versions.values()
+				if glibc_version is not None
+			],
+			start=0,
+		)
 
 	@functools.cached_property
 	def sort_key_preferred_mac(self) -> int:
@@ -247,12 +241,18 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 			Higher values will be chosen over lower values.
 			The value should be deterministic from the platform tags.
 		"""
-		return -int(self.size) if self.size is not None else 0
-		## TODO: Sort such that highest supported MacOS version gets picked first.
+		return -sum(
+			[
+				1000 * macos_version[0] + macos_version[1]
+				for macos_version in self.macos_versions.values()
+				if macos_version is not None
+			],
+			start=0,
+		)
 
 	@functools.cached_property
 	def sort_key_preferred_windows(self) -> int:
-		"""Priority to assign to this wheel when selecting one of several Windowws wheels.
+		"""Priority to assign to this wheel when selecting one of several Windows wheels.
 
 		Notes:
 			Higher values will be chosen over lower values.
@@ -266,94 +266,148 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 	####################
 	# - Match BLPlatform
 	####################
-	def compatible_bl_platforms(  # noqa: C901, PLR0912
+	def bl_platforms(
 		self,
 		*,
-		valid_python_tags: frozenset[str],
-		valid_abi_tags: frozenset[str],
-		min_glibc_version: tuple[int, int],
-		min_macos_version: tuple[int, int],
+		min_glibc_version: tuple[int, int] | None = None,
+		min_macos_version: tuple[int, int] | None = None,
 	) -> frozenset[extyp.BLPlatform]:
-		"""Set of BLPlatforms compatible with this wheel under the given constraints.
+		"""All BLPlatforms that this wheel will run on.
 
-		Parameters:
-			valid_python_tags: Set output to `{}` if this wheel does not support one of these Python tags.
-			valid_abi_tags: Set output to `{}` if this wheel does not support one of these Python ABI tags.
-			min_glibc_version: If this is a `manylinux` wheel, then it must support at least this `glibc` version.
-			min_macos_version: If this is a `macos` wheel, then it must support at least this `macos` version.
+		Notes:
+			`extyp.BLPlatform` only denotes a _partial_ set of compatibility constraints,
+			namely, particular OS / CPU architecture combinations.
 
-		Return:
-			Set of Blender platforms for which this wheel is presumed to function.
+			It does **not** a sufficient set of compatibility constraints to be able to say,
+			for instance, "this wheel will work with any Linux version of Blender".
+
+			A version of Blender versions comes with a Python runtime environment that imposes
+			very important constraints such as:
+			- Supported Python tags.
+			- Supported ABI tags.
+
+			To deduce final wheel compatibility, _both_ the BLPlatform _and_ the information derived
+			from the Blender version must be checked.
 		"""
-		is_python_version_valid = len(valid_python_tags & self.python_tags) > 0
-		is_abi_valid = len(valid_abi_tags & self.abi_tags) > 0
+		if 'any' in self.platform_tags:
+			return frozenset(bl_platform for bl_platform in extyp.BLPlatform)
 
-		supported_bl_platforms: set[extyp.BLPlatform] = set()
-		accepted_platform_tags: set[str] = set()
-		rejected_platform_tags: set[str] = set()
-		if is_python_version_valid and is_abi_valid:
-			if 'any' in self.platform_tags:
-				return frozenset(bl_platform for bl_platform in extyp.BLPlatform)
+		bl_platforms: set[extyp.BLPlatform] = set()
+		for platform_tag in self.platform_tags:
+			# Windows
+			if platform_tag in WIN_PLATFORM_TAGS_TO_BL_PLATFORMS:
+				bl_platform = WIN_PLATFORM_TAGS_TO_BL_PLATFORMS.get(platform_tag)
+				if bl_platform is not None:
+					bl_platforms.add(bl_platform)
 
-			for platform_tag in self.platform_tags:
-				macos_version = self.macos_version(platform_tag)
-				glibc_version = self.glibc_version(platform_tag)
-
-				# Windows
-				if platform_tag.startswith('win'):
-					bl_platform = {
-						'win32': extyp.BLPlatform.windows_x64,
-						'win_amd64': extyp.BLPlatform.windows_x64,
-						'win_arm32': None,
-						'win_arm64': extyp.BLPlatform.windows_arm64,
-					}.get(platform_tag)
-
-					if bl_platform is not None:
-						supported_bl_platforms.add(bl_platform)
-						accepted_platform_tags.add(platform_tag)
-					else:
-						rejected_platform_tags.add(platform_tag)
-
-				# Mac
-				elif macos_version is not None and (
-					macos_version[0] < min_macos_version[0]
-					or (
-						macos_version[0] == min_macos_version[0]
-						and macos_version[1] <= min_macos_version[1]
-					)
-				):
+			# MacOS
+			elif (macos_version := self.glibc_versions[platform_tag]) is not None:
+				bl_platforms |= {
+					bl_platform
 					for bl_platform in [
 						extyp.BLPlatform.macos_x64,
 						extyp.BLPlatform.macos_arm64,
-					]:
-						if any(
-							platform_tag.endswith(pypi_arch)
-							for pypi_arch in bl_platform.pypi_arches
-						):
-							supported_bl_platforms.add(bl_platform)
-							accepted_platform_tags.add(platform_tag)
-						else:
-							rejected_platform_tags.add(platform_tag)
-
-				# Linux
-				elif glibc_version is not None and (
-					glibc_version[0] < min_glibc_version[0]
-					or (
-						glibc_version[0] == min_glibc_version[0]
-						and glibc_version[1] <= min_glibc_version[1]
+					]
+					if any(
+						platform_tag.endswith(pypi_arch)
+						for pypi_arch in bl_platform.pypi_arches
 					)
-				):
+					and (
+						min_macos_version is None
+						or (
+							macos_version[0] < min_macos_version[0]
+							or (
+								macos_version[0] == min_macos_version[0]
+								and macos_version[1] <= min_macos_version[1]
+							)
+						)
+					)
+				}
+
+			# Linux
+			elif (glibc_version := self.glibc_versions[platform_tag]) is not None:
+				bl_platforms |= {
+					bl_platform
 					for bl_platform in [
 						extyp.BLPlatform.linux_x64,
 						extyp.BLPlatform.linux_arm64,
-					]:
-						if any(
-							platform_tag.endswith(pypi_arch)
-							for pypi_arch in bl_platform.pypi_arches
-						):
-							supported_bl_platforms.add(bl_platform)
-							accepted_platform_tags.add(platform_tag)
-						else:
-							rejected_platform_tags.add(platform_tag)
+					]
+					if any(
+						platform_tag.endswith(pypi_arch)
+						for pypi_arch in bl_platform.pypi_arches
+					)
+					and (
+						min_glibc_version is None
+						or (
+							glibc_version[0] < min_glibc_version[0]
+							or (
+								glibc_version[0] == min_glibc_version[0]
+								and glibc_version[1] <= min_glibc_version[1]
+							)
+						)
+					)
+				}
 
-		return frozenset(supported_bl_platforms)
+		return frozenset(bl_platforms)
+
+	####################
+	# - Wheel Validation
+	####################
+	def works_with_python_tags(self, python_tags: frozenset[str]) -> bool:
+		"""Does this wheel work with a runtime that supports `python_tags`?
+
+		Notes:
+			This method doesn't guarantee directly that the wheel will run.
+			It only guarantees that there is no mismatch in Python tags between
+			what the environment supports, and what the wheel supports.
+
+		Parameters:
+			python_tags: List of Python tags supported by a runtime environment.
+
+		Returns:
+			Whether the Python tags of the environment, and the wheel, are compatible.
+		"""
+		return len(python_tags & self.python_tags) > 0
+
+	def works_with_abi_tags(self, abi_tags: frozenset[str]) -> bool:
+		"""Does this wheel work with a runtime that supports `abi_tags`?
+
+		Notes:
+			- It is very strongly recommended to always pass `"none"` as one of the `abi_tags`,
+				since this is the ABI tag of pure-Python wheels.
+			- This method doesn't guarantee directly that the wheel will run.
+				It only guarantees that there is no mismatch in Python ABI tags between
+				what the environment supports, and what the wheel supports.
+
+		Parameters:
+			python_tags: List of Python tags supported by a runtime environment.
+
+		Returns:
+			Whether the Python tags of the environment, and the wheel, are compatible.
+		"""
+		return len(abi_tags & self.abi_tags) > 0
+
+	def is_download_valid(self, wheel_path: Path) -> bool:
+		"""Check whether a downloaded file is, in fact, this wheel.
+
+		Notes:
+			Implemented by comparing the file hash to the expected hash.
+
+		Raises:
+			ValueError: If the hash digest of `wheel_path` does not match `self.hash`.
+		"""
+		if self.hash is None:
+			return True
+
+		with wheel_path.open('rb', buffering=0) as f:
+			file_digest = hashlib.file_digest(f, 'sha256').hexdigest()
+
+		return 'sha256:' + file_digest == self.hash
+
+	####################
+	# - Display
+	####################
+	@functools.cached_property
+	def pretty_bl_platforms(self) -> str:
+		"""Retrieve prettified, unfiltered `bl_platforms` for this wheel."""
+		return ', '.join(sorted(self.bl_platforms()))

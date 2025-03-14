@@ -15,8 +15,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # /// script
-# requires-python = ">=3.11"
+# requires-python = "==3.11"
 # dependencies = [
+#   "numpy==1.24.*",
 #   "scipy==1.15.2",
 # ]
 #
@@ -70,7 +71,10 @@ class SimpleOperator(bpy.types.Operator):
 		"""Display a simple message on execution."""
 		self.report(
 			{'INFO'},
-			f'sc.constants.speed_of_light={sc.constants.speed_of_light}, scipy.__version={sc.__version__}, numpy.__version__={np.__version__}',
+			(
+				f'sc.constants.speed_of_light={sc.constants.speed_of_light}'
+				f'np.__version__={np.__version__}'
+			),
 		)
 
 		return {'FINISHED'}

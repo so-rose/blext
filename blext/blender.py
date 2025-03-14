@@ -47,7 +47,7 @@ def run_blender(  # noqa: PLR0913
 	env: frozendict[str, str] = _EMPTY_FROZENDICT,
 	capture: bool = True,
 	block: bool = True,
-	bufsize: int = 0,  ## TODO: Is -1 OK?
+	bufsize: int = 0,
 ) -> subprocess.Popen[str] | subprocess.Popen[bytes]:
 	"""Run the Blender executable in various ways.
 

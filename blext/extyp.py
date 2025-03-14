@@ -84,7 +84,6 @@ ValidBLTags: typ.TypeAlias = typ.Literal[
 	'User Interface',
 	'UV',
 ]
-# TODO: This shouldn't be hard-coded, but should rather be configured by-repository. Somehow.
 
 
 ####################
@@ -177,9 +176,6 @@ class StrLogLevel(enum.StrEnum):
 StandardReleaseProfile: typ.TypeAlias = typ.Literal[
 	'test', 'dev', 'release', 'release-debug'
 ]
-## TODO: Should probably be a StrEnum to avoid the typ.get_args() popping up everywhere.
-## - AKA. Flip the task - put this under ReleaseProfile, and let it generate a ReleaseProfile.
-## - Then, ReleaseProfile would have no special logic for transforming StandardReleaseProfile to itself.
 
 
 class ReleaseProfile(pyd.BaseModel, frozen=True):

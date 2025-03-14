@@ -63,9 +63,9 @@ def show_deps(
 	with exc.handle(exc.pretty, ValueError):
 		blext_wheels = sorted(
 			blext_spec.wheels_graph.wheels,
-			key={
-				'filename': lambda wheel: wheel.filename,
-				'size': lambda wheel: wheel.sort_key_size,
+			key={  # pyright: ignore[reportUnknownArgumentType]
+				'filename': lambda wheel: wheel.filename,  # pyright: ignore[reportUnknownLambdaType,reportUnknownMemberType]
+				'size': lambda wheel: wheel.sort_key_size,  # pyright: ignore[reportUnknownLambdaType,reportUnknownMemberType]
 			}[sort_by],
 		)
 
@@ -73,7 +73,6 @@ def show_deps(
 	# - UI: Create Table w/Wheel Data
 	####################
 	if format == 'table':
-		# Assemble Table of Wheels
 		table = rich.table.Table()
 		table.add_column('Name')
 		table.add_column('Version', no_wrap=True)
@@ -101,8 +100,6 @@ def show_deps(
 			'',
 			f'={blext_spec.wheels_graph.total_size_bytes.human_readable(decimal=True, separator=" ")}',
 		)
-		## TODO: A column that checks whether the wheel is downloaded/cached?
-		## TODO: Export as csv
 
 		####################
 		# - UI: Print

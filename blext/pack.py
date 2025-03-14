@@ -50,11 +50,6 @@ def existing_prepacked_files(
 		with zipfile.ZipFile(path_zip_prepack, 'r') as f_zip:
 			existing_prepacked_files = set({Path(name) for name in f_zip.namelist()})
 
-		## TODO: This effectively uses filenames as cache keys.
-		## - This is appropriate for wheels.
-		## - This is not appropriate for arbitrary files.
-		## - Ideally, we can retrieve file hashes of pre-packed files, and compare them.
-
 		# Re-Pack to Delete Files
 		## - Deleting a single file from a .zip archive is not always a good idea.
 		## - See https://github.com/python/cpython/pull/103033
@@ -202,9 +197,3 @@ def pack_bl_extension(
 		else:
 			msg = "Tried to pack an extension that is neither a project nor a script. This shouldn't happen."
 			raise ValueError(msg)
-
-
-## TODO: Consider supporting a faster ZIP packer, ex. external 7-zip or a Rust module.
-## - See https://nickb.dev/blog/deflate-yourself-for-faster-rust-zips/
-## - Principle is doing everything in RAM, THEN writing out to disk.
-## - This mainly only hurts when prepacking - by the way, aren't wheels already deflated?

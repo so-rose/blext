@@ -21,6 +21,7 @@ import typing as typ
 from collections import defaultdict
 from pathlib import Path
 
+import annotated_types as atyp
 import pydantic as pyd
 from frozendict import deepfreeze, frozendict
 
@@ -34,12 +35,13 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 
 	all_wheels: frozenset[BLExtWheel]
 
-	min_glibc_version: tuple[int, int] = (2, 20)
-	min_macos_version: tuple[int, int] = (11, 0)
-	## TODO: Constrained integers for both
-	## TODO: The "Blender version" itself has a certain support matrix. Perhaps it wouldn't be terrible to default to that?
+	min_glibc_version: tuple[int, int] = (2, 28)
+	min_macos_version: tuple[int, int] = (11, 2)
 
-	supported_bl_platforms: frozenset[extyp.BLPlatform]
+	valid_bl_platforms: typ.Annotated[
+		frozenset[extyp.BLPlatform],
+		atyp.MinLen(1),
+	]
 	valid_python_tags: frozenset[str] = frozenset(
 		{
 			'py3',
@@ -52,14 +54,12 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		}
 	)
 	valid_abi_tags: frozenset[str] = frozenset({'none', 'abi3', 'cp311'})
-	## TODO: Keep a "Blender version" instead, then reverse-engineer the Python version that it uses, then reverse-engineer valid Python/ABI tags from there.
-	## - This is also nice, as it can allow for limited modification by the user ex. to allow older CPython versions that might technically work, but which are considered too iffy to use as a default.
 
 	####################
 	# - Wheel Reductions: Find Info Across Wheels
 	####################
 	@functools.cached_property
-	def wheel_projects(self) -> frozenset[str]:
+	def projects(self) -> frozenset[str]:
 		"""All wheel dependency names aka. "projects"."""
 		return frozenset({wheel.project for wheel in self.all_wheels})
 
@@ -67,18 +67,21 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 	# - Wheel Mappings: Find Info per Wheel
 	####################
 	@functools.cached_property
-	def wheel_bl_platforms(
+	def bl_platforms_by_wheel(
 		self,
 	) -> frozendict[BLExtWheel, frozenset[extyp.BLPlatform]]:
 		"""Compatible Blender platforms for each wheel."""
 		return frozendict(
 			{
-				wheel: wheel.compatible_bl_platforms(
-					valid_python_tags=self.valid_python_tags,
-					valid_abi_tags=self.valid_abi_tags,
+				wheel: wheel.bl_platforms(
 					min_glibc_version=self.min_glibc_version,
 					min_macos_version=self.min_macos_version,
 				)
+				if (
+					wheel.works_with_python_tags(self.valid_python_tags)
+					and wheel.works_with_abi_tags(self.valid_abi_tags)
+				)
+				else frozenset()
 				for wheel in self.all_wheels
 			}
 		)
@@ -98,7 +101,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 						if wheel.project == wheel_project
 					}
 				)
-				for wheel_project in self.wheel_projects
+				for wheel_project in self.projects
 			}
 		)
 
@@ -110,7 +113,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		wheels_by_bl_platform: defaultdict[extyp.BLPlatform, set[BLExtWheel]] = (
 			defaultdict(set)
 		)
-		for wheel, bl_platforms in self.wheel_bl_platforms.items():
+		for wheel, bl_platforms in self.bl_platforms_by_wheel.items():
 			for bl_platform in bl_platforms:
 				wheels_by_bl_platform[bl_platform].add(wheel)
 		return deepfreeze(wheels_by_bl_platform)  #  pyright: ignore[reportAny]
@@ -134,9 +137,9 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 						for wheel in self.wheels_by_bl_platform[bl_platform]
 						if wheel_project == wheel.project
 					}
-					for bl_platform in self.supported_bl_platforms
+					for bl_platform in self.valid_bl_platforms
 				}
-				for wheel_project in self.wheel_projects
+				for wheel_project in self.projects
 			}
 		)  #  pyright: ignore[reportAny]
 
@@ -318,7 +321,6 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 				wheel
 				for wheel in self.wheels
 				if wheel.filename in wheel_filenames_existing
-				## TODO: or existing hash no match
 			}
 		)
 
@@ -332,7 +334,6 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 				wheel
 				for wheel in self.wheels
 				if wheel.filename not in wheel_filenames_existing
-				## TODO: or existing hash no match
 			}
 		)
 
@@ -360,7 +361,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		uv_lock: frozendict[str, typ.Any],
 		*,
 		requirements_txt: tuple[str, ...],
-		supported_bl_platforms: frozenset[extyp.BLPlatform],
+		valid_bl_platforms: frozenset[extyp.BLPlatform],
 		min_glibc_version: tuple[int, int],
 		min_macos_version: tuple[int, int],
 	) -> typ.Self:
@@ -390,7 +391,6 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 			if (
 				'source' in package
 				and 'registry' in package['source']
-				## TODO: Global list of acceptable wheel registries
 				and 'url' in wheel_info
 				and 'hash' in wheel_info
 				and 'size' in wheel_info
@@ -409,7 +409,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 					)
 				}
 			),
-			supported_bl_platforms=supported_bl_platforms,
+			valid_bl_platforms=valid_bl_platforms,
 			min_glibc_version=min_glibc_version,
 			min_macos_version=min_macos_version,
 		)

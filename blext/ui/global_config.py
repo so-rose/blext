@@ -135,20 +135,8 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 	] = None
 
 	####################
-	# - Logging
+	# - Import / Export
 	####################
-	## TODO: Implement 'blext' logging (to be clear: for blext, not for extensions)
-	# use_log_file: bool = False
-	# log_file_level: extyp.StrLogLevel = extyp.StrLogLevel.Debug
-	# log_file_path: Path = Path(
-	# platformdirs.user_log_dir(
-	# APPNAME,
-	# APPAUTHOR,
-	# )
-	# )
-	# use_log_console: bool = False
-	# console_file_level: extyp.StrLogLevel = extyp.StrLogLevel.Info
-
 	def export_config(self, fmt: typ.Literal['json', 'toml']) -> str:
 		"""Global configuration of `blext` as a string.
 

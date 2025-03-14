@@ -22,7 +22,6 @@ import tomllib
 import typing as typ
 from pathlib import Path
 
-import annotated_types as atyp
 import pydantic as pyd
 import tomli_w
 from frozendict import frozendict
@@ -31,28 +30,9 @@ from . import extyp, pydeps
 from .utils.inline_script_metadata import parse_inline_script_metadata
 from .utils.pydantic_frozen_dict import FrozenDict
 
-####################
-# - Build Process
-####################
-## TODO: Implement glob ignores.
-## - Glob from the project root path (for scripts, this is the parent dir of the script path)
-## - A file may not be included in the zip if it matches a path in ignore_globs.
-## - Found items should always be injected at the same relative path in the zip as outside the zip.
-## - Ideally, these could be (configurably) mined from a `.gitignores` file.
-## - Also ideally, certain specific folders ex. .venv could be ignored by default.
-## - **There's also a blender_manifest.toml entry for this**. Maybe that's where to start.
-# IGNORE_GLOBS: tuple[str, ...] = ('**/__pycache__/**/*',)
-
-## TODO: Implement glob prepacking.
-## - Glob from the project root path (for scripts, this is the parent dir of the script path)
-## - Set items are the glob patterns to use as `Path(...).glob(pattern)`
-## - Found items should always be injected at the same relative path in the zip as outside the zip.
-## - Ideally, these could be (configurably) mined from a `.gitattributes` file.
-# PREPACK_GLOBS: tuple[str, ...] = ()
-
 
 ####################
-# - Types
+# - Blender Extension Specification
 ####################
 class BLExtSpec(pyd.BaseModel, frozen=True):
 	"""Specifies a Blender extension.
@@ -66,10 +46,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	For such options, the `[tool.blext]` section is introduced.
 
 	Attributes:
-		bl_platforms: Blender platforms supported by this extension.
 		wheels_graph: All wheels that might be usable by this extension.
-		req_python_version: Python versions supported by this extension.
-			**Must** correspond to `blender_version_min` and `blender_version_max`.
 		release_profile: Optional initialization settings and spec overrides.
 			**Overrides must be applied during construction**.
 		manifest_filename: Filename of `blender_manifest.toml`.
@@ -100,20 +77,9 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	"""
 
 	####################
-	# - Platform Support
-	####################
-	bl_platforms: typ.Annotated[
-		frozenset[extyp.BLPlatform],
-		atyp.MinLen(1),
-	]
-
-	####################
 	# - Python Dependencies
 	####################
 	wheels_graph: pydeps.BLExtWheelsGraph
-	req_python_version: str
-	## TODO: Generate this from the required Blender versions.
-	## - Validate this against the pyproject.toml 'req_python_version' field while parsing.
 
 	####################
 	# - Init Settings
@@ -140,9 +106,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		),
 	]
 	maintainer: str
-
-	## TODO: Validator on tagline that prohibits ending with punctuation
-	## - In fact, alpha-numeric suffix is required.
 
 	# Blender Compatibility
 	extension_type: typ.Literal['add-on'] = pyd.Field(
@@ -178,6 +141,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	####################
 	# - Identity Attributes
 	####################
+	@functools.cached_property
+	def bl_platforms(self) -> frozenset[extyp.BLPlatform]:
+		"""Blender platforms supported by this extension."""
+		return self.wheels_graph.valid_bl_platforms
+
 	@property
 	def is_universal(self) -> bool:
 		"""Whether this extension supports all Blender platforms.
@@ -319,8 +287,9 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 		Returns:
 			A copy of `self`, with the following modifications:
-				- `self.bl_platforms`: Modified according to parameters.
-				- `self.wheels_graph.supported_bl_platforms`: Modified according to parameters.
+				- `self.wheels_graph.valid_bl_platforms`: Modified according to parameters.
+
+			In practice, `self.bl_platforms` will also reflect the change.l
 
 		"""
 		# Parse FrozenSet of Platforms
@@ -335,9 +304,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		# Perform Deep-Copy w/Altered BLPlatforms
 		return self.model_copy(
 			update={
-				'bl_platforms': bl_platforms,
 				'wheels_graph': self.wheels_graph.model_copy(
-					update={'supported_bl_platforms': bl_platforms}
+					update={'valid_bl_platforms': bl_platforms}
 				),
 			},
 			deep=True,
@@ -466,7 +434,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				)
 		else:
 			field_parse_errs.append('- `project.requires-python` is not defined.')
-			## TODO: Use validator to check that Blender version corresponds to the Python version.
 
 		# project.maintainers
 		first_maintainer: dict[str, str] | None = None
@@ -492,7 +459,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				)
 		else:
 			first_maintainer = {'name': 'Unknown', 'email': 'unknown@example.com'}
-		## TODO: Use validator to check that the email has a valid format.
 
 		# project.license
 		extension_license: str | None = None
@@ -508,7 +474,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			field_parse_errs.append(
 				'- Please note that all Blender addons MUST declare a GPL-compatible license: <https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html>'
 			)
-		## TODO: Check that the license is one of the licenses compatible with Blender. Consider providing a CLI option to ignore this (--i-have-consulted-legal-council-and-swear-its-okay)
 
 		## project.urls.homepage
 		if (
@@ -520,7 +485,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			homepage = project['urls']['Homepage']
 		else:
 			homepage = None
-		## TODO: Use a validator to check that the URL is valid.
 
 		####################
 		# - Parsing: Stage 3
@@ -554,13 +518,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				'- Example: `copyright = ["<current_year> <proj_name> Contributors`'
 			]
 
-		## TODO:
-		## - Validator name and prety name match Blender's validation.
-		## - Validator version string, match Blender's validation routine.
-		## - Validator for Blender version strings.
-		## - Validator for description, esp. the period at the end.
-		## - Validator for copyright format.
-
 		if field_parse_errs:
 			msgs = [
 				f'In `{path_proj_spec}`:',
@@ -591,7 +548,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			raise RuntimeError(msg)
 
 		_spec_params = {
-			'req_python_version': project_requires_python,
 			'wheels_graph': pydeps.BLExtWheelsGraph.from_uv_lock(
 				pydeps.uv.parse_uv_lock(
 					path_uv_lock, override_path_uv_exe=override_path_uv_exe
@@ -599,11 +555,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				requirements_txt=pydeps.uv.parse_requirements_txt(
 					path_uv_lock, override_path_uv_exe=override_path_uv_exe
 				),
-				supported_bl_platforms=blext_spec_dict['supported_platforms'],  # pyright: ignore[reportAny]
+				valid_bl_platforms=blext_spec_dict['supported_platforms'],  # pyright: ignore[reportAny]
 				min_glibc_version=blext_spec_dict.get('min_glibc_version', (2, 20)),
 				min_macos_version=blext_spec_dict.get('min_macos_version', (11, 0)),
 			),
-			'bl_platforms': blext_spec_dict['supported_platforms'],
 			####################
 			# - Init Settings
 			####################

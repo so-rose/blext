@@ -130,7 +130,6 @@ def build(
 		)
 	else:
 		raise NotImplementedError
-		# TODO: Add uv.lock or similar to unvendored wheels.
 
 	existing_prepacked_zipfiles = pack.existing_prepacked_files(
 		files_to_prepack, path_zip_prepack=path_zip_prepack
@@ -169,7 +168,6 @@ def build(
 			path_zip_prepack=path_zip_prepack,
 			path_zip=path_zip,
 			path_pysrc=blext_location.path_pysrc(blext_spec.id),
-			## TODO: Really? Just gonna presume that `blext_spec.id` exists? You even gonna tell the user if the path don't exist? Bad Sofus.
 		)
 
 	####################

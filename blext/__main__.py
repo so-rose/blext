@@ -29,7 +29,6 @@ if __name__ == '__main__':
 	# - Alias: blext blender
 	####################
 	if len(sys.argv) > 1 and sys.argv[1] == 'blender':
-		# TODO: Find via GlobalConfig
 		blender_exe = finders.find_blender_exe()
 
 		bl_process = subprocess.Popen(
@@ -54,7 +53,6 @@ if __name__ == '__main__':
 	# - Alias: blext uv
 	####################
 	if len(sys.argv) > 1 and sys.argv[1] == 'uv':
-		# TODO: Find via GlobalConfig
 		uv_exe = finders.find_uv_exe()
 
 		uv_process = subprocess.Popen(

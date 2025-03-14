@@ -158,16 +158,14 @@ def parse_uv_lock(
 		## - Otherwise, setting it requires a forced update.
 		if force_update or not path_uv_lock.is_file():
 			update_uv_lock(path_uv_lock, override_path_uv_exe=override_path_uv_exe)
-		## TODO: More robust automatic mechanism, so we can set force_update=False with good conscience.
 
 		# Parse the Lockfile
 		if path_uv_lock.is_file():
 			with path_uv_lock.open('rb') as f:
 				return deepfreeze(tomllib.load(f))  # pyright: ignore[reportAny]
 
-		msg = 'Generating `{path_uv_lock}` failed, likely because it is not located within a valid `uv` project.'
+		msg = f'Generating `{path_uv_lock}` failed, likely because it is not located within a valid `uv` project.'
 		raise ValueError(msg)
-		## TODO: Check if it's a valid uv project first. Somehow? Another function?
 
-	msg = 'The path `{path_uv_lock}` MUST refer to a file named `uv.lock`.'
+	msg = f'The path `{path_uv_lock}` MUST refer to a file named `uv.lock`.'
 	raise ValueError(msg)

@@ -65,8 +65,6 @@ def check(
 		check_target_name = blext_info.proj_uri.name
 		path_zip = blext_info.proj_uri
 
-		# TODO: Specification validation from .zip
-
 		####################
 		# - Check: Validate w/Blender
 		####################
@@ -75,9 +73,6 @@ def check(
 			blender.validate_extension(blender_exe, path_zip=path_zip)
 		except ValueError:
 			checks['$ blender --command extension validate'] = False
-
-		# TODO: Parse it to a BLExtSpec and check up on:
-		## - Wheels: All from PyPi? Hashes OK? Dependency resolution OK?
 
 	####################
 	# - Check Project
@@ -104,10 +99,6 @@ def check(
 				checks['Validate Extension Specification'] = False
 			else:
 				checks['Load Extension Specification'] = False
-
-		# TODO: Really, most of the cheap checks should be part of BLExtSpec. However, what could be interesting is project-defined checks such as:
-		## - tools [ruff, basedpyright, pytest]: Does the extension project pass checks made by project-defined tooling?
-		## - Custom: User-defined checks in pyproject.toml / script metadata?
 
 	####################
 	# - Report

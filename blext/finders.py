@@ -80,7 +80,6 @@ def find_blender_exe(*, override_path_blender_exe: Path | None = None) -> Path: 
 		blender_exe = override_path_blender_exe
 		if blender_exe.exists():
 			return blender_exe
-		# TODO: Do more checks ex. is it executable?
 
 		msg = f"Couldn't find Blender executable at specified path: {blender_exe}"
 		raise ValueError(msg)

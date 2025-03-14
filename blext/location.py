@@ -232,10 +232,6 @@ class BLExtLocationPath(BLExtLocation, frozen=True):
 			`None` indicates that the current working directory should be used.
 	"""
 
-	# TODO: Explicitly support *.py, pyproject.toml, and also built extension aka. *.zip.
-	## - BLExtSpec will need support for loading built extension zipfiles, of course.
-	## - The only real challenge is building a sensible BLExtWheelGraph.
-
 	path: Path | None
 
 	@functools.cached_property
@@ -306,8 +302,6 @@ class BLExtLocationGit(BLExtLocation, frozen=True):
 	tag: str | None = None
 	branch: str | None = None
 	entrypoint: Path | None = None
-	## TODO: Proper types for the fields.
-	## - This will have to be replicated three times. It's okay; type checker helps us.
 
 	force_global_project_cache: bool = True
 
@@ -357,28 +351,6 @@ class BLExtLocationGit(BLExtLocation, frozen=True):
 		See Also:
 			- See `blext.spec.BLExtSpec` for more on how a valid specification path is parsed.
 		"""
-		# TODO: Use pygit2 bindings to libgit.
-		## - PROBLEM: The user would need git. Ideally, they need nothing.
-		## - There is https://github.com/GitoxideLabs/gitoxide. It's not ready / no Python (yet?)
-
-		# TODO: Perform 'git clone'
-		## - See: https://www.pygit2.org/recipes/git-clone-progress.html
-		## - Perform 'git clone'.
-		## - Use a blext.ui.* module to show clone progress.
-		## - Ensure it works with LFS.
-
-		# TODO: Perform 'git checkout'
-		## - Deduce whether the user wanted a commit ID, tag, or branch.
-		## - Perform `git checkout' to what the user wanted.
-		## - See: https://www.pygit2.org/index_file.html#pygit2.Repository.checkout
-
-		# TODO: Deduce Project Spec Path
-		## - If `self.entrypoint` is some *.py, returns its path directly (as a script extension).
-		## - If `self.entrypint` is `pyproject.toml`, return path to that.
-		## - If `self.entrypint` is `None`, look for top-level `pyproject.toml` and return it.
-		## - A global cache will already be used courtesy self.force_global_project_cache.
-		## - ...That's it!
-
 		raise NotImplementedError
 
 
@@ -404,11 +376,4 @@ class BLExtLocationHttp(BLExtLocation, frozen=True):
 		See Also:
 			- See `blext.spec.BLExtSpec` for more on how a valid specification path is parsed.
 		"""
-		# TODO: Download the file and return its downloaded path.
-
-		# TODO: Support downloading various kinds of stuff.
-		## - Download script extension and build it.
-		## - Download zipfile of the source code, unpack it, and build locally as a project  extension.
-		## - Download zipfile of the built extension and use as a ".zip" extension.
-
 		raise NotImplementedError
