@@ -26,6 +26,17 @@ import pydantic as pyd
 import rich
 import rich.markdown
 import rich.padding
+import rich.theme
+
+ERROR_CONSOLE = rich.console.Console(
+	tab_size=2,
+	theme=rich.theme.Theme(
+		styles={
+			'markdown.code': 'italic dim',
+			'cyan': 'green',
+		}
+	),
+)
 
 
 @contextlib.contextmanager
@@ -68,7 +79,7 @@ def handle(
 ####################
 # - Exception Handlers
 ####################
-def pretty(ex: Exception, show_filename_lineno: bool = False) -> None:
+def pretty(ex: Exception, show_filename_lineno: bool = True) -> None:
 	"""Print an exception in a more stylish, end-user oriented fashion.
 
 	Designed for use with `handle`.
@@ -105,21 +116,16 @@ def pretty(ex: Exception, show_filename_lineno: bool = False) -> None:
 			else None
 		)
 		lineno = exc_tb.tb_lineno if exc_tb is not None else None
-		info = f' ({filename}|{lineno}):' if exc_tb is not None else ':'
+		info = f' \[{filename}|{lineno}]:' if exc_tb is not None else ':'
 	else:
 		info = ':'
 
 	# Format Message Tuple
-	messages = [
-		rich.padding.Padding(
-			rich.markdown.Markdown(arg),  # pyright: ignore[reportAny]
-			pad=(0, 0, 0, 4),
-		)
-		for arg in ex.args  # pyright: ignore[reportAny]
-	]
+	messages = [rich.markdown.Markdown('\n'.join(ex.args))]
 
 	# Present
-	rich.print(
+	ERROR_CONSOLE.print(
+		'\n',
 		f'[bold red]{ex_name}[/bold red]',
 		info,
 		*messages,

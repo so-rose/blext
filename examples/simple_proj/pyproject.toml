@@ -1,5 +1,5 @@
 [project]
-name = "blext_simple_example"
+name = "simple_proj"
 version = "0.1.0"
 description = "Simple real-world example of a Blender extension"
 authors = [
@@ -32,8 +32,6 @@ supported_platforms = [
 	'macos-arm64',
 	'linux-x64',
 ]
-
-min_macos_version = [12, 0]
 
 ####################
 # - Blender Extension

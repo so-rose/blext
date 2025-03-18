@@ -36,7 +36,7 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 	all_wheels: frozenset[BLExtWheel]
 
 	min_glibc_version: tuple[int, int] = (2, 28)
-	min_macos_version: tuple[int, int] = (11, 2)
+	min_macos_version: tuple[int, int] = (12, 0)
 
 	valid_bl_platforms: typ.Annotated[
 		frozenset[extyp.BLPlatform],
@@ -207,57 +207,97 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 						self.wheels_by_project[wheel_project],
 						key=lambda el: el.filename,
 					)
+					candidate_wheels = [
+						candidate_wheel
+						for candidate_wheel in wheels_by_project
+						if candidate_wheel.works_with_python_tags(
+							self.valid_python_tags
+						)
+						and candidate_wheel.works_with_abi_tags(self.valid_abi_tags)
+						and any(
+							platform_tag.endswith(pypi_arch)
+							for platform_tag in candidate_wheel.platform_tags
+							for pypi_arch in bl_platform.pypi_arches
+						)
+						and any(
+							platform_tag.startswith(
+								bl_platform.wheel_platform_tag_prefix
+							)
+							for platform_tag in candidate_wheel.platform_tags
+						)
+					]
+					candidate_wheel_glibc_versions = [
+						', '.join(
+							'.'.join(str(i) for i in glibc_version)
+							for glibc_version in candidate_wheel.glibc_versions.values()
+							if glibc_version is not None
+						)
+						for candidate_wheel in candidate_wheels
+					]
+					candidate_wheel_macos_versions = [
+						', '.join(
+							'.'.join(str(i) for i in macos_version)
+							for macos_version in candidate_wheel.macos_versions.values()
+							if macos_version is not None
+						)
+						for candidate_wheel in candidate_wheels
+					]
 
 					# Assemble Error Messages
 					min_glibc_str = '.'.join(str(i) for i in self.min_glibc_version)
 					min_macos_str = '.'.join(str(i) for i in self.min_macos_version)
+
 					msgs = [
 						f'**{wheel_project}** not found for `{bl_platform}`.',
 						*(
 							[
-								'|  **Possible Causes**:',
-								'|  - `...manylinux_M_m_<arch>.whl` wheels require `glibc >= M.m`.',
-								f'|  - This extension is set to require `glibc >= {min_glibc_str}`.',
-								f'|  - Therefore, only wheels with `macos <= {min_glibc_str}` can be included.',
-								'|  ',
-								'|  **Suggestions**:',
-								'|  - Try raising `min_glibc_version = [M, m]` in `[tool.blext]`.',
-								'|  - _This may make the extension incompatible with older machines_.',
+								f'> **Extension Supports**: `glibc >= {min_glibc_str}`',
+								'>',
+								'> ----',
+								'> **Rejected Wheels Support**:',
+								*[
+									f'> - {candidate_wheel.filename}: `glibc >= {glibc_version}`'
+									for glibc_version, candidate_wheel in zip(
+										candidate_wheel_glibc_versions,
+										candidate_wheels,
+										strict=True,
+									)
+								],
+								'> ----',
+								'> **Remedies**:',
+								'> 1. **Raise** `glibc` version in `tool.blext.min_glibc_version`.',
+								f'> 2. **Remove** `{wheel_project}` from `project.dependencies`.',
+								f'> 3. **Remove** `{bl_platform}` from `tool.blext.supported_platforms`.',
+								'>',
 							]
 							if bl_platform.startswith('linux')
 							else []
 						),
 						*(
 							[
-								'|  **Possible Causes**:',
-								'|  - `...macosx_M_m_<arch>.whl` wheels require `macos >= M.m`.',
-								f'|  - This extension is set to require `macos >= {min_macos_str}`.',
-								f'|  - Therefore, only wheels with `macos <= {min_macos_str}` can be included.',
-								'|  ',
-								'|  **Suggestions**:',
-								'|  - Try raising `min_macos_version = [M, m]` in `[tool.blext]`.',
-								'|  - _This may make the extension incompatible with older machines_.',
+								f'> **Extension Supports**: `macos >= {min_macos_str}`',
+								'>',
+								'> ----',
+								'> **Rejected Wheels Support**:',
+								*[
+									f'> - {candidate_wheel.filename}: `macos >= {macos_version}`'
+									for macos_version, candidate_wheel in zip(
+										candidate_wheel_macos_versions,
+										candidate_wheels,
+										strict=True,
+									)
+								],
+								'> ----',
+								'> **Remedies**:',
+								'> 1. **Raise** `macos` version in `tool.blext.min_macos_version`.',
+								f'> 2. **Remove** `{wheel_project}` from `project.dependencies`.',
+								f'> 3. **Remove** `{bl_platform}` from `tool.blext.supported_platforms`.',
+								'>',
 							]
 							if bl_platform.startswith('macos')
 							else []
 						),
-						*(
-							[
-								'|  ',
-								'|  **Rejected Wheels** (py/abi compatible):',
-							]
-							+ [
-								f'|  - {candidate_wheel.filename}'
-								for candidate_wheel in wheels_by_project
-								if candidate_wheel.works_with_python_tags(
-									self.valid_python_tags
-								)
-								and candidate_wheel.works_with_abi_tags(
-									self.valid_abi_tags
-								)
-							]
-						),
-						'|',
+						'',
 					]
 					for msg in msgs:
 						missing_dep_msgs.append(msg)

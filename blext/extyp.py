@@ -141,6 +141,26 @@ class BLPlatform(enum.StrEnum):
 			BLP.windows_arm64: frozenset({'arm64'}),
 		}[self]
 
+	@functools.cached_property
+	def wheel_platform_tag_prefix(self) -> str:
+		"""Prefix of compatible wheel platform tags.
+
+		Notes:
+			Does not consider `PEP600` references.
+
+		See Also:
+			- `PEP600`: https://peps.python.org/pep-0600/
+		"""
+		BLP = BLPlatform
+		return {
+			BLP.linux_x64: 'manylinux_',
+			BLP.linux_arm64: 'manylinux_',
+			BLP.macos_x64: 'macosx_',
+			BLP.macos_arm64: 'macosx_',
+			BLP.windows_x64: 'windows_',
+			BLP.windows_arm64: 'windows_',
+		}[self]
+
 
 ####################
 # - Log Levels
