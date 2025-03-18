@@ -366,6 +366,14 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		min_macos_version: tuple[int, int],
 	) -> typ.Self:
 		"""Create from a `uv.lock` file."""
+		if 'package' not in uv_lock:
+			return cls(
+				all_wheels=frozenset(),
+				valid_bl_platforms=valid_bl_platforms,
+				min_glibc_version=min_glibc_version,
+				min_macos_version=min_macos_version,
+			)
+
 		packages = tuple(
 			[
 				package

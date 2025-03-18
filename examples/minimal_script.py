@@ -33,6 +33,12 @@
 # blender_version_max = '4.3.100'
 # bl_tags = ["Development"]
 # copyright = ["2025 blext Contributors"]
+#
+# supported_platforms = [
+#     'linux-x64',
+#     'macos-arm64',
+#     'windows-x64',
+# ]
 # ///
 
 import tomllib
