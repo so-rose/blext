@@ -25,6 +25,7 @@ from pathlib import Path
 import pydantic as pyd
 import tomli_w
 from frozendict import frozendict
+from pydantic_extra_types.semantic_version import SemanticVersion
 
 from . import extyp, pydeps
 from .utils.inline_script_metadata import parse_inline_script_metadata
@@ -97,7 +98,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	# Basics
 	id: str
 	name: str
-	version: str
+	version: SemanticVersion
 	tagline: typ.Annotated[
 		str,
 		pyd.StringConstraints(
