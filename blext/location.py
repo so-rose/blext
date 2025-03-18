@@ -111,7 +111,12 @@ class BLExtLocation(pyd.BaseModel, frozen=True):
 			- Script Extension: Path to a Python script.
 		"""
 		if self.is_project_extension:
-			return self.path_spec.parent / pkg_name
+			package_path = self.path_spec.parent / pkg_name
+			if package_path.is_dir():
+				return self.path_spec.parent / pkg_name
+
+			msg = f'The extension project name, {pkg_name}, does not have a Python package with the same name at: {self.path_spec.parent / pkg_name}'
+			raise ValueError(msg)
 
 		if self.is_script_extension:
 			return self.path_spec

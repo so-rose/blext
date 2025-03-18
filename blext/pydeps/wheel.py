@@ -158,11 +158,13 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 		"""
 		return frozendict(
 			{
-				tuple(
+				platform_tag: tuple(
 					int(glibc_version_part)
-					for glibc_version_part in platform_tag.split('_')
+					for glibc_version_part in platform_tag.removeprefix(
+						'manylinux_'
+					).split('_')[:2]
 				)
-				if platform_tag.startswith('manylinux')
+				if platform_tag.startswith('manylinux_')
 				else None
 				for platform_tag in self.platform_tags
 			}
@@ -178,9 +180,11 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 		"""
 		return frozendict(
 			{
-				tuple(
+				platform_tag: tuple(
 					int(macos_version_part)
-					for macos_version_part in platform_tag.split('_')
+					for macos_version_part in platform_tag.removeprefix(
+						'macosx_'
+					).split('_')[:2]
 				)
 				if platform_tag.startswith('macosx')
 				else None
@@ -301,7 +305,7 @@ class BLExtWheel(pyd.BaseModel, frozen=True):
 					bl_platforms.add(bl_platform)
 
 			# MacOS
-			elif (macos_version := self.glibc_versions[platform_tag]) is not None:
+			elif (macos_version := self.macos_versions[platform_tag]) is not None:
 				bl_platforms |= {
 					bl_platform
 					for bl_platform in [

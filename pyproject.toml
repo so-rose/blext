@@ -63,12 +63,6 @@ dev = [
 [tool.uv]
 package = true
 
-####################
-# - Scripts
-####################
-#[project.scripts]
-#blext = "blext.cli:APP"
-
 
 ####################
 # - Build System: hatchling

@@ -244,11 +244,17 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 						*(
 							[
 								'|  ',
-								'|  **Rejected Wheels**:',
+								'|  **Rejected Wheels** (py/abi compatible):',
 							]
 							+ [
 								f'|  - {candidate_wheel.filename}'
 								for candidate_wheel in wheels_by_project
+								if candidate_wheel.works_with_python_tags(
+									self.valid_python_tags
+								)
+								and candidate_wheel.works_with_abi_tags(
+									self.valid_abi_tags
+								)
 							]
 						),
 						'|',
@@ -362,16 +368,24 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 		*,
 		requirements_txt: tuple[str, ...],
 		valid_bl_platforms: frozenset[extyp.BLPlatform],
-		min_glibc_version: tuple[int, int],
-		min_macos_version: tuple[int, int],
+		min_glibc_version: tuple[int, int] | None = None,
+		min_macos_version: tuple[int, int] | None = None,
 	) -> typ.Self:
 		"""Create from a `uv.lock` file."""
 		if 'package' not in uv_lock:
 			return cls(
 				all_wheels=frozenset(),
 				valid_bl_platforms=valid_bl_platforms,
-				min_glibc_version=min_glibc_version,
-				min_macos_version=min_macos_version,
+				**(  # pyright: ignore[reportArgumentType]
+					{'min_glibc_version': min_glibc_version}
+					if min_glibc_version is not None
+					else {}
+				),
+				**(
+					{'min_macos_version': min_macos_version}
+					if min_macos_version is not None
+					else {}
+				),
 			)
 
 		packages = tuple(
@@ -418,8 +432,16 @@ class BLExtWheelsGraph(pyd.BaseModel, frozen=True):
 				}
 			),
 			valid_bl_platforms=valid_bl_platforms,
-			min_glibc_version=min_glibc_version,
-			min_macos_version=min_macos_version,
+			**(  # pyright: ignore[reportArgumentType]
+				{'min_glibc_version': min_glibc_version}
+				if min_glibc_version is not None
+				else {}
+			),
+			**(
+				{'min_macos_version': min_macos_version}
+				if min_macos_version is not None
+				else {}
+			),
 		)
 
 	####################

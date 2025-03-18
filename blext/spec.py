@@ -557,8 +557,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					path_uv_lock, override_path_uv_exe=override_path_uv_exe
 				),
 				valid_bl_platforms=blext_spec_dict['supported_platforms'],  # pyright: ignore[reportAny]
-				min_glibc_version=blext_spec_dict.get('min_glibc_version', (2, 20)),
-				min_macos_version=blext_spec_dict.get('min_macos_version', (11, 0)),
+				min_glibc_version=blext_spec_dict.get('min_glibc_version'),
+				min_macos_version=blext_spec_dict.get('min_macos_version'),
 			),
 			####################
 			# - Init Settings

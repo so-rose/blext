@@ -32,11 +32,8 @@ supported_platforms = [
 	'macos-arm64',
 	'linux-x64',
 ]
-min_glibc_version = [2, 20]
-min_macos_version = [12, 0]
 
-[tool.blext.config.build]
-vendor = false
+min_macos_version = [12, 0]
 
 ####################
 # - Blender Extension

@@ -95,9 +95,10 @@ def build(
 	####################
 	# - Download Wheels
 	####################
-	wheels_in_cache = blext_spec.wheels_graph.wheels_in_cache(
-		blext_location.path_wheel_cache
-	)
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		wheels_in_cache = blext_spec.wheels_graph.wheels_in_cache(
+			blext_location.path_wheel_cache
+		)
 	if wheels_in_cache:
 		CONSOLE.print(
 			f'Found [bold]{len(wheels_in_cache)} wheel(s)[/bold] in download cache'
