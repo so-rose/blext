@@ -38,7 +38,7 @@ import pydantic as pyd
 import tomli_w
 from frozendict import frozendict
 
-from blext.utils.pydantic_frozen_dict import FrozenDict
+from blext.utils.pydantic_frozendict import FrozenDict
 
 ####################
 # - Blender Tags

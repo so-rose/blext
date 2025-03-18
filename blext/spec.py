@@ -29,7 +29,7 @@ from pydantic_extra_types.semantic_version import SemanticVersion
 
 from . import extyp, pydeps
 from .utils.inline_script_metadata import parse_inline_script_metadata
-from .utils.pydantic_frozen_dict import FrozenDict
+from .utils.pydantic_frozendict import FrozenDict
 
 
 ####################

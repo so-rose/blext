@@ -16,10 +16,10 @@
 
 """Standalone utilities used by `blext`."""
 
-from . import inline_script_metadata, pydantic_frozen_dict, search_in_parents
+from . import inline_script_metadata, pydantic_frozendict, search_in_parents
 
 __all__ = [
 	'inline_script_metadata',
-	'pydantic_frozen_dict',
+	'pydantic_frozendict',
 	'search_in_parents',
 ]

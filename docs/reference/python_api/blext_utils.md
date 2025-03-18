@@ -4,7 +4,7 @@
 
 ---
 
-::: blext.utils.pydantic_frozen_dict
+::: blext.utils.pydantic_frozendict
 
 ---
 
