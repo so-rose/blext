@@ -123,9 +123,9 @@ def ui_download_wheels(
 		)
 		for wheel in wheels_to_download
 	}
-	task_download_wheels: dict[pydeps.BLExtWheel, None | rich.progress.TaskID] = {
-		wheel: None for wheel in wheels_to_download
-	}
+	task_download_wheels: dict[pydeps.BLExtWheel, None | rich.progress.TaskID] = (
+		dict.fromkeys(wheels_to_download)
+	)
 
 	####################
 	# - Callbacks

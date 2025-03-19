@@ -387,10 +387,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					**project_release_profiles[release_profile_id]  # pyright: ignore[reportAny]
 				)
 
-		if release_profile is None and release_profile_id in typ.get_args(
-			extyp.StandardReleaseProfile
+		if release_profile is None and isinstance(
+			release_profile_id, extyp.StandardReleaseProfile
 		):
-			release_profile = extyp.ReleaseProfile.default_spec(release_profile_id)  # pyright: ignore[reportArgumentType]
+			release_profile = release_profile_id.release_profile
 
 		elif release_profile_id is None:
 			release_profile = None
@@ -403,7 +403,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				'|',
 				f'|    Please either define `{release_profile_id}` in `[tool.blext.profiles]`, or select a standard release profile.',
 				'|',
-				f'**Standard Release Profiles**: `{", ".join(typ.get_args(extyp.StandardReleaseProfile))}`',
+				f'**Standard Release Profiles**: `{", ".join(extyp.StandardReleaseProfile)}`',
 			]
 			raise ValueError(*msgs)
 

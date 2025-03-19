@@ -25,7 +25,6 @@ Attributes:
 		- `microphone`: Permission to capture audio from system sources.
 
 	ValidBLTags: Hardcoded list of valid extension tags.
-	StandardReleaseProfile: Strings identifying standardized release profiles, for which a default `ReleaseProfile` object is available.
 """
 
 import enum
@@ -193,11 +192,6 @@ class StrLogLevel(enum.StrEnum):
 ####################
 # - Release Profiles
 ####################
-StandardReleaseProfile: typ.TypeAlias = typ.Literal[
-	'test', 'dev', 'release', 'release-debug'
-]
-
-
 class ReleaseProfile(pyd.BaseModel, frozen=True):
 	"""Settings baked into an extension, available from before `register()` is called.
 
@@ -224,41 +218,6 @@ class ReleaseProfile(pyd.BaseModel, frozen=True):
 	log_console_level: StrLogLevel
 
 	overrides: FrozenDict[str, typ.Any] = frozendict()
-
-	@classmethod
-	def default_spec(cls, release_profile_id: StandardReleaseProfile) -> typ.Self:
-		"""A sensible default for common release profiles."""
-		log_file_name = 'addon.log'
-		return {
-			'test': cls(
-				use_log_file=True,
-				log_file_name=log_file_name,
-				log_file_level=StrLogLevel.Debug,
-				use_log_console=True,
-				log_console_level=StrLogLevel.Info,
-			),
-			'dev': cls(
-				use_log_file=True,
-				log_file_name=log_file_name,
-				log_file_level=StrLogLevel.Debug,
-				use_log_console=True,
-				log_console_level=StrLogLevel.Info,
-			),
-			'release': cls(
-				use_log_file=False,
-				log_file_name=log_file_name,
-				log_file_level=StrLogLevel.Debug,
-				use_log_console=True,
-				log_console_level=StrLogLevel.Warning,
-			),
-			'release-debug': cls(
-				use_log_file=True,
-				log_file_name=log_file_name,
-				log_file_level=StrLogLevel.Debug,
-				use_log_console=True,
-				log_console_level=StrLogLevel.Info,
-			),
-		}[release_profile_id]
 
 	def export_init_settings(self, *, fmt: typ.Literal['json', 'toml']) -> str:
 		"""Initialization settings for this release profile, as a string.
@@ -291,3 +250,49 @@ class ReleaseProfile(pyd.BaseModel, frozen=True):
 
 		msg = f'Cannot export init settings to the given unknown format: {fmt}'  # pyright: ignore[reportUnreachable]
 		raise ValueError(msg)
+
+
+class StandardReleaseProfile(enum.StrEnum):
+	"""Strings identifying standardized release profiles, for which a default `ReleaseProfile` object is available."""
+
+	Test = enum.auto()
+	Dev = enum.auto()
+	Release = enum.auto()
+	ReleaseDebug = enum.auto()
+
+	@functools.cached_property
+	def release_profile(self) -> ReleaseProfile:
+		"""A sensible default for common release profiles."""
+		log_file_name = 'addon.log'
+
+		SRP = StandardReleaseProfile
+		return {
+			SRP.Test: ReleaseProfile(
+				use_log_file=True,
+				log_file_name=log_file_name,
+				log_file_level=StrLogLevel.Debug,
+				use_log_console=True,
+				log_console_level=StrLogLevel.Info,
+			),
+			SRP.Dev: ReleaseProfile(
+				use_log_file=True,
+				log_file_name=log_file_name,
+				log_file_level=StrLogLevel.Debug,
+				use_log_console=True,
+				log_console_level=StrLogLevel.Info,
+			),
+			SRP.Release: ReleaseProfile(
+				use_log_file=False,
+				log_file_name=log_file_name,
+				log_file_level=StrLogLevel.Debug,
+				use_log_console=True,
+				log_console_level=StrLogLevel.Warning,
+			),
+			SRP.ReleaseDebug: ReleaseProfile(
+				use_log_file=True,
+				log_file_name=log_file_name,
+				log_file_level=StrLogLevel.Debug,
+				use_log_console=True,
+				log_console_level=StrLogLevel.Info,
+			),
+		}[self]
