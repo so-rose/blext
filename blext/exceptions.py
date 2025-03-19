@@ -110,24 +110,28 @@ def pretty(ex: Exception, show_filename_lineno: bool = True) -> None:
 	# Parse Filename and Line#
 	if show_filename_lineno:
 		_, _, exc_tb = sys.exc_info()
-		filename = (
-			Path(exc_tb.tb_frame.f_code.co_filename).name
-			if exc_tb is not None
-			else None
-		)
-		lineno = exc_tb.tb_lineno if exc_tb is not None else None
-		info = f' \[{filename}|{lineno}]:' if exc_tb is not None else ':'
+		if exc_tb is not None:
+			exc_tb = exc_tb.tb_next
+			filename = (
+				Path(exc_tb.tb_frame.f_code.co_filename).name
+				if exc_tb is not None
+				else None
+			)
+			lineno = exc_tb.tb_lineno if exc_tb is not None else None
+			info = rf' \[{filename}|{lineno}]' if exc_tb is not None else ''
+		else:
+			info = ''
 	else:
-		info = ':'
+		info = ''
 
 	# Format Message Tuple
 	messages = [rich.markdown.Markdown('\n'.join(ex.args))]
 
 	# Present
 	ERROR_CONSOLE.print(
-		'\n',
 		f'[bold red]{ex_name}[/bold red]',
 		info,
+		'\n',
 		*messages,
 		sep='',
 	)

@@ -27,6 +27,7 @@ from ._context import (
 	DEFAULT_CONFIG,
 	ParameterBLExtInfo,
 	ParameterConfig,
+	ParameterProj,
 )
 from ._context_show import APP_SHOW, CONSOLE
 
@@ -36,23 +37,24 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 @APP_SHOW.command(name='blender_manifest')
 def show_blender_manifest(
+	proj: ParameterProj = None,
 	*,
 	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
+	global_config: ParameterConfig = DEFAULT_CONFIG,
 	format: typ.Literal['json', 'toml'] = 'toml',  # noqa: A002
-	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
 	"""Print the complete extension specification.
 
 	Parameters:
-		proj: Path to the Blender extension project.
-		platform: Blender platform(s) to constrain the extension to.
-			Use "detect" to constrain to detect the current platform.
-		release_profile: The release profile to apply to the extension.
+		proj: Location specifier for `blext` projects.
+		blext_info: Information used to find and load `blext` project.
+		global_config: Loaded global configuration.
 		format: The text format to show the Blender manifest as.
 	"""
 	# Parse CLI
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = blext_info.blext_spec(config)
+		blext_info = blext_info.parse_proj(proj)
+		blext_spec = blext_info.blext_spec(global_config)
 
 	# Show Blender Manifest
 	CONSOLE.print(blext_spec.export_blender_manifest(fmt=format), markup=False, end='')

@@ -27,6 +27,7 @@ from ._context import (
 	DEFAULT_CONFIG,
 	ParameterBLExtInfo,
 	ParameterConfig,
+	ParameterProj,
 )
 from ._context_show import APP_SHOW, CONSOLE
 
@@ -36,24 +37,24 @@ from ._context_show import APP_SHOW, CONSOLE
 ####################
 @APP_SHOW.command(name='profile')
 def show_profile(
+	proj: ParameterProj = None,
 	*,
 	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
+	global_config: ParameterConfig = DEFAULT_CONFIG,
 	format: typ.Literal['json', 'toml'] = 'toml',  # noqa: A002
-	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""Show release -profile settings.
+	"""Show release-profile settings.
 
 	Parameters:
-		proj: Path to Blender extension project.
-		platform: Platform to build extension for.
-			"detect" uses the current platform.
-		profile: Initial settings to build extension with.
-			Alters `initial_setings.toml` in the extension.
+		proj: Location specifier for `blext` projects.
+		blext_info: Information used to find and load `blext` project.
+		global_config: Loaded global configuration.
 		format: Text format to output.
 	"""
 	# Parse CLI
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = blext_info.blext_spec(config)
+		blext_info = blext_info.parse_proj(proj)
+		blext_spec = blext_info.blext_spec(global_config)
 
 	# Show BLExtSpec
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):

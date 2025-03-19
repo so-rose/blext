@@ -27,6 +27,43 @@ from blext import extyp, finders, location, spec
 
 from .global_config import GlobalConfig
 
+ERR_EXPLAIN_PROJ: list[str] = [
+	'> **What is `PROJ`**? An easy _positional_ argument that finds extensions.',
+	'> - **Usage**: `blext <CMD> <PROJ> ...`',
+	'> - **Example**: `blext build script-extension.py`',
+	'> - **Example**: `blext build git+https://example.com/ext.git`',
+	'>',
+	'> _All `blext` commands that locate extensions accept `PROJ`._',
+	'',
+]
+
+ERR_VALID_PROJS: list[str] = [
+	'> **`PROJ` Options**:',
+	'> - **Path** (default): `...`',
+	'> - **Path** (detect):  `<path>`',
+	'> - **Path** (script):  `script+<path>`.',
+	'> - **Path** (project): `project+<path>`.',
+	'> - **Path** (packed):  `packed+<path>`.',
+	'> - **URL** (detect):   `<http_url>`.',
+	'> - **URL** (script):   `script+<http_url>`.',
+	'> - **URL** (project):  `project+<http_url>`.',
+	'> - **URL** (packed):   `packed+<http_url>`.',
+	'> - **git** (detect):   `git+<git_uri>`.',
+	'',
+	'> **`PROJ` Details**:',
+	'> - **Path** (default): Search up for `pyproject.toml`, from `cwd`.',
+	'> - **Path** (detect):  Search `<path>` for any kind of ext.',
+	'> - **Path** (script):  `<path>` is a script-file ext, usually `.py`.',
+	'> - **Path** (project): `<path>` is a `pyproject.toml` or its parent.',
+	'> - **Path** (packed):  `<path>` is a packed extension `.zip`.',
+	'> - **URL** (detect):   Search `<http_url>` for a script or packed ext.',
+	'> - **URL** (script):   `<http_url>` is a script ext, usually `.py`.',
+	'> - **URL** (packed):   `<http_url>` is packed extension `.zip`.',
+	'> - **git** (detect):   `<git_uri>` is any kind of ext (use w/`--git.*`).',
+	'',
+]
+
+
 ####################
 # - Release Profiles
 ####################
@@ -46,11 +83,11 @@ class BLExtInfoGit(pyd.BaseModel, frozen=True):
 	"""
 
 	url: typ.Annotated[
-		str,
+		str | None,
 		cyclopts.Parameter(
 			env_var='BLEXT_GIT_URL',
 		),
-	]
+	] = None
 	rev: typ.Annotated[
 		str | None,
 		cyclopts.Parameter(
@@ -84,9 +121,9 @@ class BLExtInfo(pyd.BaseModel, frozen=True):
 		Names are chosen to be friendly on a CLI interface.
 
 	Attributes:
-		path: Path to a Blender extension project:
+		path: Path to a `blext` project:
 
-			- **Current Directory** (**default**): Search upwards for a `pyproject.toml`.
+			- **Current Directory** (_default_): Search upwards for a `pyproject.toml`.
 			- **Project File** (`pyproject.toml`): Configure using the `[tool.blext]` table.
 			- **Project Folder** (`*/pyproject.toml`): Folder containing a `pyproject.toml`.
 			- **Script File** (`*.py`): Identical configuration using "inline script metadata".
@@ -102,7 +139,6 @@ class BLExtInfo(pyd.BaseModel, frozen=True):
 		Path | None,
 		cyclopts.Parameter(
 			group=LOCATION_GROUP,
-			name=['--path', '-p'],
 			env_var='BLEXT_PATH',
 		),
 	] = None
@@ -135,17 +171,140 @@ class BLExtInfo(pyd.BaseModel, frozen=True):
 	] = None
 
 	####################
+	# - Transform w/'proj'
+	####################
+	def parse_proj(self, proj: str | None) -> typ.Self:  # noqa: C901, PLR0912
+		"""Alter the information with information from the position argument `PROJ`.
+
+		Parameters:
+			proj: Positional argument making it easy for users to specify a project.
+		"""
+		err_msgs: list[str] = []
+		kwargs = self.model_dump()
+		match (proj, self.path, self.url, self.git):
+			case (None, _, _, _):
+				return self
+
+			####################
+			# - Project String: HTTP
+			####################
+			case (str() as proj, None, None, None) if proj.startswith('script+http'):
+				kwargs['url'] = proj.removeprefix('script+')
+
+			case (str() as proj, None, None, None) if proj.startswith('packed+http'):
+				kwargs['url'] = proj.removeprefix('packed+')
+
+			case (str() as proj, _, str() as url, _) if proj.startswith(
+				('script+http', 'packed+http', 'http')
+			):
+				err_msgs += [
+					f"**Two URLs Given**: Both `PROJ` ('{proj}') and `--url` ('{url}') are given.",
+					'> There are two ways to locate a `blext` extension by URL:',
+					'> 1. Specify `PROJ` (ex. `https://example.org/ext.py`).',
+					'> 2. Specify `--url` explicitly.',
+					'>',
+					'> _Exactly one must be given._',
+					'',
+				]
+
+			####################
+			# - Project String: Path
+			####################
+			case (str() as proj, None, None, None) if proj.startswith('script+'):
+				kwargs['path'] = proj.removeprefix('script+')
+
+			case (str() as proj, None, None, None) if proj.startswith('project+'):
+				kwargs['path'] = proj.removeprefix('project+')
+
+			case (str() as proj, None, None, None) if proj.startswith('packed+'):
+				kwargs['path'] = proj.removeprefix('packed+')
+
+			case (str() as proj, Path() as path, _, _) if proj.startswith(
+				('script+', 'packed+')
+			) or not proj.startswith(('script+', 'project+', 'packed+', 'git+')):
+				err_msgs += [
+					f"**Two Paths Given**: Both `PROJ` ('{proj}') and `--path` ('{path}') are given.",
+					'> There are two ways to locate a `blext` extension by path:',
+					'> 1. Specify `PROJ` (ex. `path/to/script.py`).',
+					'> 2. Specify `--path` explicitly.',
+					'>',
+					'> _Exactly one must be given._',
+					'',
+				]
+
+			####################
+			# - Project String: Git
+			####################
+			case (str() as proj, None, None, BLExtInfoGit() as git) if (
+				proj.startswith('git+') and git.url is None
+			):
+				kwargs['git']['url'] = proj.removeprefix('git+')
+
+			case (str() as proj, None, None, None as git) if proj.startswith('git+'):
+				kwargs['git'] = {'url': proj.removeprefix('git+')}
+
+			case (str() as proj, _, _, BLExtInfoGit() as git) if (
+				proj.startswith('git+') and git.url is not None
+			):
+				err_msgs += [
+					f"**Two `git` URLs Given**: Both `PROJ` ('{proj}') and `--git.url` ('{git.url}') are given.",
+					'> There are two ways to locate a `blext` extension by `git`:',
+					'> 1. Specify `PROJ` (ex. `git+https://example.org/repo.git`).',
+					'> 2. Specify `--git.url` explicitly.',
+					'>',
+					'> _Exactly one must be given._',
+					'',
+				]
+
+			####################
+			# - Project String: Unprefixed
+			####################
+			# URL
+			case (str() as proj, None, None, None) if proj.startswith('http'):
+				kwargs['url'] = proj
+
+			# Path: Detect
+			case (str() as proj, None, None, None) if Path(proj).exists():
+				kwargs['path'] = proj
+
+			####################
+			# - Project String: Handle Errors
+			####################
+			case (str() as proj, None, None, None):
+				err_msgs += [
+					f'**Invalid `PROJ`**: `{proj}` does not exist, or is not specified correctly.',
+					*ERR_VALID_PROJS,
+				]
+
+			case (str() as proj, _, _, _):
+				err_msgs += [
+					'**Invalid Location**: There is not one, unambiguous location to search for a `blext` project.',
+					f'> **Implicit Location** (`PROJ`): `{proj}`',
+					'>',
+					'> **Explicit Locations** (`--<options>`):',
+					*[
+						f'> - `{name}`: `{spec}`'
+						for name, spec in {
+							'--path': self.path if self.path is not None else '...',
+							'--url': self.url if self.url is not None else '...',
+							'--git': self.git if self.git is not None else '...',
+						}.items()
+					],
+					'>',
+					'> _Only one location may be given._',
+					'',
+					*ERR_EXPLAIN_PROJ,
+					# *ERR_VALID_PROJS,
+				]
+
+		if err_msgs:
+			raise ValueError(*err_msgs)
+
+		return self.__class__(**kwargs)  # pyright: ignore[reportAny]
+
+	####################
 	# - Parsed Properties
 	####################
-	@functools.cached_property
-	def proj_uri(self) -> BLExtInfoGit | pyd.HttpUrl | Path | None:
-		"""A project URI that allows uniquely locating an extension project."""
-		if self.url:
-			return pyd.HttpUrl(self.url)
-		if self.git:
-			return self.git
-		return self.path
-
 	@functools.cached_property
 	def request_bl_platforms(self) -> frozenset[extyp.BLPlatform]:
 		"""Set of BLPlatforms to request support for."""
@@ -156,7 +315,7 @@ class BLExtInfo(pyd.BaseModel, frozen=True):
 			}
 		)
 
-	def blext_location(self, config: GlobalConfig) -> location.BLExtLocation:
+	def blext_location(self, global_config: GlobalConfig) -> location.BLExtLocation:
 		"""Find the Blender extension and return its (abstract) location.
 
 		Notes:
@@ -166,6 +325,7 @@ class BLExtInfo(pyd.BaseModel, frozen=True):
 
 
 		Parameters:
+			proj: String shorthand for specifying a `blext` project location.
 			config: Global configuration.
 				In particular, contains locations of global paths.
 
@@ -173,13 +333,61 @@ class BLExtInfo(pyd.BaseModel, frozen=True):
 			- `blext.location.BLExtLocation`: Abstract location of a Blender extension.
 			- `blext.finders.find_proj_spec`: Find a project by its URI, returning a location.
 		"""
-		return finders.find_proj_spec(
-			self.proj_uri,
-			path_global_project_cache=config.path_global_project_cache,
-			path_global_download_cache=config.path_global_download_cache,
-		)
+		config_paths = {
+			'path_global_project_cache': global_config.path_global_project_cache,
+			'path_global_download_cache': global_config.path_global_download_cache,
+		}
 
-	def blext_spec(self, config: GlobalConfig) -> spec.BLExtSpec:
+		err_msgs: list[str] = []
+		match (self.path, self.url, self.git):
+			case (path, None, None):
+				return location.BLExtLocationPath(
+					path=path,
+					**config_paths,  # pyright: ignore[reportArgumentType]
+				)
+
+			case (None, str() as url, None):
+				return location.BLExtLocationHttp(
+					url=url,  # pyright: ignore[reportArgumentType]
+					**config_paths,  # pyright: ignore[reportArgumentType]
+				)
+
+			case (None, None, BLExtInfoGit() as git):
+				return location.BLExtLocationGit(
+					url=git.url,  # pyright: ignore[reportArgumentType]
+					rev=git.rev,
+					tag=git.tag,
+					branch=git.branch,
+					entrypoint=git.entrypoint,
+					**config_paths,  # pyright: ignore[reportArgumentType]
+				)
+
+			case (
+				(None, str(), BLExtInfoGit())
+				| (Path(), None, BLExtInfoGit())
+				| (Path(), str(), None)
+				| (Path(), str(), BLExtInfoGit())
+			):
+				err_msgs += [
+					'**Multiple Locations Given**: Only one of `--path`, `--url`, or `--git` may be given.',
+					'> **Given Locations**:',
+					*[
+						f'> - `{name}`: `{spec}`'
+						for name, spec in {
+							'--path': self.path,
+							'--url': self.url,
+							'--git': self.git,
+						}.items()
+					],
+					'>',
+					'> _Exactly one must be given._',
+					'',
+					*ERR_EXPLAIN_PROJ,
+				]
+
+		raise ValueError(*err_msgs)
+
+	def blext_spec(self, global_config: GlobalConfig) -> spec.BLExtSpec:
 		"""Load the extension specification.
 
 		Notes:
@@ -195,9 +403,9 @@ class BLExtInfo(pyd.BaseModel, frozen=True):
 			- `blext.finders.find_proj_spec`: Find a project by its URI, returning a location.
 		"""
 		blext_spec = spec.BLExtSpec.from_proj_spec_path(
-			path_proj_spec=self.blext_location(config=config).path_spec,
+			path_proj_spec=self.blext_location(global_config=global_config).path_spec,
 			release_profile_id=self.profile,
-			override_path_uv_exe=config.path_uv_exe,
+			override_path_uv_exe=global_config.path_uv_exe,
 		)
 
 		if not self.platform:

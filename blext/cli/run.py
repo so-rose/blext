@@ -19,6 +19,8 @@
 import tempfile
 from pathlib import Path
 
+import pydantic as pyd
+
 import blext.exceptions as exc
 from blext import blender, finders
 
@@ -29,32 +31,42 @@ from ._context import (
 	DEFAULT_CONFIG,
 	ParameterBLExtInfo,
 	ParameterConfig,
+	ParameterProj,
 )
 from .build import build
 
 
 @APP.command()
 def run(
+	proj: ParameterProj = None,
 	*,
 	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
+	global_config: ParameterConfig = DEFAULT_CONFIG,
 	blend: Path | None = None,
 	headless: bool = False,
 	factory_startup: bool = True,
-	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
 	"""Run an extension live in Blender.
 
 	Parameters:
-		proj: Path to Blender extension project.
+		proj: Location specifier for `blext` projects.
+		blext_info: Information used to find and load `blext` project.
+		global_config: Loaded global configuration.
 		blend: `.blend` file to open after loading the extension.
-		headless: Run Blender without the GUI.
+		headless: Run Blender without a GUI.
 		factory_startup: Run Blender with default "factory settings".
 	"""
+	# Find Blender
 	with exc.handle(exc.pretty, ValueError):
 		blender_exe = finders.find_blender_exe(
-			override_path_blender_exe=config.path_blender_exe
+			override_path_blender_exe=global_config.path_blender_exe
 		)
 
+	# Parse 'PROJ'
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		blext_info = blext_info.parse_proj(proj)
+
+	# Enforce Platform Detection
 	blext_info = blext_info.model_copy(
 		update={
 			'platform': (
@@ -63,6 +75,8 @@ def run(
 		},
 		deep=True,
 	)
+
+	# Run Extension
 	with tempfile.TemporaryDirectory() as tmp_build_dir:
 		path_zip = Path(tmp_build_dir) / 'blext-dev-extension.zip'
 
@@ -74,7 +88,7 @@ def run(
 			output=path_zip,
 			overwrite=True,
 			vendor=True,
-			config=config,
+			global_config=global_config,
 		)
 
 		####################

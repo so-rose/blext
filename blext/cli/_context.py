@@ -45,6 +45,22 @@ DEFAULT_CONFIG = ui.GlobalConfig()
 ####################
 # - Parameter Types
 ####################
+ParameterProj: typ.TypeAlias = typ.Annotated[
+	str | None,
+	cyclopts.Parameter(
+		group=ui.LOCATION_GROUP,
+		help="""Location specifier for `blext` projects.
+- **Path** (detect):  `<path>`
+- **Path** (script):  `script+<path>`
+- **Path** (project): `project+<path>`
+- **Path** (packed):  `packed+<path>`
+- **URL** (detect):   `<http_url>`
+- **URL** (script):   `script+<http_url>`
+- **URL** (project):  `project+<http_url>`
+- **URL** (packed):   `packed+<http_url>`
+- **git** (detect):   `git+<git_uri>`""",
+	),
+]
 ParameterBLExtInfo: typ.TypeAlias = typ.Annotated[
 	ui.BLExtInfo,
 	cyclopts.Parameter(name='*'),

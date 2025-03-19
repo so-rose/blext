@@ -32,14 +32,17 @@ from ._context import (
 	DEFAULT_CONFIG,
 	ParameterBLExtInfo,
 	ParameterConfig,
+	ParameterProj,
 )
 from .check import check
 
 
 @APP.command()
-def build(
+def build(  # noqa: PLR0913
+	proj: ParameterProj = None,
 	*,
 	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
+	global_config: ParameterConfig = DEFAULT_CONFIG,
 	output: typ.Annotated[
 		Path | None,
 		cyclopts.Parameter(name=['--output', '-o']),
@@ -47,24 +50,28 @@ def build(
 	overwrite: bool = True,
 	vendor: bool = True,
 	check_output: bool = True,
-	config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
 	"""Build an extension project.
 
 	Parameters:
-		info: Information about the extension.
+		proj: Location specifier for `blext` projects.
+		blext_info: Information used to find and load `blext` project.
+		global_config: Loaded global configuration.
 		output: Write built extension to this file / folder.
 		overwrite: Allow overwriting `.zip`.
 		vendor: Include dependencies as wheels in the `.zip`.
 			When `False`, write `uv.lock` to the extension.
+		check_output: Run `blext check` on the packed `.zip`.
 	"""
-	blext_location = blext_info.blext_location(config)
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		blext_info = blext_info.parse_proj(proj)
+		blext_location = blext_info.blext_location(global_config)
 
 	####################
 	# - Parse Specification and Paths
 	####################
 	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_spec = blext_info.blext_spec(config)
+		blext_spec = blext_info.blext_spec(global_config)
 
 	path_zip_prepack = (
 		blext_location.path_prepack_cache / blext_spec.packed_zip_filename
@@ -152,8 +159,8 @@ def build(
 		pack.prepack_extension(
 			files_to_prepack,
 			path_zip_prepack=path_zip_prepack,
-			cb_pre_file_write=ui_callbacks.cb_pre_file_write,
-			cb_post_file_write=ui_callbacks.cb_post_file_write,
+			cb_pre_file_write=ui_callbacks.cb_pre_file_write,  # pyright: ignore[reportArgumentType]
+			cb_post_file_write=ui_callbacks.cb_post_file_write,  # pyright: ignore[reportArgumentType]
 		)
 
 	if files_to_prepack:
@@ -175,7 +182,7 @@ def build(
 	# - Check Extension
 	####################
 	if check_output:
-		check(blext_info=ui.BLExtInfo(path=path_zip), config=config)
+		check(blext_info=ui.BLExtInfo(path=path_zip), global_config=global_config)
 
 	####################
 	# - Report Success

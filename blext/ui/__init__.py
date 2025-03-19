@@ -16,7 +16,7 @@
 
 """UI elements for `blext`'s CLI interface."""
 
-from .blext_info import BLExtInfo
+from .blext_info import LOCATION_GROUP, SPECIFICATION_GROUP, BLExtInfo
 from .download_wheels import CallbacksDownloadWheel, ui_download_wheels
 from .global_config import APPAUTHOR, APPNAME, GlobalConfig
 from .prepack_extension import CallbacksPrepackExtension, ui_prepack_extension
@@ -24,6 +24,8 @@ from .prepack_extension import CallbacksPrepackExtension, ui_prepack_extension
 __all__ = [
 	'APPAUTHOR',
 	'APPNAME',
+	'LOCATION_GROUP',
+	'SPECIFICATION_GROUP',
 	'BLExtInfo',
 	'CallbacksDownloadWheel',
 	'CallbacksPrepackExtension',

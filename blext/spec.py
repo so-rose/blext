@@ -203,7 +203,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		if self.release_profile is not None:
 			return self.release_profile.export_init_settings(fmt=fmt)
 
-		msg = 'No release profile was specified.'
+		msg = 'The extension specification has no release profile.'
 		raise ValueError(msg)
 
 	def export_blender_manifest(self, *, fmt: typ.Literal['json', 'toml']) -> str:
@@ -238,11 +238,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				'blender_version_min',
 				'blender_version_max',
 				'packed_platforms',
-				'vendored_wheel_paths',
 				'tags',
 				'license',
 				'copyright',
 			}
+			| ({'vendored_wheel_paths'} if self.vendored_wheel_paths else set())
 			| ({'website'} if self.website is not None else set())
 			| ({'permissions'} if self.website is not None else set())
 		)

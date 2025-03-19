@@ -17,7 +17,6 @@
 """Implements `blext check`."""
 
 import sys
-from pathlib import Path
 
 import pydantic as pyd
 
@@ -31,74 +30,82 @@ from ._context import (
 	DEFAULT_CONFIG,
 	ParameterBLExtInfo,
 	ParameterConfig,
+	ParameterProj,
 )
 
 
 @APP.command()
 def check(
+	proj: ParameterProj = None,
 	*,
 	blext_info: ParameterBLExtInfo = DEFAULT_BLEXT_INFO,
-	config: ParameterConfig = DEFAULT_CONFIG,
+	global_config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
 	"""Check an extension project for problems.
 
 	Parameters:
-		path: Path to an extension project, or an already-built `.zip`.
-		platform: Blender platform(s) to constrain validation.
-			Use "detect" to constrain to detect the current platform.
+		proj: Location specifier for `blext` projects.
+		blext_info: Information used to find and load `blext` project.
+		global_config: Loaded global configuration.
 	"""
-	check_target_name = str(blext_info.proj_uri)
+	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
+		blext_info = blext_info.parse_proj(proj)
+		# blext_location = blext_info.blext_location(global_config)
 
 	with exc.handle(exc.pretty, ValueError):
 		blender_exe = finders.find_blender_exe(
-			override_path_blender_exe=config.path_blender_exe
+			override_path_blender_exe=global_config.path_blender_exe
 		)
 
-	checks: dict[str, bool] = {}
+	if blext_info.path is None:
+		raise NotImplementedError
+
+	check_target_name = blext_info.path.parts[-1]
 
 	####################
-	# - Check ZIP
+	# - Packed ZIP
 	####################
-	if isinstance(blext_info.proj_uri, Path) and blext_info.proj_uri.name.endswith(
-		'.zip'
-	):
-		check_target_name = blext_info.proj_uri.name
-		path_zip = blext_info.proj_uri
+	if blext_info.path.name.endswith('.zip'):
+		checks: dict[str, bool] = {
+			'blender --command extension validate': False,
+		}
+		path_zip = blext_info.path
 
 		####################
 		# - Check: Validate w/Blender
 		####################
-		checks['blender --command extension validate'] = True
 		try:
 			blender.validate_extension(blender_exe, path_zip=path_zip)
+			checks['blender --command extension validate'] = True
+
 		except ValueError:
-			checks['$ blender --command extension validate'] = False
+			pass
 
 	####################
-	# - Check Project
+	# - Script/Project
 	####################
 	else:
+		checks: dict[str, bool] = {
+			'Find Extension Specification': False,
+			'Load Extension Specification': False,
+		}
 		####################
 		# - Check: Load and Validate Specification
 		####################
-		checks['Find Extension Specification'] = True
 		try:
-			blext_location = blext_info.blext_location(config)
-			check_target_name = blext_location.path_spec
+			_ = blext_info.blext_location(global_config)
+			checks['Find Extension Specification'] = True
 		except ValueError:
-			checks['Find Extension Specification'] = False
+			pass
 
-		checks['Load Extension Specification'] = True
-		checks['Validate Extension Specification'] = True
 		try:
-			blext_spec = blext_info.blext_spec(config)
+			blext_spec = blext_info.blext_spec(global_config)
+			checks['Load Extension Specification'] = True
+
 			check_target_name = blext_spec.id
 
-		except (ValueError, pyd.ValidationError) as ex:
-			if isinstance(ex, pyd.ValidationError):
-				checks['Validate Extension Specification'] = False
-			else:
-				checks['Load Extension Specification'] = False
+		except (ValueError, pyd.ValidationError):
+			pass
 
 	####################
 	# - Report

@@ -22,9 +22,7 @@ import shutil
 import typing as typ
 from pathlib import Path
 
-import pydantic as pyd
-
-from . import extyp, location
+from . import extyp
 
 
 ####################
@@ -164,7 +162,7 @@ class GitInfo(typ.Protocol):
 	"""An object that references a specific `git` repository and commit."""
 
 	@property
-	def url(self) -> str:  # pyright: ignore[reportReturnType]
+	def url(self) -> str | None:  # pyright: ignore[reportReturnType]
 		"""Link to the `git` repository."""
 
 	@property
@@ -194,75 +192,3 @@ class GitInfo(typ.Protocol):
 	@property
 	def entrypoint(self) -> Path | None:
 		"""Path to an extension specification file, relative to the repository root."""
-
-
-def find_proj_spec(
-	proj_uri: GitInfo | pyd.HttpUrl | Path | None,
-	*,
-	path_global_project_cache: Path,
-	path_global_download_cache: Path,
-) -> location.BLExtLocation:
-	"""Locate the project specification.
-
-	Parameters:
-		proj_uri: Use to search for a project specification.
-
-			- Current Project (`None -> **/pyproject.toml`): Search upwards for `pyproject.toml`, from current folder ({Path.cwd().resolve()}).
-			- Project File (`pyproject.toml`): In the root folder of an extension project.
-			- Project Folder (`*/pyproject.toml`): Folder containing a `pyproject.toml`.
-			- Script File (`*.py`): Single-file extension.
-			- Git URL: Local copy of repository containing `pyproject.toml`.
-			- HTTP URL File: Local downloaded copy of a single-file extension.
-
-		path_script_cache: Cache location to use for a single-file script extension.
-		path_download_cache: Cache location to use for downloading extensions.
-
-	Returns:
-		Object specifying all paths needed to use/manage a Blender extension.
-
-	Raises:
-		ValueError: If no extension project could be located from `proj_uri`.
-
-	See Also:
-		- `blext.location.BLExtLocation`: Abstracts the discovery, creation, and use of paths associated with a particular Blender extension.
-
-	References:
-		- Inline Script Metadata: <https://packaging.python.org/en/latest/specifications/inline-script-metadata/#reference-implementation>
-	"""
-	match proj_uri:
-		case Path() | None:
-			return location.BLExtLocationPath(
-				path=proj_uri,
-				path_global_project_cache=path_global_project_cache,
-				path_global_download_cache=path_global_download_cache,
-			)
-
-		case pyd.HttpUrl():
-			return location.BLExtLocationHttp(
-				url=proj_uri,
-				path_global_project_cache=path_global_project_cache,
-				path_global_download_cache=path_global_download_cache,
-			)
-
-		case GitInfo():
-			return location.BLExtLocationGit(
-				url=proj_uri.url,
-				rev=proj_uri.rev,
-				tag=proj_uri.tag,
-				branch=proj_uri.branch,
-				entrypoint=proj_uri.entrypoint,
-				path_global_project_cache=path_global_project_cache,
-				path_global_download_cache=path_global_download_cache,
-			)
-
-	msgs = [  # pyright: ignore[reportUnreachable]
-		f'No Blender extension information could be found from the given URI "{proj_uri}".',
-		'The following URIs are supported:',
-		'- Current Project (`**/pyproject.toml`): Search upwards for `pyproject.toml`, from current folder ({Path.cwd().resolve()}).',
-		'- Project File (`pyproject.toml`): In the root folder of an extension project.',
-		'- Project Folder (`*/pyproject.toml`): Folder containing a `pyproject.toml`.',
-		'- Script File (`*.py`): Single-file extension.',
-		'- Git URL: Local copy of repository containing `pyproject.toml`.',
-		'- HTTP URL File: Local downloaded copy of a single-file extension.',
-	]
-	raise ValueError(*msgs)
