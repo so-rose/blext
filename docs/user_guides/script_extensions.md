@@ -136,6 +136,11 @@ Script extensions must be **explicitly** located.
 
 
 ### Config Field Placement
+!!! note
+	The standardized script equivalent to `pyproject.toml` is a `# /// script` header.
+
+	See [Configuring: Inline Metadata][configuring-inline-metadata] for more details.
+
 There are **two fields** with different placements than in the `pyproject.toml` of a project extension:
 
 - `requires-python`: Must be defined top-level, instead of in the `[project]` table.
@@ -171,11 +176,6 @@ There are **two fields** with different placements than in the `pyproject.toml` 
 	# ...
 	# ///
 	```
-
-!!! note
-	The standardized script equivalent to `pyproject.toml` is a `# /// script` header.
-
-	See [Configuring: Inline Metadata][configuring-inline-metadata] for more details.
 
 
 
