@@ -25,7 +25,7 @@ repos:
     hooks:
       # ruff lint
       - id: ruff
-        files: "blext/*"
+        files: "blext/"
       # ruff fmt
       - id: ruff-format
 
@@ -33,5 +33,6 @@ repos:
     rev: v4.1.0
     hooks:
       - id: commitizen
+        additional_dependencies: [cz-conventional-gitmoji]
       - id: commitizen-branch
         stages: [push]

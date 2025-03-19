@@ -87,6 +87,7 @@ dev = [
     { name = "basedpyright" },
     { name = "bpy" },
     { name = "commitizen" },
+    { name = "cz-conventional-gitmoji" },
     { name = "griffe-pydantic" },
     { name = "hypothesis" },
     { name = "mkdocs" },
@@ -121,6 +122,7 @@ dev = [
     { name = "basedpyright", specifier = ">=1.28.1" },
     { name = "bpy", specifier = ">=4.3.0" },
     { name = "commitizen", specifier = ">=4.1.0" },
+    { name = "cz-conventional-gitmoji", specifier = ">=0.6.1" },
     { name = "griffe-pydantic", specifier = ">=1.1.2" },
     { name = "hypothesis", specifier = ">=6.126.0" },
     { name = "mkdocs", specifier = ">=1.6.1" },
@@ -395,6 +397,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e3/89/b0c847f9df92af3ef11281b6811c000bd6f8ce0db02e4374397f8d67f829/Cython-3.0.12-cp313-cp313-win32.whl", hash = "sha256:77d48f2d4bab9fe1236eb753d18f03e8b2619af5b6f05d51df0532a92dfb38ab", size = 2604911 },
     { url = "https://files.pythonhosted.org/packages/a6/5f/bbfaf2b5f7bf78854ecbc82f8473a3892ae5580e0c5bd0d4a82580b39ed3/Cython-3.0.12-cp313-cp313-win_amd64.whl", hash = "sha256:86c304b20bd57c727c7357e90d5ba1a2b6f1c45492de2373814d7745ef2e63b4", size = 2786786 },
     { url = "https://files.pythonhosted.org/packages/27/6b/7c87867d255cbce8167ed99fc65635e9395d2af0f0c915428f5b17ec412d/Cython-3.0.12-py2.py3-none-any.whl", hash = "sha256:0038c9bae46c459669390e53a1ec115f8096b2e4647ae007ff1bf4e6dee92806", size = 1171640 },
+]
+
+[[package]]
+name = "cz-conventional-gitmoji"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "commitizen" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/de/6e/0bd29b8df2fc2a1aca050bf92429b81b9dd91672dddf9d20e94008c80d99/cz_conventional_gitmoji-0.6.1.tar.gz", hash = "sha256:3fd4b355fa9a1ffc31192112f1807ab6c33203204c00f38a54c80643a2f407b8", size = 13755 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/a3/2d9b33cb8b9898b0d3cc6147242ce9c3cee1e78739d793d1b197d8b573b8/cz_conventional_gitmoji-0.6.1-py3-none-any.whl", hash = "sha256:db8f51ea2f41389e6cc9986234524df6b4e1a3846ad738f5b946a811c3948623", size = 15151 },
 ]
 
 [[package]]

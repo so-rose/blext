@@ -47,6 +47,7 @@ dev = [
     "basedpyright>=1.28.1",
     "bpy>=4.3.0",
     "commitizen>=4.1.0",
+    "cz-conventional-gitmoji>=0.6.1",
     "griffe-pydantic>=1.1.2",
     "hypothesis>=6.126.0",
     "mkdocs>=1.6.1",
@@ -213,7 +214,7 @@ testpaths = ["tests"]
 ####################
 [tool.commitizen]
 # Specification
-name = "cz_conventional_commits"
+name = "cz_gitmoji"
 version_scheme = "semver2"
 version_provider = "uv"
 tag_format = "v$version"
