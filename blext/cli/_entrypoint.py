@@ -14,16 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Execute the command-line interface of `blext."""
-
 import os
 import subprocess
 import sys
 
 from blext import finders
 
-if __name__ == '__main__':
-	from blext.cli import APP
+
+def main():
+	from . import APP
 
 	####################
 	# - Alias: blext blender

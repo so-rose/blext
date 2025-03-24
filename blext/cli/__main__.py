@@ -14,29 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""`blext` is a project manager for Blender extension development."""
+"""Entrypoint of the `cli` package.
 
-from . import blender, exceptions, location, pack, pydeps, utils
-from .extyp import (
-	BLPlatform,
-	ReleaseProfile,
-	StandardReleaseProfile,
-	StrLogLevel,
-	ValidBLTags,
-)
-from .spec import BLExtSpec
+Notes:
+	This allows `blext` to be run using `python -m blext.cli`.
+"""
 
-__all__ = [
-	'BLExtSpec',
-	'BLPlatform',
-	'ReleaseProfile',
-	'StandardReleaseProfile',
-	'StrLogLevel',
-	'ValidBLTags',
-	'blender',
-	'exceptions',
-	'location',
-	'pack',
-	'pydeps',
-	'utils',
-]
+from ._entrypoint import main
+
+main()
