@@ -18,6 +18,8 @@
 
 import typing as typ
 
+import blext.exceptions as exc
+
 from ._context import (
 	DEFAULT_CONFIG,
 	ParameterConfig,
@@ -40,7 +42,8 @@ def show_global_config(
 		format: Column to sort dependencies by.
 		config: Global configuration overrides.
 	"""
-	if format == 'raw':
-		CONSOLE.print(config)
-	else:
-		CONSOLE.print(config.export_config(fmt=format), markup=False, end='')
+	with exc.handle(exc.pretty, ValueError):
+		if format == 'raw':
+			CONSOLE.print(config)
+		else:
+			CONSOLE.print(config.export_config(fmt=format), markup=False, end='')

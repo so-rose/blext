@@ -57,4 +57,7 @@ def show_blender_manifest(
 		blext_spec = blext_info.blext_spec(global_config)
 
 	# Show Blender Manifest
-	CONSOLE.print(blext_spec.export_blender_manifest(fmt=format), markup=False, end='')
+	with exc.handle(exc.pretty, ValueError):
+		CONSOLE.print(
+			blext_spec.export_blender_manifest(fmt=format), markup=False, end=''
+		)
