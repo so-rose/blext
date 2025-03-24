@@ -64,6 +64,9 @@ dev = [
 [tool.uv]
 package = true
 
+[project.scripts]
+blext = "blext"
+
 
 ####################
 # - Build System: hatchling
