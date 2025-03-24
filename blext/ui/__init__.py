@@ -18,13 +18,14 @@
 
 from .blext_info import LOCATION_GROUP, SPECIFICATION_GROUP, BLExtInfo
 from .download_wheels import CallbacksDownloadWheel, ui_download_wheels
-from .global_config import APPAUTHOR, APPNAME, GlobalConfig
+from .global_config import APPAUTHOR, APPNAME, PATH_GLOBAL_CONFIG, GlobalConfig
 from .prepack_extension import CallbacksPrepackExtension, ui_prepack_extension
 
 __all__ = [
 	'APPAUTHOR',
 	'APPNAME',
 	'LOCATION_GROUP',
+	'PATH_GLOBAL_CONFIG',
 	'SPECIFICATION_GROUP',
 	'BLExtInfo',
 	'CallbacksDownloadWheel',

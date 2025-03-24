@@ -14,32 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""CLI interface for `blext`."""
+"""Implements `show path global_config`."""
 
-from . import (
-	build,
-	check,
-	run,
-	show_blender_manifest,
-	show_deps,
-	show_global_config,
-	show_path_blender,
-	show_path_global_config,
-	show_path_uv,
-	show_profile,
-)
-from ._context import APP
+from blext import ui
 
-__all__ = [
-	'APP',
-	'build',
-	'check',
-	'run',
-	'show_blender_manifest',
-	'show_deps',
-	'show_global_config',
-	'show_path_blender',
-	'show_path_global_config',
-	'show_path_uv',
-	'show_profile',
-]
+from ._context_show_path import APP_SHOW_PATH, CONSOLE
+
+
+####################
+# - Command: Show Spec
+####################
+@APP_SHOW_PATH.command(name='global_config')
+def show_path_global_config() -> None:
+	"""Path to the global configuration file used by `blext`."""
+	CONSOLE.print(ui.PATH_GLOBAL_CONFIG)

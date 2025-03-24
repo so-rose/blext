@@ -18,10 +18,8 @@
 
 import importlib.metadata
 import typing as typ
-from pathlib import Path
 
 import cyclopts
-import platformdirs
 import rich
 import rich.theme
 
@@ -108,14 +106,7 @@ APP = cyclopts.App(
 		),
 		# 2. Global Config
 		cyclopts.config.Toml(
-			path=Path(
-				platformdirs.user_config_dir(
-					ui.APPNAME,
-					ui.APPAUTHOR,
-					ensure_exists=True,
-				)
-			)
-			/ 'config.toml',
+			path=ui.PATH_GLOBAL_CONFIG,
 			root_keys=(),
 			must_exist=False,
 			search_parents=False,

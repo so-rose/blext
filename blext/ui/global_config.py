@@ -29,6 +29,16 @@ import tomli_w
 
 APPNAME = 'blext'
 APPAUTHOR = 'blext'
+PATH_GLOBAL_CONFIG = (
+	Path(
+		platformdirs.user_config_dir(
+			appname=APPNAME,
+			appauthor=APPAUTHOR,
+			ensure_exists=True,
+		)
+	)
+	/ 'config.toml'
+)
 
 
 ####################
