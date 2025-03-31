@@ -59,7 +59,7 @@ def run(
 	blext_info = blext_info.model_copy(
 		update={
 			'platform': (
-				('detect',) if blext_info.platform == () else blext_info.platform
+				('detect',) if blext_info.bl_platform == () else blext_info.bl_platform
 			),
 			'bl_version': (
 				('detect',) if blext_info.bl_version == () else blext_info.bl_version
@@ -89,7 +89,7 @@ def run(
 		CONSOLE.print()
 		CONSOLE.rule('[bold]Running Extension w/Blender[/bold]')
 		blender.run_extension(
-			global_config.path_blender_exe,
+			global_config.path_default_blender_exe,
 			path_zip=path_zip,
 			headless=headless,
 			factory_startup=factory_startup,

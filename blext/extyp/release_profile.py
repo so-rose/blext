@@ -38,7 +38,7 @@ from frozendict import frozendict
 
 from blext.utils.pydantic_frozendict import FrozenDict
 
-from .blext_log_level import BLExtLogLevel
+from .log_level import BLExtLogLevel
 
 
 ####################

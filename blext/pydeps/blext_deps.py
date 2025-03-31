@@ -48,9 +48,9 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 	# - PyDeps Dependency Graph
 	####################
 	@functools.cached_property
-	def pydeps_graph(self) -> nx.DiGraph:
+	def pydeps_graph(self) -> nx.DiGraph[str]:
 		"""Dependency-graph representation of `self.pydeps`."""
-		pydeps_graph = nx.DiGraph()
+		pydeps_graph: nx.DiGraph[str] = nx.DiGraph()
 
 		## Add Nodes as Package Names
 		## - Each node is annotated with a PyDepPyDepWheel
@@ -90,11 +90,11 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 
 		def filter_edge(node_upstream: str, node_downstream: str) -> bool:
 			"""Checks if each marker is `None`, or valid, on the edge between upstream/downstream node."""
-			pydep_marker: PyDepMarker | None = self.pydeps_graph[node_upstream][  # pyright: ignore[reportUnknownVariableType]
+			pydep_marker: PyDepMarker | None = self.pydeps_graph[node_upstream][
 				node_downstream
 			]['marker']
 
-			return pydep_marker is None or pydep_marker.is_valid_for(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+			return pydep_marker is None or pydep_marker.is_valid_for(
 				pkg_name=pkg_name,
 				bl_version=bl_version,
 				bl_platform=bl_platform,
@@ -114,8 +114,8 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 							bl_platform=bl_platform,
 						)
 					)
-					for pydep_name in nx.ancestors(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
-						nx.subgraph_view(  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+					for pydep_name in nx.ancestors(  # pyright: ignore[reportUnknownMemberType]
+						nx.subgraph_view(
 							self.pydeps_graph,
 							filter_edge=filter_edge,
 						),

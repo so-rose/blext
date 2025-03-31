@@ -136,15 +136,12 @@ class BLPlatform(enum.StrEnum):
 		See Also:
 			- `PEP600`: https://peps.python.org/pep-0600/
 		"""
-		BLP = BLPlatform
-		return {
-			BLP.linux_x64: 'posix',
-			BLP.linux_arm64: 'posix',
-			BLP.macos_x64: 'posix',
-			BLP.macos_arm64: 'posix',
-			BLP.windows_x64: 'nt',
-			BLP.windows_arm64: 'nt',
-		}[self]
+		P = BLPlatform
+		match self:
+			case P.linux_x64 | P.linux_arm64 | P.macos_x64 | P.macos_arm64:
+				return 'posix'
+			case P.windows_x64 | P.windows_arm64:
+				return 'nt'
 
 	@functools.cached_property
 	def pymarker_platform_machines(self) -> frozenset[str]:
@@ -176,18 +173,17 @@ class BLPlatform(enum.StrEnum):
 		See Also:
 			- `PEP600`: https://peps.python.org/pep-0600/
 		"""
-		BLP = BLPlatform
-		return {
-			BLP.linux_x64: 'Linux',
-			BLP.linux_arm64: 'Linux',
-			BLP.macos_x64: 'Darwin',
-			BLP.macos_arm64: 'Darwin',
-			BLP.windows_x64: 'Windows',
-			BLP.windows_arm64: 'Windows',
-		}[self]
+		P = BLPlatform
+		match self:
+			case P.linux_x64 | P.linux_arm64:
+				return 'Linux'
+			case P.macos_x64 | P.macos_arm64:
+				return 'Darwin'
+			case P.windows_x64 | P.windows_arm64:
+				return 'Windows'
 
 	@functools.cached_property
-	def pymarker_sys_platform(self) -> typ.Literal['posix', 'nt']:
+	def pymarker_sys_platform(self) -> typ.Literal['linux', 'darwin', 'win32']:
 		"""Value of `os.name` on the given Blender platform.
 
 		Notes:
@@ -196,12 +192,11 @@ class BLPlatform(enum.StrEnum):
 		See Also:
 			- `PEP600`: https://peps.python.org/pep-0600/
 		"""
-		BLP = BLPlatform
-		return {
-			BLP.linux_x64: 'linux',
-			BLP.linux_arm64: 'linux',
-			BLP.macos_x64: 'darwin',
-			BLP.macos_arm64: 'darwin',
-			BLP.windows_x64: 'win32',
-			BLP.windows_arm64: 'win32',
-		}[self]
+		P = BLPlatform
+		match self:
+			case P.linux_x64 | P.linux_arm64:
+				return 'linux'
+			case P.macos_x64 | P.macos_arm64:
+				return 'darwin'
+			case P.windows_x64 | P.windows_arm64:
+				return 'win32'

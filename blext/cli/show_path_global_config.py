@@ -16,7 +16,7 @@
 
 """Implements `show path global_config`."""
 
-from blext import ui
+from blext import uityp
 
 from ._context_show_path import APP_SHOW_PATH, CONSOLE
 
@@ -27,4 +27,4 @@ from ._context_show_path import APP_SHOW_PATH, CONSOLE
 @APP_SHOW_PATH.command(name='global_config')
 def show_path_global_config() -> None:
 	"""Path to the global configuration file used by `blext`."""
-	CONSOLE.print(ui.PATH_GLOBAL_CONFIG)
+	CONSOLE.print(uityp.PATH_GLOBAL_CONFIG)

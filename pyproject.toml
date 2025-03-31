@@ -61,6 +61,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "ruff>=0.9.1",
     "termynal>=0.13.0",
+    "types-networkx>=3.4.2.20250319",
 ]
 
 [tool.uv]
@@ -197,12 +198,13 @@ defineConstant = { DEBUG = true }
 #include = ["blext"]
 #strict = ["blext"]
 
+
 reportMissingImports = "error"
 reportMissingTypeStubs = true
+reportImportCycles = false  ## It really has trouble with some perfectly valid things.
 
 executionEnvironments = [
-  { root = "blext/utils_blender", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages", ".venv/lib/python3.11/site-packages/bpy/4.3/scripts/modules" ] },
-  #{ root = "blext", pythonVersion = "3.11" },
+  { root = "blext/utils/bl_init.py", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages", ".venv/lib/python3.11/site-packages/bpy/4.4/scripts/modules" ] },
   { root = ".", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages" ] },
 ]
 

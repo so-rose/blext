@@ -18,11 +18,7 @@
 
 import typing as typ
 
-import pydantic as pyd
-import rich.markdown
 import rich.table
-
-from blext import exceptions as exc
 
 from ._context import (
 	DEFAULT_BLEXT_INFO,
@@ -55,20 +51,16 @@ def show_deps(
 		sort_by: Column to sort dependencies by.
 		format: Text format to output.
 	"""
-	# Parse CLI
-	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_info = blext_info.parse_proj(proj)
-		blext_spec = blext_info.blext_spec(global_config)
+	blext_info = blext_info.parse_proj(proj)
+	blext_spec = blext_info.blext_spec(global_config)
 
-	# Sort Wheels
-	with exc.handle(exc.pretty, ValueError):
-		blext_wheels = sorted(
-			blext_spec.pydeps.wheels,
-			key={  # pyright: ignore[reportUnknownArgumentType]
-				'filename': lambda wheel: wheel.filename,  # pyright: ignore[reportUnknownLambdaType,reportUnknownMemberType]
-				'size': lambda wheel: wheel.sort_key_size,  # pyright: ignore[reportUnknownLambdaType,reportUnknownMemberType]
-			}[sort_by],
-		)
+	blext_wheels = sorted(
+		blext_spec.bl_versions_by_wheel.keys(),
+		key={  # pyright: ignore[reportUnknownArgumentType]
+			'filename': lambda wheel: wheel.filename,  # pyright: ignore[reportUnknownLambdaType,reportUnknownMemberType]
+			'size': lambda wheel: wheel.sort_key_size,  # pyright: ignore[reportUnknownLambdaType,reportUnknownMemberType]
+		}[sort_by],
+	)
 
 	####################
 	# - UI: Create Table w/Wheel Data
@@ -77,6 +69,7 @@ def show_deps(
 		table = rich.table.Table()
 		table.add_column('Name')
 		table.add_column('Version', no_wrap=True)
+		table.add_column('BL')
 		table.add_column('Platforms')
 		table.add_column('Py|ABI', no_wrap=True)
 		table.add_column('Size', no_wrap=True)
@@ -85,21 +78,26 @@ def show_deps(
 			table.add_row(
 				wheel.project,
 				wheel.version,
+				', '.join(
+					[
+						bl_version.version
+						for bl_version in blext_spec.bl_versions_by_wheel[wheel]
+					]
+				),
 				', '.join(list(wheel.platform_tags)),
 				', '.join(list(wheel.python_tags))
 				+ '|'
 				+ ', '.join(list(wheel.abi_tags)),
-				wheel.size.human_readable(decimal=True, separator=' ')
-				if wheel.size is not None
-				else 'Unknown',
+				wheel.size.human_readable(decimal=True, separator=' '),
 			)
 		table.add_section()
 		table.add_row(
-			f'={len(blext_spec.pydeps.wheels)} wheels',
+			f'={len(blext_wheels)} wheels',
 			'',
-			', '.join(blext_spec.bl_support),
+			', '.join([bl_version.version for bl_version in blext_spec.bl_versions]),
+			', '.join(blext_spec.bl_platforms),
 			'',
-			f'={blext_spec.pydeps.total_size_bytes.human_readable(decimal=True, separator=" ")}',
+			'',
 		)
 
 		####################

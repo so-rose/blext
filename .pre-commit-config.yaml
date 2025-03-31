@@ -21,13 +21,18 @@ repos:
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.11.0
+    rev: v0.11.2
     hooks:
       # ruff lint
       - id: ruff
         files: "blext/"
       # ruff fmt
       - id: ruff-format
+
+  - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
+    rev: 1.28.4
+    hooks:
+      - id: basedpyright
 
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.1.0

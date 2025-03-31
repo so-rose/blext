@@ -104,7 +104,7 @@ class BLManifest_1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
 	####################
 	schema_version: typ.Annotated[
 		str,
-		atyp.Predicate(validators.is_valid_semver),
+		atyp.Predicate(validators.is_valid_bl_semver),
 	] = '1.0.0'
 
 	type: typ.Literal['add-on', 'theme'] = 'add-on'
@@ -132,7 +132,7 @@ class BLManifest_1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
 	]
 	version: typ.Annotated[
 		str,
-		atyp.Predicate(validators.is_valid_semver),
+		atyp.Predicate(validators.is_valid_bl_semver),
 	]
 	blender_version_min: typ.Annotated[
 		str,

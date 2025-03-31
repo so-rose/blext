@@ -57,9 +57,9 @@ class CallbacksDownloadWheel(pyd.BaseModel):
 		- `blext.ui.ui_download_wheels`: Context manager that provides this object.
 	"""
 
-	cb_start_wheel_download: typ.Callable[[pydeps.BLExtWheel, Path], typ.Any]
-	cb_update_wheel_download: typ.Callable[[pydeps.BLExtWheel, Path, int], typ.Any]
-	cb_finish_wheel_download: typ.Callable[[pydeps.BLExtWheel, Path], typ.Any]
+	cb_start_wheel_download: typ.Callable[[pydeps.PyDepWheel, Path], typ.Any]
+	cb_update_wheel_download: typ.Callable[[pydeps.PyDepWheel, Path, int], typ.Any]
+	cb_finish_wheel_download: typ.Callable[[pydeps.PyDepWheel, Path], typ.Any]
 
 
 ####################
@@ -67,7 +67,7 @@ class CallbacksDownloadWheel(pyd.BaseModel):
 ####################
 @contextlib.contextmanager
 def ui_download_wheels(
-	wheels_to_download: frozenset[pydeps.BLExtWheel],
+	wheels_to_download: frozenset[pydeps.PyDepWheel],
 	*,
 	console: rich.console.Console,
 	fps: int = 24,
@@ -86,9 +86,7 @@ def ui_download_wheels(
 	See Also:
 		`blext.ui.download_wheels.CallbacksDownloadWheel`: For more on when to call each callback.
 	"""
-	bytes_to_download = sum(
-		int(wheel.size) if wheel.size is not None else 0 for wheel in wheels_to_download
-	)
+	bytes_to_download = sum(int(wheel.size) for wheel in wheels_to_download)
 
 	####################
 	# - Progress: Overall Download
@@ -123,7 +121,7 @@ def ui_download_wheels(
 		)
 		for wheel in wheels_to_download
 	}
-	task_download_wheels: dict[pydeps.BLExtWheel, None | rich.progress.TaskID] = (
+	task_download_wheels: dict[pydeps.PyDepWheel, None | rich.progress.TaskID] = (
 		dict.fromkeys(wheels_to_download)
 	)
 
@@ -131,20 +129,20 @@ def ui_download_wheels(
 	# - Callbacks
 	####################
 	def cb_start_wheel_download(
-		wheel: pydeps.BLExtWheel,
+		wheel: pydeps.PyDepWheel,
 		_: Path,
 	) -> None:
 		task_download_wheels.update(
 			{
 				wheel: progress_download_wheels[wheel].add_task(
 					wheel.filename,
-					total=int(wheel.size) if wheel.size is not None else 0,
+					total=int(wheel.size),
 				)
 			}
 		)
 
 	def cb_update_wheel_download(
-		wheel: pydeps.BLExtWheel,
+		wheel: pydeps.PyDepWheel,
 		_: Path,
 		advance: int,
 	) -> None:
@@ -160,7 +158,7 @@ def ui_download_wheels(
 			raise RuntimeError(msg)
 
 	def cb_finish_wheel_download(
-		wheel: pydeps.BLExtWheel,
+		wheel: pydeps.PyDepWheel,
 		_: Path,
 	) -> None:
 		del task_download_wheels[wheel]

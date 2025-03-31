@@ -32,4 +32,4 @@ def show_path_blender(
 	global_config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
 	"""Path to the `blender` executable used by `blext`."""
-	CONSOLE.print(global_config.path_blender_exe)
+	CONSOLE.print(global_config.path_default_blender_exe)

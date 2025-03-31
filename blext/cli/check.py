@@ -20,7 +20,6 @@ import sys
 
 import pydantic as pyd
 
-import blext.exceptions as exc
 from blext import blender
 
 from ._context import (
@@ -48,9 +47,8 @@ def check(
 		blext_info: Information used to find and load `blext` project.
 		global_config: Loaded global configuration.
 	"""
-	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_info = blext_info.parse_proj(proj)
-		# blext_location = blext_info.blext_location(global_config)
+	blext_info = blext_info.parse_proj(proj)
+	# blext_location = blext_info.blext_location(global_config)
 
 	if blext_info.path is None:
 		raise NotImplementedError
@@ -60,8 +58,9 @@ def check(
 	####################
 	# - Packed ZIP
 	####################
+	checks: dict[str, bool] = {}
 	if blext_info.path.name.endswith('.zip'):
-		checks: dict[str, bool] = {
+		checks = {
 			'blender --command extension validate': False,
 		}
 		path_zip = blext_info.path
@@ -71,7 +70,7 @@ def check(
 		####################
 		try:
 			blender.validate_extension(
-				global_config.path_blender_exe, path_zip=path_zip
+				global_config.path_default_blender_exe, path_zip=path_zip
 			)
 			checks['blender --command extension validate'] = True
 
@@ -82,7 +81,7 @@ def check(
 	# - Script/Project
 	####################
 	else:
-		checks: dict[str, bool] = {
+		checks = {
 			'Find Extension Specification': False,
 			'Load Extension Specification': False,
 		}

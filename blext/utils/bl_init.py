@@ -23,7 +23,7 @@ import zipfile
 from pathlib import Path
 
 try:
-	import addon_utils  # pyright: ignore[reportMissingImports]
+	import addon_utils
 	import bpy
 except ModuleNotFoundError as ex:
 	msg = "'bl_init.py' must be run from within Blender."
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 	####################
 	# Suppress Splash Screen
 	## - It just gets in the way.
-	bpy.context.preferences.view.show_splash = False
+	bpy.context.preferences.view.show_splash = False  # pyright: ignore[reportUnknownMemberType]
 
 	####################
 	# - Install Local Repository
@@ -65,9 +65,10 @@ if __name__ == '__main__':
 	# Check for Local Dev Repo
 	## - Create if non-existant.
 	if BLEXT_DEV_REPO_NAME not in {
-		repo.name for repo in bpy.context.preferences.extensions.repos
+		repo.name  # pyright: ignore[reportUnknownMemberType]
+		for repo in bpy.context.preferences.extensions.repos  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 	}:
-		bpy.ops.preferences.extension_repo_add(
+		bpy.ops.preferences.extension_repo_add(  # pyright: ignore[reportAny]
 			name=BLEXT_DEV_REPO_NAME,
 			remote_url='',
 			use_access_token=False,
@@ -80,13 +81,13 @@ if __name__ == '__main__':
 	# Get the Repository Index of Local Dev Repo
 	dev_repo_idx = next(
 		repo_idx
-		for repo_idx, repo in enumerate(bpy.context.preferences.extensions.repos)
-		if repo.name == BLEXT_DEV_REPO_NAME
+		for repo_idx, repo in enumerate(bpy.context.preferences.extensions.repos)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnknownVariableType]
+		if repo.name == BLEXT_DEV_REPO_NAME  # pyright: ignore[reportUnknownMemberType]
 	)
-	dev_repo_module = next(
-		repo.module
-		for repo_idx, repo in enumerate(bpy.context.preferences.extensions.repos)
-		if repo.name == BLEXT_DEV_REPO_NAME
+	dev_repo_module = next(  # pyright: ignore[reportUnknownVariableType]
+		repo.module  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+		for _, repo in enumerate(bpy.context.preferences.extensions.repos)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnknownVariableType]
+		if repo.name == BLEXT_DEV_REPO_NAME  # pyright: ignore[reportUnknownMemberType]
 	)
 
 	####################
@@ -94,17 +95,18 @@ if __name__ == '__main__':
 	####################
 	# Uninstall Existing Addon
 	blext_pkg = f'bl_ext.{BLEXT_DEV_REPO_NAME}.{blender_manifest["id"]}'
-	if blender_manifest['id'] in bpy.context.preferences.addons.keys() or blext_pkg in [  # noqa: SIM118
-		addon_module.__name__ for addon_module in addon_utils.modules()
+	if blender_manifest['id'] in bpy.context.preferences.addons.keys() or blext_pkg in [  # pyright: ignore[reportUnknownMemberType] # noqa: SIM118
+		addon_module.__name__  # pyright: ignore[reportUnknownMemberType]
+		for addon_module in addon_utils.modules()  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
 	]:
-		bpy.ops.extensions.package_uninstall(
+		bpy.ops.extensions.package_uninstall(  # pyright: ignore[reportAny]
 			repo_index=dev_repo_idx,
 			pkg_id=blender_manifest['id'],
 		)
 		## sys.modules is vacuumed (though not for deps) as part of package_uninstall.
 
 	# Install New Extension
-	bpy.ops.extensions.package_install_files(
+	bpy.ops.extensions.package_install_files(  # pyright: ignore[reportAny]
 		#'INVOKE_DEFAULT',
 		repo=dev_repo_module,
 		filepath=str(BLEXT_ZIP_PATH),

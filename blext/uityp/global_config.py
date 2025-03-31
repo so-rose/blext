@@ -152,12 +152,9 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 		json_str = self.model_dump_json(
 			include={
 				'path_global_cache',
-				*(
-					{'path_blender_exe'}
-					if self.path_default_blender_exe is not None
-					else {}
-				),
-				*({'path_uv_exe'} if self.path_uv_exe is not None else {}),
+				'path_default_blender_exe',
+				'path_uv_exe',
+				'local_bl_platform',
 			},
 			by_alias=True,
 		)

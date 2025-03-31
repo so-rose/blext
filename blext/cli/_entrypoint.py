@@ -34,7 +34,7 @@ def entrypoint():
 		)
 
 		bl_process = subprocess.Popen(
-			[str(global_config.path_blender_exe), *sys.argv[2:]],
+			[str(global_config.path_default_blender_exe), *sys.argv[2:]],
 			bufsize=0,
 			env=os.environ,
 			stdin=sys.stdin,

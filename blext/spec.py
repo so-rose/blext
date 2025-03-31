@@ -215,6 +215,25 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			}
 		)
 
+	@functools.cached_property
+	def bl_versions_by_wheel(
+		self,
+	) -> frozendict[PyDepWheel, frozenset[extyp.BLVersion]]:
+		"""Blender versions by wheel."""
+		all_wheels = {wheel for wheels in self.wheels.values() for wheel in wheels}
+		return frozendict(
+			{
+				wheel: frozenset(
+					{
+						bl_version
+						for bl_version in self.bl_versions
+						if wheel in self.wheels[bl_version]
+					}
+				)
+				for wheel in all_wheels
+			}
+		)
+
 	def bl_manifest(
 		self,
 		bl_manifest_version: extyp.BLManifestVersion,
@@ -757,16 +776,24 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	####################
 	@pyd.model_validator(mode='before')
 	@classmethod
-	def set_default_bl_platforms_to_universal(cls, data: typ.Any) -> typ.Any:
+	def set_default_bl_platforms_to_universal(cls, data: typ.Any) -> typ.Any:  # pyright: ignore[reportAny]
 		"""Set the default BLPlatforms to the largest common subset of platforms supported by given Blender versions."""
 		if isinstance(data, dict) and 'bl_platforms' not in data:
-			if 'blender_version_min' in data:
+			if (
+				'blender_version_min' in data
+				and isinstance(data['blender_version_min'], str)
+				and (
+					'blender_version_max' not in data
+					or (
+						'blender_version_max' in data
+						and isinstance(data['blender_version_max'], str)
+					)
+				)
+			):
 				released_bl_versions = (
 					extyp.BLReleaseOfficial.from_official_version_range(
 						data['blender_version_min'],
-						data.get(
-							'blender_version_max'
-						),  ## TODO: They're not validated yet...
+						data.get('blender_version_max'),  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
 					)
 				)
 				valid_bl_platforms = functools.reduce(
@@ -781,7 +808,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				msg = 'blender_version_min must be given to deduce bl_platforms'
 				raise ValueError(msg)
 
-		return data
+		return data  # pyright: ignore[reportUnknownVariableType]
 
 	## TODO: Guarantee that manifest export will work for all bl_versions, bl_platforms, and bl_manifest_versions.
 

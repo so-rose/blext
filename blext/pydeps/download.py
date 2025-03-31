@@ -137,7 +137,6 @@ def download_wheels(
 		path_wheels / wheel.filename: wheel
 		for wheel in wheels
 		if path_wheels / wheel.filename not in wheel_paths_current
-		and wheel.url is not None
 	}
 
 	# Download Missing PyDepWheels

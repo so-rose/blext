@@ -18,10 +18,6 @@
 
 import typing as typ
 
-import pydantic as pyd
-
-from blext import exceptions as exc
-
 from ._context import (
 	DEFAULT_BLEXT_INFO,
 	DEFAULT_CONFIG,
@@ -51,13 +47,18 @@ def show_blender_manifest(
 		global_config: Loaded global configuration.
 		format: The text format to show the Blender manifest as.
 	"""
-	# Parse CLI
-	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_info = blext_info.parse_proj(proj)
-		blext_spec = blext_info.blext_spec(global_config)
+	blext_info = blext_info.parse_proj(proj)
+	blext_spec = blext_info.blext_spec(global_config)
 
-	# Show Blender Manifest
-	with exc.handle(exc.pretty, ValueError):
+	bl_versions = blext_info.bl_versions(global_config)
+	if len(bl_versions) == 1:
+		bl_version = next(iter(bl_versions))
 		CONSOLE.print(
-			blext_spec.export_blender_manifest(fmt=format), markup=False, end=''
+			blext_spec.export_blender_manifest(
+				bl_version.max_manifest_version,
+				bl_version=bl_version,
+				fmt=format,
+			),
+			markup=False,
+			end='',
 		)

@@ -18,10 +18,6 @@
 
 import typing as typ
 
-import pydantic as pyd
-
-from blext import exceptions as exc
-
 from ._context import (
 	DEFAULT_BLEXT_INFO,
 	DEFAULT_CONFIG,
@@ -51,11 +47,16 @@ def show_profile(
 		global_config: Loaded global configuration.
 		format: Text format to output.
 	"""
-	# Parse CLI
-	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_info = blext_info.parse_proj(proj)
-		blext_spec = blext_info.blext_spec(global_config)
+	blext_info = blext_info.parse_proj(proj)
+	blext_spec = blext_info.blext_spec(global_config)
 
 	# Show BLExtSpec
-	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		CONSOLE.print(blext_spec.export_init_settings(fmt=format), markup=False, end='')
+	if blext_spec.release_profile is not None:
+		CONSOLE.print(
+			blext_spec.release_profile.export_init_settings(fmt=format),
+			markup=False,
+			end='',
+		)
+	else:
+		msg = f'Extension `{blext_spec.id}` has no release profile defined.'
+		raise ValueError(msg)
