@@ -19,16 +19,12 @@
 import os
 import platform
 import shutil
-import typing as typ
 from pathlib import Path
 
-from . import extyp
+from blext import extyp
 
 
-####################
-# - Platform Information
-####################
-def detect_local_blplatform() -> extyp.BLPlatform:
+def detect_local_bl_platform() -> extyp.BLPlatform:
 	"""Deduce the local Blender platform from `platform.system()` and `platform.machine()`.
 
 	Warning:
@@ -65,24 +61,13 @@ def detect_local_blplatform() -> extyp.BLPlatform:
 			raise ValueError(msg)
 
 
-####################
-# - Executables
-####################
-def find_blender_exe(*, override_path_blender_exe: Path | None = None) -> Path:  # noqa: C901
+def find_blender_exe() -> Path:
 	"""Locate the Blender executable, using the current platform as a hint.
 
 	Returns:
 		Absolute path to a valid Blender executable, as a string.
 	"""
-	if override_path_blender_exe is not None:
-		blender_exe = override_path_blender_exe
-		if blender_exe.exists():
-			return blender_exe
-
-		msg = f"Couldn't find Blender executable at specified path: {blender_exe}"
-		raise ValueError(msg)
-
-	bl_platform = detect_local_blplatform()
+	bl_platform = detect_local_bl_platform()
 	match bl_platform:
 		case extyp.BLPlatform.linux_x64 | extyp.BLPlatform.linux_arm64:
 			blender_exe = shutil.which('blender')
@@ -124,25 +109,15 @@ def find_blender_exe(*, override_path_blender_exe: Path | None = None) -> Path: 
 def find_uv_exe(
 	*,
 	search_venv: bool = True,
-	override_path_uv_exe: Path | None = None,
 ) -> Path:
 	"""Locate the `uv` executable.
 
 	Parameters:
 		search_venv: Search an active virtual environment based on the `VIRTUAL_ENV` env var.
-		override_path_uv_exe: Override the path to search for a `uv` executable.
 
 	Returns:
 		Absolute path to a valid `uv` executable.
 	"""
-	if override_path_uv_exe is not None:
-		uv_exe = override_path_uv_exe
-		if uv_exe.exists():
-			return uv_exe.resolve()
-
-		msg = f"Couldn't find `uv` executable at specified path: {uv_exe}"
-		raise ValueError(msg)
-
 	if search_venv and 'VIRTUAL_ENV' in os.environ:
 		path_venv = Path(os.environ['VIRTUAL_ENV'])
 		path_uv = path_venv / 'bin' / 'uv'
@@ -152,43 +127,3 @@ def find_uv_exe(
 
 	msg = "Could not find a 'uv' executable."
 	raise ValueError(msg)
-
-
-####################
-# - Finder: Project Specification
-####################
-@typ.runtime_checkable
-class GitInfo(typ.Protocol):
-	"""An object that references a specific `git` repository and commit."""
-
-	@property
-	def url(self) -> str | None:  # pyright: ignore[reportReturnType]
-		"""Link to the `git` repository."""
-
-	@property
-	def rev(self) -> str | None:
-		"""Identifier for the commit in the `git` repository.
-
-		Notes:
-			When given, `self.tag` and `self.branch` must be `None`.
-		"""
-
-	@property
-	def tag(self) -> str | None:
-		"""Identifier for the tag in the `git` repository.
-
-		Notes:
-			When given, `self.rev` and `self.branch` must be `None`.
-		"""
-
-	@property
-	def branch(self) -> str | None:
-		"""Identifier for the branch in the `git` repository.
-
-		Notes:
-			When given, `self.rev` and `self.tag` must be `None`.
-		"""
-
-	@property
-	def entrypoint(self) -> Path | None:
-		"""Path to an extension specification file, relative to the repository root."""

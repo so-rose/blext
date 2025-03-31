@@ -16,9 +16,6 @@
 
 """Implements `blext show path uv`."""
 
-from blext import exceptions as exc
-from blext import finders
-
 from ._context import (
 	DEFAULT_CONFIG,
 	ParameterConfig,
@@ -32,11 +29,7 @@ from ._context_show_path import APP_SHOW_PATH, CONSOLE
 @APP_SHOW_PATH.command(name='uv')
 def show_path_uv(
 	*,
-	config: ParameterConfig = DEFAULT_CONFIG,
+	global_config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
 	"""Path to `uv` executable used by `blext`."""
-	# Show Found Blender EXE
-	with exc.handle(exc.pretty, ValueError):
-		uv_exe = finders.find_uv_exe(override_path_uv_exe=config.path_uv_exe)
-
-	CONSOLE.print(uv_exe)
+	CONSOLE.print(global_config.path_uv_exe)

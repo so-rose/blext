@@ -16,9 +16,6 @@
 
 """Implements `show path blender`."""
 
-from blext import exceptions as exc
-from blext import finders
-
 from ._context import (
 	DEFAULT_CONFIG,
 	ParameterConfig,
@@ -32,13 +29,7 @@ from ._context_show_path import APP_SHOW_PATH, CONSOLE
 @APP_SHOW_PATH.command(name='blender')
 def show_path_blender(
 	*,
-	config: ParameterConfig = DEFAULT_CONFIG,
+	global_config: ParameterConfig = DEFAULT_CONFIG,
 ) -> None:
-	"""Path to `blender` executable used by `blext`."""
-	# Show Found Blender EXE
-	with exc.handle(exc.pretty, ValueError):
-		blender_exe = finders.find_blender_exe(
-			override_path_blender_exe=config.path_blender_exe
-		)
-
-	CONSOLE.print(blender_exe)
+	"""Path to the `blender` executable used by `blext`."""
+	CONSOLE.print(global_config.path_blender_exe)

@@ -14,43 +14,46 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""`blext` is a project manager for Blender extension development."""
+"""Abstractions relevant for Blender extensions."""
 
-from . import blender, pack, pydeps
-from .extyp import (
-	BLExtLogLevel,
-	BLManifest,
-	BLManifest_1_0_0,
-	BLManifestVersion,
-	BLPlatform,
-	BLVersion,
+from . import validators
+from .bl_manifest import BLManifest, BLManifest_1_0_0
+from .bl_manifest_version import BLManifestVersion
+from .bl_platform import BLPlatform
+from .bl_release_official import BLReleaseOfficial
+from .bl_version import BLVersion
+from .bl_version_source import (
 	BLVersionSource,
 	BLVersionSourceGit,
 	BLVersionSourceOfficial,
 	BLVersionSources,
-	ReleaseProfile,
-	SPDXLicense,
-	StandardReleaseProfile,
 )
-from .spec import BLExtSpec
+from .blext_location import BLExtLocation
+from .blext_location_git import BLExtLocationGit
+from .blext_location_http import BLExtLocationHttp
+from .blext_location_path import BLExtLocationPath
+from .log_level import BLExtLogLevel
+from .release_profile import ReleaseProfile, StandardReleaseProfile
+from .spdx_license import SPDXLicense
 
 __all__ = [
+	'BLExtLocation',
+	'BLExtLocationGit',
+	'BLExtLocationHttp',
+	'BLExtLocationPath',
 	'BLExtLogLevel',
-	'BLExtSpec',
 	'BLManifest',
 	'BLManifestVersion',
 	'BLManifest_1_0_0',
 	'BLPlatform',
+	'BLReleaseOfficial',
 	'BLVersion',
 	'BLVersionSource',
 	'BLVersionSourceGit',
 	'BLVersionSourceOfficial',
 	'BLVersionSources',
-	'BLVersionSources',
 	'ReleaseProfile',
 	'SPDXLicense',
 	'StandardReleaseProfile',
-	'blender',
-	'pack',
-	'pydeps',
+	'validators',
 ]

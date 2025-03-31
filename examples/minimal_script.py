@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # /// script
-# requires-python = "==3.11"
+# requires-python = "==3.11.*"
 # dependencies = []
 #
 # [project]

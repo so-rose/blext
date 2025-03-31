@@ -29,7 +29,7 @@ from pathlib import Path
 
 from frozendict import frozendict
 
-PATH_BLENDER_PYTHON_SCRIPTS: Path = Path(__file__).resolve().parent / 'utils_blender'
+PATH_BL_INIT: Path = Path(__file__).resolve().parent / 'utils' / 'bl_init.py'
 
 
 ####################
@@ -184,7 +184,7 @@ def run_extension(
 	"""
 	_ = run_blender(
 		blender_exe,
-		startup_script=PATH_BLENDER_PYTHON_SCRIPTS / 'bl_init.py',
+		startup_script=PATH_BL_INIT,
 		factory_startup=factory_startup,
 		headless=headless,
 		args=(str(path_blend),) if path_blend is not None else (),

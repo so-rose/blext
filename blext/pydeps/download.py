@@ -24,7 +24,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from .wheel import BLExtWheel
+from .pydep_wheel import PyDepWheel
 
 if typ.TYPE_CHECKING:
 	import collections.abc
@@ -40,18 +40,18 @@ SIGNAL_ABORT: bool = False
 
 
 ####################
-# - Wheel Download
+# - PyDepWheel Download
 ####################
 def download_wheel(
 	wheel_url: str,
 	wheel_path: Path,
 	*,
-	wheel: BLExtWheel,
+	wheel: PyDepWheel,
 	cb_update_wheel_download: typ.Callable[
-		[BLExtWheel, Path, int], list[None] | None
+		[PyDepWheel, Path, int], list[None] | None
 	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 	cb_finish_wheel_download: typ.Callable[
-		[BLExtWheel, Path], list[None] | None
+		[PyDepWheel, Path], list[None] | None
 	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 ) -> None:
 	"""Download a Python wheel.
@@ -94,17 +94,17 @@ def download_wheel(
 
 
 def download_wheels(
-	wheels: frozenset[BLExtWheel],
+	wheels: frozenset[PyDepWheel],
 	*,
 	path_wheels: Path,
 	cb_start_wheel_download: typ.Callable[
-		[BLExtWheel, Path], typ.Any
+		[PyDepWheel, Path], typ.Any
 	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 	cb_update_wheel_download: typ.Callable[
-		[BLExtWheel, Path, int], typ.Any
+		[PyDepWheel, Path, int], typ.Any
 	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 	cb_finish_wheel_download: typ.Callable[
-		[BLExtWheel, Path], typ.Any
+		[PyDepWheel, Path], typ.Any
 	] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
 ) -> None:
 	"""Download universal and binary wheels for all platforms defined in `pyproject.toml`.
@@ -130,7 +130,7 @@ def download_wheels(
 		{path_wheel.resolve() for path_wheel in path_wheels.rglob('*.whl')}
 	)
 
-	# Compute Wheels to Download
+	# Compute PyDepWheels to Download
 	## - Missing: Will be downloaded.
 	## - Superfluous: Will be deleted.
 	wheels_to_download = {
@@ -140,7 +140,7 @@ def download_wheels(
 		and wheel.url is not None
 	}
 
-	# Download Missing Wheels
+	# Download Missing PyDepWheels
 	if wheels_to_download:
 		with concurrent.futures.ThreadPoolExecutor(
 			max_workers=DOWNLOAD_THREADS

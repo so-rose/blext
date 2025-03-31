@@ -27,6 +27,10 @@ import platformdirs
 import pydantic as pyd
 import tomli_w
 
+from blext import extyp
+
+from . import detectors
+
 APPNAME = 'blext'
 APPAUTHOR = 'blext'
 PATH_GLOBAL_CONFIG = (
@@ -62,9 +66,7 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 		console_file_level: Minimum log-level to write to the console.
 	"""
 
-	####################
-	# - Global Cache Path
-	####################
+	# Global Cache Path
 	path_global_cache: typ.Annotated[
 		Path,
 		cyclopts.Parameter(
@@ -74,37 +76,42 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 		platformdirs.user_cache_dir(
 			APPNAME,
 			APPAUTHOR,
-			ensure_exists=True,
+			ensure_exists=False,
 		)
 	)
 
-	@pyd.field_validator('path_global_cache', mode='after')
-	@classmethod
-	def mkdir_path_global_cache(cls, value: Path) -> Path:
-		"""Ensure the global cache path exists."""
-		# Doesn't Exist: Create Folder
-		if not value.exists():
-			value.mkdir(parents=True, exist_ok=True)
+	# External Binaries
+	path_default_blender_exe: typ.Annotated[
+		Path,
+		cyclopts.Parameter(
+			env_var='BLEXT_PATH_BLENDER_EXE',
+		),
+	] = pyd.Field(default_factory=detectors.find_blender_exe)
+	path_uv_exe: typ.Annotated[
+		Path,
+		cyclopts.Parameter(
+			env_var='BLEXT_PATH_UV_EXE',
+		),
+	] = pyd.Field(default_factory=detectors.find_uv_exe)
 
-		# Exists, Not Folder: Error
-		elif not value.is_dir():
-			msg = f"The global cache path {value} is not a folder, yet it exists. Please remove this path, or adjust blext's global cache path."
-			raise ValueError(msg)
-
-		# Exists, Is Folder: Check Read/Write Permissions
-		## - I know, I know, "forgiveness vs permission" and all that.
-		## - I raise you "explicit is better than implicit".
-		## - Why are you reading this? Because you care. Let's get a coffee or something.
-		if os.access(value, os.R_OK):
-			if os.access(value, os.W_OK):
-				return value
-			msg = f'The global cache path {value} exists, but is not writable. Please grant `blext` permission to write to this folder.'
-			raise ValueError(msg)
-		msg = f'The global cache path {value} exists, but is not readable. Please grant `blext` permission to read this folder.'
-		raise ValueError(msg)
+	# Local
+	local_bl_platform: extyp.BLPlatform = pyd.Field(
+		default_factory=detectors.detect_local_bl_platform
+	)
+	# TODO: Discover local BLVersions?
 
 	####################
-	# - Global Paths
+	# - Properties: Detect Blender Version
+	####################
+	@functools.cached_property
+	def local_default_bl_version(self) -> extyp.BLVersion:
+		"""Default Blender version derived from `self.path_default_blender_exe`."""
+		raise NotImplementedError
+
+		# TODO: Run and parse version from 'blender --version', incl. checking if it's a release version.
+
+	####################
+	# - Properties: Global Paths
 	####################
 	@functools.cached_property
 	def path_global_project_cache(self) -> Path:
@@ -129,23 +136,7 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 		return path_global_download_cache
 
 	####################
-	# - Finder Overrides
-	####################
-	path_blender_exe: typ.Annotated[
-		Path | None,
-		cyclopts.Parameter(
-			env_var='BLEXT_PATH_BLENDER_EXE',
-		),
-	] = None
-	path_uv_exe: typ.Annotated[
-		Path | None,
-		cyclopts.Parameter(
-			env_var='BLEXT_PATH_UV_EXE',
-		),
-	] = None
-
-	####################
-	# - Import / Export
+	# - Methods: Import / Export
 	####################
 	def export_config(self, fmt: typ.Literal['json', 'toml']) -> str:
 		"""Global configuration of `blext` as a string.
@@ -161,7 +152,11 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 		json_str = self.model_dump_json(
 			include={
 				'path_global_cache',
-				*({'path_blender_exe'} if self.path_blender_exe is not None else {}),
+				*(
+					{'path_blender_exe'}
+					if self.path_default_blender_exe is not None
+					else {}
+				),
 				*({'path_uv_exe'} if self.path_uv_exe is not None else {}),
 			},
 			by_alias=True,
@@ -176,4 +171,42 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 			return tomli_w.dumps(cfg_dict)
 
 		msg = f'Cannot export init settings to the given unknown format: {fmt}'  # pyright: ignore[reportUnreachable]
+		raise ValueError(msg)
+
+	####################
+	# - Creation
+	####################
+	@classmethod
+	def from_local(cls, *, environ: dict[str, str] | None = None) -> typ.Self:
+		"""Load from config file and given environment variables."""
+		environ = dict(os.environ) if environ is None else None
+
+		raise NotImplementedError
+
+	####################
+	# - Validation[path_global_cache]: Ensure that it Exists
+	####################
+	@pyd.field_validator('path_global_cache', mode='after')
+	@classmethod
+	def mkdir_path_global_cache(cls, value: Path) -> Path:
+		"""Ensure the global cache path exists."""
+		# Doesn't Exist: Create Folder
+		if not value.exists():
+			value.mkdir(parents=True, exist_ok=True)
+
+		# Exists, Not Folder: Error
+		elif not value.is_dir():
+			msg = f"The global cache path {value} is not a folder, yet it exists. Please remove this path, or adjust blext's global cache path."
+			raise ValueError(msg)
+
+		# Exists, Is Folder: Check Read/Write Permissions
+		## - I know, I know, "forgiveness vs permission" and all that.
+		## - I raise you "explicit is better than implicit".
+		## - Why are you reading this? Because you care. Let's get a coffee or something.
+		if os.access(value, os.R_OK):
+			if os.access(value, os.W_OK):
+				return value
+			msg = f'The global cache path {value} exists, but is not writable. Please grant `blext` permission to write to this folder.'
+			raise ValueError(msg)
+		msg = f'The global cache path {value} exists, but is not readable. Please grant `blext` permission to read this folder.'
 		raise ValueError(msg)

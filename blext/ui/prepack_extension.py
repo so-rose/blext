@@ -27,6 +27,7 @@ import rich.console
 import rich.live
 import rich.progress
 import rich.table
+from frozendict import frozendict
 
 
 ####################
@@ -77,7 +78,7 @@ class CallbacksPrepackExtension(pyd.BaseModel, arbitrary_types_allowed=True):
 ####################
 @contextlib.contextmanager
 def ui_prepack_extension(
-	files_to_prepack: dict[Path, Path],
+	files_to_prepack: frozendict[Path, Path] | dict[Path, Path],
 	*,
 	console: rich.console.Console,
 ) -> collections.abc.Generator[CallbacksPrepackExtension, None, None]:

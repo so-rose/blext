@@ -23,7 +23,7 @@ import cyclopts
 import rich
 import rich.theme
 
-from blext import ui
+from blext import uityp
 
 ####################
 # - Constants
@@ -37,8 +37,8 @@ HELP_GROUP = cyclopts.Group('Help', sort_key=2)
 CONFIG_GROUP = cyclopts.Group('Global', sort_key=100)
 PARAMS_GROUP = cyclopts.Group('Options', sort_key=20)
 
-DEFAULT_BLEXT_INFO = ui.BLExtInfo()
-DEFAULT_CONFIG = ui.GlobalConfig()
+DEFAULT_BLEXT_INFO = uityp.BLExtUI()
+DEFAULT_CONFIG = uityp.GlobalConfig()
 
 ####################
 # - Parameter Types
@@ -46,7 +46,7 @@ DEFAULT_CONFIG = ui.GlobalConfig()
 ParameterProj: typ.TypeAlias = typ.Annotated[
 	str | None,
 	cyclopts.Parameter(
-		group=ui.LOCATION_GROUP,
+		group=uityp.LOCATION_GROUP,
 		help="""Location specifier for `blext` projects.
 - **Path** (detect):  `<path>`
 - **Path** (script):  `script+<path>`
@@ -60,11 +60,11 @@ ParameterProj: typ.TypeAlias = typ.Annotated[
 	),
 ]
 ParameterBLExtInfo: typ.TypeAlias = typ.Annotated[
-	ui.BLExtInfo,
+	uityp.BLExtUI,
 	cyclopts.Parameter(name='*'),
 ]
 ParameterConfig: typ.TypeAlias = typ.Annotated[
-	ui.GlobalConfig,
+	uityp.GlobalConfig,
 	cyclopts.Parameter(name='cfg', group=CONFIG_GROUP),
 ]
 ####################
@@ -106,7 +106,7 @@ APP = cyclopts.App(
 		),
 		# 2. Global Config
 		cyclopts.config.Toml(
-			path=ui.PATH_GLOBAL_CONFIG,
+			path=uityp.PATH_GLOBAL_CONFIG,
 			root_keys=(),
 			must_exist=False,
 			search_parents=False,

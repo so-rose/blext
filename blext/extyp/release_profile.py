@@ -30,7 +30,6 @@ Attributes:
 import enum
 import functools
 import json
-import logging
 import typing as typ
 
 import pydantic as pyd
@@ -39,154 +38,7 @@ from frozendict import frozendict
 
 from blext.utils.pydantic_frozendict import FrozenDict
 
-####################
-# - Blender Tags
-####################
-ValidBLExtPerms: typ.TypeAlias = typ.Literal[
-	'files',
-	'network',
-	'clipboard',
-	'camera',
-	'microphone',
-]
-
-ValidBLTags: typ.TypeAlias = typ.Literal[
-	'3D View',
-	'Add Curve',
-	'Add Mesh',
-	'Animation',
-	'Bake',
-	'Camera',
-	'Compositing',
-	'Development',
-	'Game Engine',
-	'Geometry Nodes',
-	'Grease Pencil',
-	'Import-Export',
-	'Lighting',
-	'Material',
-	'Modeling',
-	'Mesh',
-	'Node',
-	'Object',
-	'Paint',
-	'Pipeline',
-	'Physics',
-	'Render',
-	'Rigging',
-	'Scene',
-	'Sculpt',
-	'Sequencer',
-	'System',
-	'Text Editor',
-	'Tracking',
-	'User Interface',
-	'UV',
-]
-
-
-####################
-# - Blender Platform
-####################
-class BLPlatform(enum.StrEnum):
-	"""Identifier for a particular kind of OS/Architecture supported by Blender.
-
-	Notes:
-		Values correspond perfectly to the platforms defined in the official Blender extension manifest specification.
-
-		**However**, note that there are many nuances and conventions when it comes to cross-platform identification of architectures.
-		When interacting with other systems, ensure this is taken into account.
-
-	Corresponds perfectly to the platforms defined in the Blender Extension Manifest.
-
-	See Also:
-		- `blext.finders`: Tools for detecting `BLPlatform`s.
-	"""
-
-	linux_x64 = 'linux-x64'
-	linux_arm64 = 'linux-arm64'
-	macos_x64 = 'macos-x64'
-	macos_arm64 = 'macos-arm64'
-	windows_x64 = 'windows-x64'
-	windows_arm64 = 'windows-arm64'
-
-	@functools.cached_property
-	def pypi_arches(self) -> frozenset[str]:
-		"""Set of PyPi CPU-architecture tags supported by this BLPlatform.
-
-		Notes:
-			PyPi is the official platform for distributing Python dependencies as ex. wheels.
-			For example, it is the default source for `pip install *`.
-
-			PyPi has its own conventions for tagging CPU architectures, including the `universal*` tags for MacOS.
-			Therefore, a bridge must be built, by asking the following question:
-
-				- Each `BLPlatform` **implicitly** supports a number of CPU architectures.
-				- Each Python dependency wheel **implicitly** supports a number of CPU architectures.
-				- _What's the overlap?_
-
-			This property answers that question using a hard-coded mapping from each BLPlatform,
-			to the set of all PyPi CPU architecture tags that should be considered identical.
-		"""
-		BLP = BLPlatform
-		return {
-			BLP.linux_x64: frozenset({'x86_64'}),
-			BLP.linux_arm64: frozenset({'aarch64', 'armv7l', 'arm64'}),
-			BLP.macos_x64: frozenset(
-				{'x86_64', 'universal', 'universal2', 'intel', 'fat3', 'fat64'}
-			),
-			BLP.macos_arm64: frozenset({'arm64', 'universal2'}),
-			BLP.windows_x64: frozenset({'', 'amd64'}),
-			BLP.windows_arm64: frozenset({'arm64'}),
-		}[self]
-
-	@functools.cached_property
-	def wheel_platform_tag_prefix(self) -> str:
-		"""Prefix of compatible wheel platform tags.
-
-		Notes:
-			Does not consider `PEP600` references.
-
-		See Also:
-			- `PEP600`: https://peps.python.org/pep-0600/
-		"""
-		BLP = BLPlatform
-		return {
-			BLP.linux_x64: 'manylinux_',
-			BLP.linux_arm64: 'manylinux_',
-			BLP.macos_x64: 'macosx_',
-			BLP.macos_arm64: 'macosx_',
-			BLP.windows_x64: 'windows_',
-			BLP.windows_arm64: 'windows_',
-		}[self]
-
-
-####################
-# - Log Levels
-####################
-class StrLogLevel(enum.StrEnum):
-	"""Enumeration mapping strings to `logging.*` log levels from the standard library."""
-
-	Debug = 'debug'
-	Info = 'info'
-	Warning = 'warning'
-	Error = 'error'
-	Critical = 'critical'
-
-	@property
-	def log_level(self) -> int:
-		"""The integer corresponding to each string log-level.
-
-		Derived from the `logging` module of the standard library.
-		"""
-		SLL = self.__class__
-		return {
-			SLL.Debug: logging.DEBUG,
-			SLL.Info: logging.INFO,
-			SLL.Warning: logging.WARNING,
-			SLL.Error: logging.ERROR,
-			SLL.Critical: logging.CRITICAL,
-		}[self]
+from .blext_log_level import BLExtLogLevel
 
 
 ####################
@@ -213,9 +65,9 @@ class ReleaseProfile(pyd.BaseModel, frozen=True):
 
 	use_log_file: bool
 	log_file_name: str
-	log_file_level: StrLogLevel
+	log_file_level: BLExtLogLevel
 	use_log_console: bool
-	log_console_level: StrLogLevel
+	log_console_level: BLExtLogLevel
 
 	overrides: FrozenDict[str, typ.Any] = frozendict()
 
@@ -252,6 +104,9 @@ class ReleaseProfile(pyd.BaseModel, frozen=True):
 		raise ValueError(msg)
 
 
+####################
+# - Standard Release Profiles
+####################
 class StandardReleaseProfile(enum.StrEnum):
 	"""Strings identifying standardized release profiles, for which a default `ReleaseProfile` object is available."""
 
@@ -270,29 +125,29 @@ class StandardReleaseProfile(enum.StrEnum):
 			SRP.Test: ReleaseProfile(
 				use_log_file=True,
 				log_file_name=log_file_name,
-				log_file_level=StrLogLevel.Debug,
+				log_file_level=BLExtLogLevel.Debug,
 				use_log_console=True,
-				log_console_level=StrLogLevel.Info,
+				log_console_level=BLExtLogLevel.Info,
 			),
 			SRP.Dev: ReleaseProfile(
 				use_log_file=True,
 				log_file_name=log_file_name,
-				log_file_level=StrLogLevel.Debug,
+				log_file_level=BLExtLogLevel.Debug,
 				use_log_console=True,
-				log_console_level=StrLogLevel.Info,
+				log_console_level=BLExtLogLevel.Info,
 			),
 			SRP.Release: ReleaseProfile(
 				use_log_file=False,
 				log_file_name=log_file_name,
-				log_file_level=StrLogLevel.Debug,
+				log_file_level=BLExtLogLevel.Debug,
 				use_log_console=True,
-				log_console_level=StrLogLevel.Warning,
+				log_console_level=BLExtLogLevel.Warning,
 			),
 			SRP.ReleaseDebug: ReleaseProfile(
 				use_log_file=True,
 				log_file_name=log_file_name,
-				log_file_level=StrLogLevel.Debug,
+				log_file_level=BLExtLogLevel.Debug,
 				use_log_console=True,
-				log_console_level=StrLogLevel.Info,
+				log_console_level=BLExtLogLevel.Info,
 			),
 		}[self]

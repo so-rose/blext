@@ -25,7 +25,6 @@ import pytest
 from hypothesis import strategies as st
 
 import blext
-from blext import spec
 
 from ._context import EXAMPLES_PROJ_FILES_INVALID, EXAMPLES_PROJ_FILES_VALID
 from ._pydantic import ST_BLEXT_SPEC
@@ -51,7 +50,7 @@ def test_fail_to_create_blext_spec_from_invalid_path(
 	proj_file_path: Path, release_profile_id: blext.BLPlatform
 ) -> None:
 	with pytest.raises(ValueError):
-		_ = spec.BLExtSpec.from_proj_spec_path(
+		_ = blext.BLExtSpec.from_proj_spec_path(
 			proj_file_path,
 			release_profile_id=release_profile_id,
 		)
@@ -64,11 +63,11 @@ def test_fail_to_create_blext_spec_from_invalid_path(
 def test_create_blext_spec_from_proj_file_path(
 	proj_file_path: Path, release_profile_id: blext.BLPlatform
 ) -> None:
-	blext_spec = spec.BLExtSpec.from_proj_spec_path(
+	blext_spec = blext.BLExtSpec.from_proj_spec_path(
 		proj_file_path,
 		release_profile_id=release_profile_id,
 	)
-	assert isinstance(blext_spec, spec.BLExtSpec)
+	assert isinstance(blext_spec, blext.BLExtSpec)
 
 
 @hyp.given(
@@ -78,11 +77,11 @@ def test_create_blext_spec_from_proj_file_path(
 def test_packed_wheel_paths(
 	proj_file_path: Path, release_profile_id: blext.BLPlatform
 ) -> None:
-	blext_spec = spec.BLExtSpec.from_proj_spec_path(
+	blext_spec = blext.BLExtSpec.from_proj_spec_path(
 		proj_file_path,
 		release_profile_id=release_profile_id,
 	)
-	_ = blext_spec.vendored_wheel_paths
+	_ = blext_spec.manifest_wheels
 
 
 @hyp.settings(max_examples=10)
@@ -93,7 +92,7 @@ def test_packed_wheel_paths(
 def test_export_blender_manifest_to_json(
 	proj_file_path: Path, release_profile_id: blext.BLPlatform
 ) -> None:
-	blext_spec = spec.BLExtSpec.from_proj_spec_path(
+	blext_spec = blext.BLExtSpec.from_proj_spec_path(
 		proj_file_path,
 		release_profile_id=release_profile_id,
 	)
@@ -129,7 +128,7 @@ def test_export_blender_manifest_to_json(
 def test_export_blender_manifest_to_toml(
 	proj_file_path: Path, release_profile_id: blext.BLPlatform
 ) -> None:
-	blext_spec = spec.BLExtSpec.from_proj_spec_path(
+	blext_spec = blext.BLExtSpec.from_proj_spec_path(
 		proj_file_path,
 		release_profile_id=release_profile_id,
 	)
@@ -167,7 +166,7 @@ def test_export_init_settings(
 	release_profile_id: blext.StandardReleaseProfile,
 	fmt: typ.Literal['json', 'toml'],
 ) -> None:
-	blext_spec = spec.BLExtSpec.from_proj_spec_path(
+	blext_spec = blext.BLExtSpec.from_proj_spec_path(
 		proj_file_path,
 		release_profile_id=release_profile_id,
 	)
@@ -183,7 +182,7 @@ def test_export_init_settings(
 	ST_BLEXT_SPEC,
 )
 def test_universality(
-	blext_spec: spec.BLExtSpec,
+	blext_spec: blext.BLExtSpec,
 ) -> None:
 	assert blext_spec.is_universal == (
 		frozenset(blext.BLPlatform) == blext_spec.bl_platforms
@@ -195,10 +194,10 @@ def test_universality(
 	ST_BLEXT_SPEC,
 )
 def test_packed_platforms(
-	blext_spec: spec.BLExtSpec,
+	blext_spec: blext.BLExtSpec,
 ) -> None:
 	assert all(
-		bl_platform in blext.BLPlatform for bl_platform in blext_spec.packed_platforms
+		bl_platform in blext.BLPlatform for bl_platform in blext_spec.manifest_platforms
 	)
 
 
@@ -216,20 +215,20 @@ def test_packed_platforms(
 	ST_BLEXT_SPEC,
 )
 def test_packed_zip_filename(
-	blext_spec: spec.BLExtSpec,
+	blext_spec: blext.BLExtSpec,
 ) -> None:
 	if not blext_spec.is_universal and len(blext_spec.bl_platforms) > 1:
 		with pytest.raises(ValueError):
-			_ = blext_spec.packed_zip_filename
+			_ = blext_spec.zip_filename
 	else:
-		assert blext_spec.packed_zip_filename.endswith('.zip')
+		assert blext_spec.zip_filename.endswith('.zip')
 
 
 @hyp.settings(max_examples=10)
 @hyp.given(
 	ST_BLEXT_SPEC,
 )
-def test_export_init_settings_to_json(blext_spec: spec.BLExtSpec) -> None:
+def test_export_init_settings_to_json(blext_spec: blext.BLExtSpec) -> None:
 	init_settings_str = blext_spec.export_init_settings(fmt='json')
 	init_settings = json.loads(init_settings_str)
 
@@ -248,7 +247,7 @@ def test_export_init_settings_to_json(blext_spec: spec.BLExtSpec) -> None:
 @hyp.given(
 	ST_BLEXT_SPEC,
 )
-def test_export_init_settings_to_toml(blext_spec: spec.BLExtSpec) -> None:
+def test_export_init_settings_to_toml(blext_spec: blext.BLExtSpec) -> None:
 	init_settings_str = blext_spec.export_init_settings(fmt='toml')
 	init_settings = tomllib.loads(init_settings_str)
 

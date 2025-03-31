@@ -63,7 +63,7 @@ def show_deps(
 	# Sort Wheels
 	with exc.handle(exc.pretty, ValueError):
 		blext_wheels = sorted(
-			blext_spec.wheels_graph.wheels,
+			blext_spec.pydeps.wheels,
 			key={  # pyright: ignore[reportUnknownArgumentType]
 				'filename': lambda wheel: wheel.filename,  # pyright: ignore[reportUnknownLambdaType,reportUnknownMemberType]
 				'size': lambda wheel: wheel.sort_key_size,  # pyright: ignore[reportUnknownLambdaType,reportUnknownMemberType]
@@ -95,11 +95,11 @@ def show_deps(
 			)
 		table.add_section()
 		table.add_row(
-			f'={len(blext_spec.wheels_graph.wheels)} wheels',
+			f'={len(blext_spec.pydeps.wheels)} wheels',
 			'',
-			', '.join(blext_spec.bl_platforms),
+			', '.join(blext_spec.bl_support),
 			'',
-			f'={blext_spec.wheels_graph.total_size_bytes.human_readable(decimal=True, separator=" ")}',
+			f'={blext_spec.pydeps.total_size_bytes.human_readable(decimal=True, separator=" ")}',
 		)
 
 		####################

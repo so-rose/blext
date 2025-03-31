@@ -22,8 +22,13 @@ import tomllib
 import zipfile
 from pathlib import Path
 
-import addon_utils
-import bpy
+try:
+	import addon_utils  # pyright: ignore[reportMissingImports]
+	import bpy
+except ModuleNotFoundError as ex:
+	msg = "'bl_init.py' must be run from within Blender."
+	raise ValueError(msg) from ex
+
 
 ####################
 # - Constants

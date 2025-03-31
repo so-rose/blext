@@ -54,8 +54,10 @@ def test_pack_example_extension(
 	with tempfile.TemporaryDirectory() as path_tmpdir_str:
 		path_tmpdir = Path(path_tmpdir_str)
 
-		path_zip = path_tmpdir / blext_spec.packed_zip_filename
-		path_zip_prepack = path_tmpdir / ('prepack_' + blext_spec.packed_zip_filename)
+		path_zip = path_tmpdir / blext_spec.extension_zip_filename
+		path_zip_prepack = path_tmpdir / (
+			'prepack_' + blext_spec.extension_zip_filename
+		)
 
 		if proj_file_path.name.endswith('.py'):
 			path_pypkg = None

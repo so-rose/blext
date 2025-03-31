@@ -12,9 +12,77 @@ readme = "README.md"
 requires-python = "~= 3.11"
 license = { text = "AGPL-3.0-or-later" }
 dependencies = [
+    "polars[async]>=1.26.0",
     "pydantic>=2.10.5",
     "rich>=13.9.3",
     "scipy>=1.15.1",
+]
+
+[project.optional-dependencies]
+bl4_2 = [
+	'autopep8==1.6.0',
+	'certifi==2021.10.8',
+	'charset_normalizer==2.0.10',
+	'Cython==0.29.30',
+	'idna==3.3',
+	#'MaterialX==??',
+	'numpy==1.24.3',
+	#'OpenImageIO==??',
+	'pip==23.2.1',
+	#'pkg_resources==??',
+	#'pxr==??',
+	'pycodestyle==2.8.0',
+	#'PyOpenColorIO==??',
+	#'pyximport==??',
+	'requests==2.27.1',
+	'setuptools==63.2.0',
+	'toml==0.10.2',
+	'urllib3==1.26.8',
+	'zstandard==0.16.0',
+	#'pyopenvdb==??',  ## Careful - not on PyPi
+]
+bl4_3 = [
+	'autopep8==2.3.1',
+	'certifi==2021.10.8',
+	'charset_normalizer==2.0.10',
+	'Cython==0.29.30',
+	'idna==3.3',
+	#'MaterialX==??',
+	'numpy==1.24.3',
+	#'OpenImageIO==??',
+	'pip==24.0',
+	#'pkg_resources==??',
+	#'pxr==??',
+	'pycodestyle==2.12.1',
+	#'PyOpenColorIO==??',
+	#'pyximport==??',
+	'requests==2.27.1',
+	'setuptools==63.2.0',
+	'toml==0.10.2',
+	'urllib3==1.26.8',
+	'zstandard==0.16.0',
+	#'pyopenvdb==??',  ## Careful - not on PyPi
+]
+bl4_4 = [
+	'autopep8==2.3.1',
+	'certifi==2021.10.8',
+	'charset_normalizer==2.0.10',
+	'Cython==3.0.11',
+	'idna==3.3',
+	#'MaterialX==??',
+	'numpy==1.26.4',
+	#'OpenImageIO==??',
+	'pip==24.0',
+	#'pkg_resources==??',
+	#'pxr==??',
+	'pycodestyle==2.12.1',
+	#'PyOpenColorIO==??',
+	#'pyximport==??',
+	'requests==2.27.1',
+	'setuptools==63.2.0',
+	'urllib3==1.26.8',
+	'zstandard==0.16.0',
+	#'pyopenvdb==??',  ## Careful - not on PyPi
 ]
 
 ####################
@@ -38,13 +106,18 @@ supported_platforms = [
 ####################
 [tool.uv]
 managed = true
+conflicts = [
+    [
+      { extra = "bl4_2" },
+      { extra = "bl4_3" },
+      { extra = "bl4_4" },
+    ],
+]
 dev-dependencies = [
-    "mypy>=1.13.0",
-    "pip>=24.2",
-    "rich>=13.9.3",
-    "ruff>=0.7.1",
-    "tomli-w>=1.1.0",
-    "typer>=0.15.1",
+    "basedpyright>=1.28.3",
+    "commitizen>=2.29.3",
+    "pytest>=8.3.5",
+    "ruff>=0.11.2",
 ]
 package = false
 

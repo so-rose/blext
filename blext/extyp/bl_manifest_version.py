@@ -14,12 +14,33 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Entrypoint of the `cli` package.
+"""Defines the Blender extension specification."""
 
-Notes:
-	This allows `blext` to be run using `python -m blext.cli`.
-"""
+import enum
+import functools
 
-from ._entrypoint import entrypoint
+from semver.version import Version
 
-entrypoint()
+from .bl_manifest import BLManifest, BLManifest_1_0_0
+
+
+####################
+# - Manifest 1.0.0
+####################
+class BLManifestVersion(enum.StrEnum):
+	"""Known Blender extension manifest schema versions."""
+
+	V1_0_0 = enum.auto()
+
+	@functools.cached_property
+	def manifest_type(self) -> type[BLManifest]:
+		"""Class representing this Blender manifest schema."""
+		M = BLManifestVersion
+		return {
+			M.V1_0_0: BLManifest_1_0_0,
+		}[self]
+
+	@functools.cached_property
+	def semantic_version(self) -> Version:
+		"""Class representing this Blender manifest schema."""
+		return Version.parse(self)

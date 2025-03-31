@@ -29,13 +29,13 @@ from . import (
 	show_profile,
 )
 from ._context import APP
-from ._entrypoint import main
+from ._entrypoint import entrypoint
 
 __all__ = [
 	'APP',
 	'build',
 	'check',
-	'main',
+	'entrypoint',
 	'run',
 	'show_blender_manifest',
 	'show_deps',

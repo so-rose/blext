@@ -21,7 +21,7 @@ import sys
 import pydantic as pyd
 
 import blext.exceptions as exc
-from blext import blender, finders
+from blext import blender
 
 from ._context import (
 	APP,
@@ -52,11 +52,6 @@ def check(
 		blext_info = blext_info.parse_proj(proj)
 		# blext_location = blext_info.blext_location(global_config)
 
-	with exc.handle(exc.pretty, ValueError):
-		blender_exe = finders.find_blender_exe(
-			override_path_blender_exe=global_config.path_blender_exe
-		)
-
 	if blext_info.path is None:
 		raise NotImplementedError
 
@@ -75,7 +70,9 @@ def check(
 		# - Check: Validate w/Blender
 		####################
 		try:
-			blender.validate_extension(blender_exe, path_zip=path_zip)
+			blender.validate_extension(
+				global_config.path_blender_exe, path_zip=path_zip
+			)
 			checks['blender --command extension validate'] = True
 
 		except ValueError:

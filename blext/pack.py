@@ -21,14 +21,14 @@ import typing as typ
 import zipfile
 from pathlib import Path
 
-from . import spec
+from frozendict import frozendict
+
+from . import extyp
+from .spec import BLExtSpec
 
 
-####################
-# - Pack Extension to ZIP
-####################
 def existing_prepacked_files(
-	all_files_to_prepack: dict[Path, Path],
+	all_files_to_prepack: frozendict[Path, Path] | dict[Path, Path],
 	*,
 	path_zip_prepack: Path,
 ) -> frozenset[Path]:
@@ -66,8 +66,11 @@ def existing_prepacked_files(
 	return frozenset()
 
 
+####################
+# - Prepack Extension
+####################
 def prepack_extension(
-	files_to_prepack: dict[Path, Path],
+	files_to_prepack: frozendict[Path, Path] | dict[Path, Path],
 	*,
 	path_zip_prepack: Path,
 	cb_pre_file_write: typ.Callable[[Path, Path], typ.Any] = lambda *_: None,  # pyright: ignore[reportUnknownLambdaType]
@@ -118,9 +121,13 @@ def prepack_extension(
 			cb_post_file_write(path, zipfile_path)
 
 
-def pack_bl_extension(
-	blext_spec: spec.BLExtSpec,
+####################
+# - Pack Extension
+####################
+def pack_bl_extension(  # noqa: PLR0913
+	blext_spec: BLExtSpec,
 	*,
+	bl_version: extyp.BLVersion,
 	overwrite: bool = True,
 	path_zip_prepack: Path,
 	path_zip: Path,
@@ -137,6 +144,7 @@ def pack_bl_extension(
 			When not set, the prepack step will always run.
 		overwrite: If packing to a zip file that already exists, replace it.
 	"""
+	bl_manifest_version = bl_version.max_manifest_version
 	if not path_zip_prepack.is_file():
 		msg = f'Cannot pack extension, since no pre-packed extension was found at {path_zip_prepack}.'
 		raise RuntimeError(msg)
@@ -156,20 +164,27 @@ def pack_bl_extension(
 		####################
 		# - INSTALL: Blender Manifest => /blender_manifest.toml
 		####################
-		_ = cb_update_status('Writing `blender_manifest.toml`')
+		manifest_filename = blext_spec.bl_manifest(
+			bl_manifest_version, bl_version=bl_version
+		).manifest_filename
+
+		_ = cb_update_status(f'Writing `{manifest_filename}`')
+
 		f_zip.writestr(
-			blext_spec.manifest_filename,
-			blext_spec.export_blender_manifest(fmt='toml'),
+			manifest_filename,
+			blext_spec.export_blender_manifest(
+				bl_manifest_version, bl_version=bl_version, fmt='toml'
+			),
 		)
 
 		####################
-		# - INSTALL: Init Settings => /init_settings.toml
+		# - INSTALL: Release Profile => /init_settings.toml
 		####################
 		if blext_spec.release_profile is not None:
 			_ = cb_update_status('Writing Release Profile to `init_settings.toml`')
 			f_zip.writestr(
 				blext_spec.release_profile.init_settings_filename,
-				blext_spec.export_init_settings(fmt='toml'),
+				blext_spec.release_profile.export_init_settings(fmt='toml'),
 			)
 
 		####################

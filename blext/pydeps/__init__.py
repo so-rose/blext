@@ -16,14 +16,21 @@
 
 """Manage Python dependencies of Blender extensions."""
 
-from . import network, uv
-from .wheel import MANYLINUX_LEGACY_ALIASES, BLExtWheel
-from .wheels_graph import BLExtWheelsGraph
+from . import uv
+from .blext_deps import BLExtDeps
+from .download import download_wheel, download_wheels
+from .pydep import PyDep
+from .pydep_marker import PyDepMarker
+from .pydep_wheel import MANYLINUX_LEGACY_ALIASES, PyDepWheel
 
 __all__ = [
 	'MANYLINUX_LEGACY_ALIASES',
-	'BLExtWheel',
-	'BLExtWheelsGraph',
-	'network',
+	'BLExtDeps',
+	'PyDep',
+	'PyDepMarker',
+	'PyDepWheel',
+	'download_wheel',
+	'download_wheels',
+	'pydep',
 	'uv',
 ]

@@ -14,4 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Utilities for use inside of a running Blender process."""
+"""Types for the CLI user interface."""
+
+from .blext_info import LOCATION_GROUP, SPECIFICATION_GROUP, BLExtUI
+from .global_config import APPAUTHOR, APPNAME, PATH_GLOBAL_CONFIG, GlobalConfig
+
+__all__ = [
+	'APPAUTHOR',
+	'APPNAME',
+	'LOCATION_GROUP',
+	'PATH_GLOBAL_CONFIG',
+	'SPECIFICATION_GROUP',
+	'BLExtUI',
+	'GlobalConfig',
+]

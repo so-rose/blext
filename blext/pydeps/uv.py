@@ -24,30 +24,25 @@ from pathlib import Path
 
 from frozendict import deepfreeze, frozendict
 
-from blext import finders
-
 
 ####################
 # - UV Lock Management
 ####################
 def update_uv_lock(
 	path_uv_lock: Path,
-	override_path_uv_exe: Path | None = None,
+	*,
+	path_uv_exe: Path,
 ) -> None:
 	"""Run `uv lock` within a `uv` project, which generates / update the lockfile `uv.lock`.
 
 	Parameters:
 		path_uv_root: Path to the root directory of a `uv` project.
 	"""
-	# Find uv Executable
-	path_uv = finders.find_uv_exe(override_path_uv_exe=override_path_uv_exe)
 	path_uv_lock = path_uv_lock.resolve()
-
-	# Lock UV
 	if path_uv_lock.name == 'uv.lock':
 		with contextlib.chdir(path_uv_lock.parent):
 			_ = subprocess.run(
-				[str(path_uv), 'lock'],
+				[str(path_uv_exe), 'lock'],
 				check=True,
 				stdout=subprocess.DEVNULL,
 				stderr=subprocess.DEVNULL,
@@ -55,7 +50,7 @@ def update_uv_lock(
 	elif path_uv_lock.name.endswith('.py.lock'):
 		_ = subprocess.run(
 			[
-				str(path_uv),
+				str(path_uv_exe),
 				'lock',
 				'--script',
 				str(path_uv_lock.parent / path_uv_lock.name.removesuffix('.lock')),
@@ -72,11 +67,11 @@ def update_uv_lock(
 def parse_requirements_txt(
 	path_uv_lock: Path,
 	*,
+	path_uv_exe: Path | None = None,
 	include_hashes: bool = False,
 	include_dev: bool = False,
 	include_editable: bool = False,
 	include_comment_header: bool = False,
-	override_path_uv_exe: Path | None = None,
 ) -> tuple[str, ...]:
 	"""Get Python dependencies of a project as lines of a `requirements.txt` file.
 
@@ -88,7 +83,6 @@ def parse_requirements_txt(
 		path_uv_root: Path to the root directory of a `uv` project.
 	"""
 	# Find uv Executable
-	path_uv = finders.find_uv_exe(override_path_uv_exe=override_path_uv_exe)
 	path_uv_lock = path_uv_lock.resolve()
 
 	# Lock UV
@@ -103,7 +97,7 @@ def parse_requirements_txt(
 		with contextlib.chdir(path_uv_lock.parent):
 			result = subprocess.run(
 				[
-					str(path_uv),
+					str(path_uv_exe),
 					'export',
 					*uv_export_cmd_args,
 				],
@@ -115,7 +109,7 @@ def parse_requirements_txt(
 	elif path_uv_lock.name.endswith('.py.lock'):
 		result = subprocess.run(
 			[
-				str(path_uv),
+				str(path_uv_exe),
 				'export',
 				*uv_export_cmd_args,
 				'--script',
@@ -136,8 +130,8 @@ def parse_requirements_txt(
 def parse_uv_lock(
 	path_uv_lock: Path,
 	*,
+	path_uv_exe: Path,
 	force_update: bool = True,
-	override_path_uv_exe: Path | None = None,
 ) -> frozendict[str, typ.Any]:
 	"""Parse a `uv.lock` file.
 
@@ -157,7 +151,10 @@ def parse_uv_lock(
 		## - By default, the lockfile is only generated if it doesn't (yet) exist.
 		## - Otherwise, setting it requires a forced update.
 		if force_update or not path_uv_lock.is_file():
-			update_uv_lock(path_uv_lock, override_path_uv_exe=override_path_uv_exe)
+			update_uv_lock(
+				path_uv_lock,
+				path_uv_exe=path_uv_exe,
+			)
 
 		# Parse the Lockfile
 		if path_uv_lock.is_file():

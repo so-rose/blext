@@ -1,6 +1,11 @@
 version = 1
 revision = 1
 requires-python = ">=3.11, <4"
+resolution-markers = [
+    "python_full_version >= '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version < '3.12'",
+]
 
 [[package]]
 name = "annotated-types"
@@ -71,6 +76,8 @@ dependencies = [
     { name = "annotated-types" },
     { name = "cyclopts" },
     { name = "frozendict" },
+    { name = "networkx" },
+    { name = "packaging" },
     { name = "platformdirs" },
     { name = "pydantic" },
     { name = "pydantic-extra-types", extra = ["semver"] },
@@ -106,6 +113,8 @@ requires-dist = [
     { name = "annotated-types", specifier = ">=0.7.0" },
     { name = "cyclopts", specifier = ">=3.1.5" },
     { name = "frozendict", specifier = ">=2.4.6" },
+    { name = "networkx", specifier = ">=3.4.2" },
+    { name = "packaging", specifier = ">=24.2" },
     { name = "platformdirs", specifier = ">=4.3.6" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "pydantic-extra-types", extras = ["semver"], specifier = ">=2.10.3" },
@@ -776,6 +785,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8e/e7/0691e34e807a8f5c28f0988fcfeeb584f0b569ce433bf341944f14bdb3ff/mkdocstrings_python-1.16.6.tar.gz", hash = "sha256:cefe0f0e17ab4a4611f01b0a2af75e4298664e0ff54feb83c91a485bfed82dc9", size = 201565 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6a/42/ed682687ef5f248e104f82806d5d9893f6dd81d8cb4561692e190ba1a252/mkdocstrings_python-1.16.6-py3-none-any.whl", hash = "sha256:de877dd71f69878c973c4897a39683b7b6961bee7b058879095b69681488453f", size = 123207 },
+]
+
+[[package]]
+name = "networkx"
+version = "3.4.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/1d/06475e1cd5264c0b870ea2cc6fdb3e37177c1e565c43f56ff17a10e3937f/networkx-3.4.2.tar.gz", hash = "sha256:307c3669428c5362aab27c8a1260aa8f47c4e91d3891f48be0141738d8d053e1", size = 2151368 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b9/54/dd730b32ea14ea797530a4479b2ed46a6fb250f682a9cfb997e968bf0261/networkx-3.4.2-py3-none-any.whl", hash = "sha256:df5d4365b724cf81b8c6a7312509d0c22386097011ad1abe274afd5e9d3bbc5f", size = 1723263 },
 ]
 
 [[package]]

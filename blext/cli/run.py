@@ -19,10 +19,7 @@
 import tempfile
 from pathlib import Path
 
-import pydantic as pyd
-
-import blext.exceptions as exc
-from blext import blender, finders
+from blext import blender
 
 from ._context import (
 	APP,
@@ -56,21 +53,16 @@ def run(
 		headless: Run Blender without a GUI.
 		factory_startup: Run Blender with default "factory settings".
 	"""
-	# Find Blender
-	with exc.handle(exc.pretty, ValueError):
-		blender_exe = finders.find_blender_exe(
-			override_path_blender_exe=global_config.path_blender_exe
-		)
+	blext_info = blext_info.parse_proj(proj)
 
-	# Parse 'PROJ'
-	with exc.handle(exc.pretty, ValueError, pyd.ValidationError):
-		blext_info = blext_info.parse_proj(proj)
-
-	# Enforce Platform Detection
+	# Enforce Default Detection of BLPlatform and BLVersion
 	blext_info = blext_info.model_copy(
 		update={
 			'platform': (
 				('detect',) if blext_info.platform == () else blext_info.platform
+			),
+			'bl_version': (
+				('detect',) if blext_info.bl_version == () else blext_info.bl_version
 			),
 		},
 		deep=True,
@@ -97,7 +89,7 @@ def run(
 		CONSOLE.print()
 		CONSOLE.rule('[bold]Running Extension w/Blender[/bold]')
 		blender.run_extension(
-			blender_exe,
+			global_config.path_blender_exe,
 			path_zip=path_zip,
 			headless=headless,
 			factory_startup=factory_startup,

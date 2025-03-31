@@ -15,9 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # /// script
-# requires-python = "==3.11"
+# requires-python = "==3.11.*"
 # dependencies = [
+#   "jupyter-core>=5.7.2",
 #   "numpy==1.24.*",
+#   "polars[async]>=1.26.0",
 #   "scipy==1.15.2",
 # ]
 #
@@ -33,7 +35,7 @@
 # [tool.blext]
 # pretty_name = "Single File Extension Example"
 # blender_version_min = '4.3.0'
-# blender_version_max = '4.3.100'
+# blender_version_max = '4.4.0'
 # bl_tags = ["Development"]
 # copyright = ["2025 blext Contributors"]
 #
@@ -42,8 +44,6 @@
 # 	'macos-arm64',
 # 	'linux-x64',
 # ]
-# min_glibc_version = [2, 20]
-# min_macos_version = [12, 0]
 # ///
 
 import bpy

@@ -18,20 +18,23 @@ import os
 import subprocess
 import sys
 
-from blext import finders
+from blext import uityp
+from blext.utils import pretty_exceptions
 
 
-def main():
+def entrypoint():
 	from . import APP
 
 	####################
 	# - Alias: blext blender
 	####################
 	if len(sys.argv) > 1 and sys.argv[1] == 'blender':
-		blender_exe = finders.find_blender_exe()
+		global_config = uityp.GlobalConfig.from_local(
+			environ=dict(os.environ),
+		)
 
 		bl_process = subprocess.Popen(
-			[blender_exe, *sys.argv[2:]],
+			[str(global_config.path_blender_exe), *sys.argv[2:]],
 			bufsize=0,
 			env=os.environ,
 			stdin=sys.stdin,
@@ -52,10 +55,12 @@ def main():
 	# - Alias: blext uv
 	####################
 	if len(sys.argv) > 1 and sys.argv[1] == 'uv':
-		uv_exe = finders.find_uv_exe()
+		global_config = uityp.GlobalConfig.from_local(
+			environ=dict(os.environ),
+		)
 
 		uv_process = subprocess.Popen(
-			[uv_exe, *sys.argv[2:]],
+			[str(global_config.path_uv_exe), *sys.argv[2:]],
 			bufsize=0,
 			env=os.environ,
 			stdin=sys.stdin,
@@ -72,4 +77,15 @@ def main():
 
 		sys.exit(return_code)
 
+	# TODO: Override global exception handling here.
+	## - Instead of all the exception handler 'with' statements.
+
+	####################
+	# - Install Exception Hook
+	####################
+	sys.excepthook = pretty_exceptions.exception_hook
+
+	####################
+	# - Run CLI
+	####################
 	APP()

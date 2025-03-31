@@ -15,11 +15,3 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Standalone utilities used by `blext`."""
-
-from . import inline_script_metadata, pydantic_frozendict, search_in_parents
-
-__all__ = [
-	'inline_script_metadata',
-	'pydantic_frozendict',
-	'search_in_parents',
-]
