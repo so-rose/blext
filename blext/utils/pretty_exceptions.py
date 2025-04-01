@@ -58,17 +58,22 @@ def exception_hook(
 	if isinstance(ex, pyd.ValidationError):
 		ex_name = f'ValidationError{"s" if ex.error_count() > 1 else ""}'
 		messages = [
-			f'{ex.error_count()} validation errors were encountered:',
+			f'`{ex.title}`: {ex.error_count()} errors were encountered while parsing inputs.',
 			*functools.reduce(
 				operator.add,
 				[
 					[
-						f'> **Field**: {".".join(str(el) for el in err["loc"])}',
+						f'> `{ex.title}.{".".join(str(el) for el in err["loc"])}`',
 						f'> - **Error**: {err["msg"]}.',
-						f'> - **User Input**: `{err["input"]}`',
-						f'> - **More Info**: <{err.get("url")}>'
+						f'> - **Input**: `{err["input"]}`',
+						f'> - **Context**: `{err["ctx"]}`'  # pyright: ignore[reportTypedDictNotRequiredAccess]
+						if err.get('ctx') is not None
+						else '>',
+						'>',
+						f'> **Error Ref**: <{err.get("url")}>'
 						if err.get('url') is not None
 						else '>',
+						'',
 					]
 					for err in ex.errors()
 				],
