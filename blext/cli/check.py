@@ -48,7 +48,6 @@ def check(
 		global_config: Loaded global configuration.
 	"""
 	blext_info = blext_info.parse_proj(proj)
-	# blext_location = blext_info.blext_location(global_config)
 
 	if blext_info.path is None:
 		raise NotImplementedError

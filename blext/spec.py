@@ -497,9 +497,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			project: dict[str, typ.Any] = proj_spec_dict['project']
 		else:
 			msgs = [
-				'**Invalid Extension Specification**:',
-				f'|    `[project]` table was not found in: `{path_proj_spec}`',
-				'|',
+				f'**Invalid Extension Specification**: `{path_proj_spec}` exists, but has no `[project]` table.',
 			]
 			raise ValueError(*msgs)
 
@@ -512,8 +510,12 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			blext_spec_dict: dict[str, typ.Any] = proj_spec_dict['tool']['blext']
 		else:
 			msgs = [
-				'**Invalid Extension Specification**:',
-				f'|    `[tool.blext]` table was not found in: `{path_proj_spec}`',
+				'**Invalid Extension Specification**: No `[tool.blext]` table found.',
+				f'> **Spec Path**: `{path_proj_spec}`',
+				'>',
+				'> **Suggestions**',
+				'> - Is this project an extension?',
+				'> - Add the `[tool.blext]` table. See the documentation for more.',
 			]
 			raise ValueError(*msgs)
 

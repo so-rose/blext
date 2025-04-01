@@ -27,7 +27,7 @@ import platformdirs
 import pydantic as pyd
 import tomli_w
 
-from blext import extyp
+from blext import blender, extyp
 
 from . import detectors
 
@@ -98,17 +98,14 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 	local_bl_platform: extyp.BLPlatform = pyd.Field(
 		default_factory=detectors.detect_local_bl_platform
 	)
-	# TODO: Discover local BLVersions?
 
 	####################
 	# - Properties: Detect Blender Version
 	####################
 	@functools.cached_property
 	def local_default_bl_version(self) -> extyp.BLVersion:
-		"""Default Blender version derived from `self.path_default_blender_exe`."""
-		raise NotImplementedError
-
-		# TODO: Run and parse version from 'blender --version', incl. checking if it's a release version.
+		"""Blender version derived from running `self.path_default_blender_exe` with `--version`."""
+		return blender.detect_blender_version(self.path_default_blender_exe)
 
 	####################
 	# - Properties: Global Paths

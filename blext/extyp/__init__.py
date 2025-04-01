@@ -20,6 +20,7 @@ from . import validators
 from .bl_manifest import BLManifest, BLManifest_1_0_0
 from .bl_manifest_version import BLManifestVersion
 from .bl_platform import BLPlatform
+from .bl_release_discovered import BLReleaseDiscovered
 from .bl_release_official import BLReleaseOfficial
 from .bl_version import BLVersion
 from .bl_version_source import (
@@ -46,6 +47,7 @@ __all__ = [
 	'BLManifestVersion',
 	'BLManifest_1_0_0',
 	'BLPlatform',
+	'BLReleaseDiscovered',
 	'BLReleaseOfficial',
 	'BLVersion',
 	'BLVersionSource',

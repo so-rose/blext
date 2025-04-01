@@ -48,9 +48,9 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 	# - PyDeps Dependency Graph
 	####################
 	@functools.cached_property
-	def pydeps_graph(self) -> nx.DiGraph[str]:
+	def pydeps_graph(self) -> nx.DiGraph:  # pyright: ignore[reportMissingTypeArgument, reportUnknownParameterType]
 		"""Dependency-graph representation of `self.pydeps`."""
-		pydeps_graph: nx.DiGraph[str] = nx.DiGraph()
+		pydeps_graph = nx.DiGraph()  # pyright: ignore[reportUnknownVariableType]
 
 		## Add Nodes as Package Names
 		## - Each node is annotated with a PyDepPyDepWheel
@@ -74,7 +74,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			for pydep_upstream_name, dependency_marker in pydep_downstream.pydep_markers
 		)
 
-		return pydeps_graph
+		return pydeps_graph  # pyright: ignore[reportUnknownVariableType]
 
 	####################
 	# - PyDeps Filtering
@@ -90,7 +90,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 
 		def filter_edge(node_upstream: str, node_downstream: str) -> bool:
 			"""Checks if each marker is `None`, or valid, on the edge between upstream/downstream node."""
-			pydep_marker: PyDepMarker | None = self.pydeps_graph[node_upstream][
+			pydep_marker: PyDepMarker | None = self.pydeps_graph[node_upstream][  # pyright: ignore[reportUnknownMemberType]
 				node_downstream
 			]['marker']
 
@@ -114,9 +114,9 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 							bl_platform=bl_platform,
 						)
 					)
-					for pydep_name in nx.ancestors(  # pyright: ignore[reportUnknownMemberType]
+					for pydep_name in nx.ancestors(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 						nx.subgraph_view(
-							self.pydeps_graph,
+							self.pydeps_graph,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
 							filter_edge=filter_edge,
 						),
 						pydep_name,

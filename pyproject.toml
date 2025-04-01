@@ -68,7 +68,7 @@ dev = [
 package = true
 
 [project.scripts]
-blext = "blext:cli.main"
+blext = "blext:cli.entrypoint"
 
 
 ####################

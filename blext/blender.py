@@ -29,6 +29,8 @@ from pathlib import Path
 
 from frozendict import frozendict
 
+from . import extyp
+
 PATH_BL_INIT: Path = Path(__file__).resolve().parent / 'utils' / 'bl_init.py'
 
 
@@ -196,3 +198,32 @@ def run_extension(
 		),
 		capture=False,
 	)
+
+
+####################
+# - Detect Blender Version
+####################
+def detect_blender_version(blender_exe: Path) -> extyp.BLVersion:
+	"""Detect the version of Blender by running `blender --version`."""
+	bl_process = run_blender(
+		blender_exe,
+		args=('--version',),
+		capture=True,
+	)
+	if bl_process.stdout is None:
+		msg = 'Blender process returned no output.'
+		raise RuntimeError(msg)
+
+	# Extract Version Output String
+	blender_version_output = bl_process.stdout.read()
+	blender_version_output = (
+		blender_version_output
+		if isinstance(blender_version_output, str)
+		else blender_version_output.decode('utf-8')
+	)
+
+	# Extract Version Output String
+	bl_release = extyp.BLReleaseDiscovered.from_blender_version_output(
+		blender_version_output
+	)
+	return bl_release.bl_version
