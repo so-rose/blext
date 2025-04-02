@@ -231,7 +231,7 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 		"""
 		return -sum(
 			[
-				1000 * glibc_version[0] + glibc_version[1]
+				1_000 * glibc_version[0] + glibc_version[1]
 				for glibc_version in self.glibc_versions.values()
 				if glibc_version is not None
 			],
@@ -264,7 +264,7 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 			The value should be deterministic from the platform tags.
 		"""
 		return sum(
-			{'any': 2, 'win32': 1, 'win_amd64': 0}[platform_tag]
+			{'any': 3, 'win_arm64': 2, 'win_amd64': 1, 'win32': 0}[platform_tag]
 			for platform_tag in self.platform_tags
 		)
 
@@ -315,7 +315,7 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 		## - This information is contained in the prefix and suffix of each platform tag.
 
 		# At least one platform tag must end with one of bl_platform's valid architectures.
-		arch_marches = any(
+		arch_matches = any(
 			platform_tag.endswith(pypi_arch)
 			for platform_tag in self.platform_tags
 			for pypi_arch in bl_platform.pypi_arches
@@ -327,7 +327,7 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 			for platform_tag in self.platform_tags
 		)
 
-		if not (arch_marches and os_matches):
+		if not (arch_matches and os_matches):
 			return False
 
 		####################

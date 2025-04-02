@@ -20,6 +20,8 @@ import enum
 import functools
 import typing as typ
 
+from frozendict import frozendict
+
 from .bl_manifest_version import BLManifestVersion
 from .bl_platform import BLPlatform
 from .bl_version import BLVersion
@@ -222,7 +224,7 @@ class BLReleaseOfficial(enum.StrEnum):
 			case v if v.is_4_2 or v.is_4_3 or v.is_4_4 or v.is_4_5:
 				return frozenset({M.V1_0_0})
 			case _:
-				msg = 'Released Blender version was not accounted for in `ReleasedBLVersion.valid_manifest_versions`. Please report this bug.'
+				msg = f'Released Blender version `{self}` was not accounted for in `BLReleaseOfficial.valid_manifest_versions`. Please report this bug.'
 				raise RuntimeError(msg)
 
 	@functools.cached_property
@@ -277,14 +279,14 @@ class BLReleaseOfficial(enum.StrEnum):
 					}
 				)
 			case _:
-				msg = 'Released Blender version was not accounted for in `ReleasedBLVersion.supported_bl_platforms`. Please report this bug.'
+				msg = f'Released Blender version `{self}` was not accounted for in `BLReleaseOfficial.valid_bl_platforms`. Please report this bug.'
 				raise RuntimeError(msg)
 
 	@functools.cached_property
 	def valid_extension_tags(self) -> frozenset[str]:
 		"""Extension tags parseable by this Blender release."""
 		match self:
-			case v if v.is_4_3 or v.is_4_4 or v.is_4_5:
+			case v if v.is_4_2 or v.is_4_3 or v.is_4_4 or v.is_4_5:
 				return frozenset(
 					{
 						'3D View',
@@ -321,7 +323,89 @@ class BLReleaseOfficial(enum.StrEnum):
 					}
 				)
 			case _:
-				msg = 'Released Blender version was not accounted for in `ReleasedBLVersion.supported_bl_platforms`. Please report this bug.'
+				msg = f'Released Blender version `{self}` was not accounted for in `BLReleaseOfficial.valid_extension_tags`. Please report this bug.'
+				raise RuntimeError(msg)
+
+	@functools.cached_property
+	def vendored_site_packages(self) -> frozendict[str, str]:
+		"""Extension tags parseable by this Blender release."""
+		match self:
+			case v if v.is_4_2:
+				return frozendict(
+					{
+						'autopep8': '1.6.0',
+						'certifi': '2021.10.8',
+						'charset_normalizer': '2.0.10',
+						'Cython': '0.29.30',
+						'idna': '3.3',
+						## TODO: MaterialX
+						'numpy': '1.24.3',
+						## TODO: OpenImageIO
+						'pip': '23.2.1',
+						## TODO: pkg_resources
+						## TODO: pxr
+						'pycodestyle': '2.8.0',
+						## TODO: PyOpenColorIO
+						## TODO: pyximport
+						'requests': '2.27.1',
+						'setuptools': '63.2.0',
+						'toml': '0.10.2',
+						'urllib3': '1.26.8',
+						'zstandard': '0.16.0',
+						## TODO: pyopenvdb
+					}
+				)
+			case v if v.is_4_3:
+				return frozendict(
+					{
+						'autopep8': '2.3.1',
+						'certifi': '2021.10.8',
+						'charset_normalizer': '2.0.10',
+						'Cython': '0.29.30',
+						'idna': '3.3',
+						## TODO: MaterialX
+						'numpy': '1.24.3',
+						## TODO: OpenImageIO
+						'pip': '24.0',
+						## TODO: pkg_resources
+						## TODO: pxr
+						'pycodestyle': '2.12.1',
+						## TODO: PyOpenColorIO
+						## TODO: pyximport
+						'requests': '2.27.1',
+						'setuptools': '63.2.0',
+						'urllib3': '1.26.8',
+						'zstandard': '0.16.0',
+						## TODO: pyopenvdb
+					}
+				)
+			case v if v.is_4_4:
+				return frozendict(
+					{
+						'autopep8': '2.3.1',
+						'certifi': '2021.10.8',
+						'charset_normalizer': '2.0.10',
+						'Cython': '3.0.11',
+						'idna': '3.3',
+						## TODO: MaterialX
+						'numpy': '1.26.4',
+						## TODO: OpenImageIO
+						## TODO: oslquery
+						'pip': '24.0',
+						## TODO: pkg_resources
+						## TODO: pxr
+						'pycodestyle': '2.12.1',
+						## TODO: PyOpenColorIO
+						## TODO: pyximport
+						'requests': '2.27.1',
+						'setuptools': '63.2.0',
+						'urllib3': '1.26.8',
+						'zstandard': '0.16.0',
+						## TODO: pyopenvdb
+					}
+				)
+			case _:
+				msg = f'Released Blender version `{self}` was not accounted for in `BLReleaseOfficial.valid_extension_tags`. Please report this bug.'
 				raise RuntimeError(msg)
 
 	####################
@@ -458,7 +542,7 @@ class BLReleaseOfficial(enum.StrEnum):
 		return 'CPython'
 
 	####################
-	# - From
+	# - Creation
 	####################
 	@classmethod
 	def from_official_version_range(
@@ -522,4 +606,5 @@ class BLReleaseOfficial(enum.StrEnum):
 			pymarker_extras=frozenset({self.pymarker_extra}),
 			pymarker_implementation_name=self.pymarker_implementation_name,
 			pymarker_platform_python_implementation=self.pymarker_platform_python_implementation,
+			vendored_site_packages=self.vendored_site_packages,
 		)

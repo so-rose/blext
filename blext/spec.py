@@ -75,22 +75,21 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		- <https://packaging.python.org/en/latest/guides/writing-pyproject-toml>
 	"""
 
-	####################
-	# - Fields
-	####################
-	# Required
+	bl_platforms: typ.Annotated[frozenset[extyp.BLPlatform], atyp.MinLen(1)]
+	deps: BLExtDeps
+	release_profile: extyp.ReleaseProfile | None = None
+
 	id: str
 	name: str
 	tagline: str
 	version: SemanticVersion
+	license: extyp.SPDXLicense
 	blender_version_min: typ.Annotated[
 		str,
 		pyd.StringConstraints(
 			pattern=r'^[4-9]+\.[2-9]+\.[0-9]+$',
 		),
 	]
-
-	# Optional
 	blender_version_max: (
 		typ.Annotated[
 			str,
@@ -100,7 +99,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		]
 		| None
 	) = None
-	bl_platforms: typ.Annotated[frozenset[extyp.BLPlatform], atyp.MinLen(1)]
 	permissions: (
 		FrozenDict[
 			typ.Literal['files', 'network', 'clipboard', 'camera', 'microphone'],
@@ -112,11 +110,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	maintainer: str | None = None
 	tags: frozenset[str] | None = None
 	website: pyd.HttpUrl | None = None
-	license: tuple[extyp.SPDXLicense, ...] | None = None
-
-	# Environment
-	deps: BLExtDeps
-	release_profile: extyp.ReleaseProfile | None = None
 
 	####################
 	# - Core Attributes
@@ -149,10 +142,22 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		idx_smoosh = 0
 		smooshed_bl_versions: list[extyp.BLVersion] = [granular_bl_versions[0]]
 		for granular_bl_version in granular_bl_versions:
-			if smooshed_bl_versions[idx_smoosh].is_smooshable_with(granular_bl_version):
+			if smooshed_bl_versions[idx_smoosh].is_smooshable_with(
+				granular_bl_version,
+				ext_bl_platforms=self.bl_platforms,
+				ext_wheels_python_tags=self.deps.valid_python_tags,
+				ext_wheels_abi_tags=self.deps.valid_abi_tags,
+				ext_tags=self.tags,
+			):
 				smooshed_bl_versions[idx_smoosh] = smooshed_bl_versions[
 					idx_smoosh
-				].smoosh_with(granular_bl_version)
+				].smoosh_with(
+					granular_bl_version,
+					ext_bl_platforms=self.bl_platforms,
+					ext_wheels_python_tags=self.deps.valid_python_tags,
+					ext_wheels_abi_tags=self.deps.valid_abi_tags,
+					ext_tags=self.tags,
+				)
 			else:
 				smooshed_bl_versions.append(granular_bl_version)
 				idx_smoosh += 1
@@ -170,7 +175,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		"""
 		return all(
 			bl_version.valid_bl_platforms.issubset(self.bl_platforms)
-			for bl_version in self.bl_versions
+			for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
 		)
 
 	@functools.cached_property
@@ -185,12 +190,17 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 						self.deps.pydeps_by(
 							pkg_name=self.id,
 							bl_version=bl_version,
-							bl_platform=bl_platform,
+							bl_platforms=frozenset(
+								{
+									bl_platform
+									for bl_platform in self.bl_platforms
+									if bl_platform in bl_version.valid_bl_platforms
+								}
+							),
 						)
-						for bl_platform in self.bl_platforms
 					}
 				)
-				for bl_version in self.bl_versions
+				for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
 			}
 		)
 
@@ -201,17 +211,18 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		"""Python wheels by (smooshed) Blender version and Blender platform."""
 		return frozendict(
 			{
-				bl_version: frozenset(
-					{
-						self.deps.wheels_by(
-							pkg_name=self.id,
-							bl_version=bl_version,
-							bl_platform=bl_platform,
-						)
-						for bl_platform in self.bl_platforms
-					}
+				bl_version: self.deps.wheels_by(
+					pkg_name=self.id,
+					bl_version=bl_version,
+					bl_platforms=frozenset(
+						{
+							bl_platform
+							for bl_platform in self.bl_platforms
+							if bl_platform in bl_version.valid_bl_platforms
+						}
+					),
 				)
-				for bl_version in self.bl_versions
+				for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
 			}
 		)
 
@@ -226,7 +237,9 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				wheel: frozenset(
 					{
 						bl_version
-						for bl_version in self.bl_versions
+						for bl_version in sorted(
+							self.bl_versions, key=lambda el: el.version
+						)
 						if wheel in self.wheels[bl_version]
 					}
 				)
@@ -271,7 +284,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					permissions=self.permissions,
 					platforms=sorted(self.bl_platforms),  # pyright: ignore[reportArgumentType]
 					tags=(tuple(sorted(self.tags)) if self.tags is not None else None),
-					license=self.license,
+					license=(self.license,),
 					copyright=self.copyright,
 					website=str(self.website) if self.website is not None else None,
 					wheels=tuple(
@@ -292,11 +305,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	def export_extension_filenames(
 		self,
 		with_bl_version: bool = True,
-		with_bl_platforms: bool = True,
+		with_bl_platforms: bool = False,
 	) -> frozendict[extyp.BLVersion, str]:
 		"""Default filename of the extension zipfile."""
 		extension_filenames: dict[extyp.BLVersion, str] = {}
-		for bl_version in self.bl_versions:
+		for bl_version in sorted(self.bl_versions, key=lambda el: el.version):
 			basename = f'{self.id}__{self.version}'
 
 			if with_bl_version:
@@ -399,12 +412,17 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		return frozenset(
 			{
 				wheel
-				for bl_version in bl_versions
-				for bl_platform in self.bl_platforms
+				for bl_version in sorted(bl_versions, key=lambda el: el.version)
 				for wheel in self.deps.wheels_by(
 					pkg_name=self.id,
 					bl_version=bl_version,
-					bl_platform=bl_platform,
+					bl_platforms=frozenset(
+						{
+							bl_platform
+							for bl_platform in self.bl_platforms
+							if bl_platform in bl_version.valid_bl_platforms
+						}
+					),
 				)
 				if wheel.is_download_valid(path_wheels / wheel.filename)
 			}
@@ -422,12 +440,17 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		return frozenset(
 			{
 				wheel
-				for bl_version in bl_versions
-				for bl_platform in self.bl_platforms
+				for bl_version in sorted(bl_versions, key=lambda el: el.version)
 				for wheel in self.deps.wheels_by(
 					pkg_name=self.id,
 					bl_version=bl_version,
-					bl_platform=bl_platform,
+					bl_platforms=frozenset(
+						{
+							bl_platform
+							for bl_platform in self.bl_platforms
+							if bl_platform in bl_version.valid_bl_platforms
+						}
+					),
 				)
 				if not wheel.is_download_valid(path_wheels / wheel.filename)
 			}
@@ -440,14 +463,21 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		wheel_paths_to_prepack = {
 			bl_version: {
 				path_wheels / wheel.filename: Path('wheels') / wheel.filename
-				for bl_platform in self.bl_platforms
+				for bl_platform in sorted(self.bl_platforms)
+				if bl_platform in bl_version.valid_bl_platforms
 				for wheel in self.deps.wheels_by(
 					pkg_name=self.id,
 					bl_version=bl_version,
-					bl_platform=bl_platform,
+					bl_platforms=frozenset(
+						{
+							bl_platform
+							for bl_platform in self.bl_platforms
+							if bl_platform in bl_version.valid_bl_platforms
+						}
+					),
 				)
 			}
-			for bl_version in self.bl_versions
+			for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
 		}
 		return deepfreeze(wheel_paths_to_prepack)  # pyright: ignore[reportAny]
 
@@ -632,8 +662,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		# - Parsing: Stage 3
 		####################
 		###: Parse field availability and provide for descriptive errors
-		if blext_spec_dict.get('supported_platforms') is None:
-			field_parse_errs += ['- `tool.blext.supported_platforms` is not defined.']
 		if project.get('name') is None:
 			field_parse_errs += ['- `project.name` is not defined.']
 		if blext_spec_dict.get('pretty_name') is None:
@@ -646,8 +674,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			field_parse_errs += ['- `tool.blext.blender_version_min` is not defined.']
 		if blext_spec_dict.get('blender_version_max') is None:
 			field_parse_errs += ['- `tool.blext.blender_version_max` is not defined.']
-		if blext_spec_dict.get('bl_tags') is None:
-			field_parse_errs += ['- `tool.blext.bl_tags` is not defined.']
 		if blext_spec_dict.get('copyright') is None:
 			field_parse_errs += ['- `tool.blext.copyright` is not defined.']
 			field_parse_errs += [
@@ -666,11 +692,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		####################
 		###: Let pydantic take over the last stage of parsing.
 
-		if (
-			project_requires_python is None
-			or extension_license is None
-			or first_maintainer is None
-		):
+		if project_requires_python is None or extension_license is None:
 			msg = 'While parsing the project specification, some variables attained a theoretically impossible value. This is a serious bug, please report it!'
 			raise RuntimeError(msg)
 
@@ -684,7 +706,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			raise RuntimeError(msg)
 
 		_spec_params = {
-			'wheels_graph': BLExtDeps.from_uv_lock(
+			'bl_platforms': blext_spec_dict.get('supported_platforms'),
+			'deps': BLExtDeps.from_uv_lock(
 				uv.parse_uv_lock(
 					path_uv_lock,
 					path_uv_exe=path_uv_exe,
@@ -692,31 +715,25 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				module_name=project['name'],  # pyright: ignore[reportAny]
 				min_glibc_version=blext_spec_dict.get('min_glibc_version'),
 				min_macos_version=blext_spec_dict.get('min_macos_version'),
-				valid_python_tags=blext_spec_dict.get('valid_python_tags'),
-				valid_abi_tags=blext_spec_dict.get('valid_abi_tags'),
+				valid_python_tags=blext_spec_dict.get('supported_python_tags'),
+				valid_abi_tags=blext_spec_dict.get('supported_abi_tags'),
 			),
-			####################
-			# - Init Settings
-			####################
 			'release_profile': release_profile,
-			####################
-			# - Blender Manifest
-			####################
-			# Basics
 			'id': project['name'],
 			'name': blext_spec_dict['pretty_name'],
-			'version': project['version'],
 			'tagline': project['description'],
-			'maintainer': f'{first_maintainer["name"]} <{first_maintainer["email"]}>',
-			# Blender Compatibility
+			'version': project['version'],
+			'license': f'SPDX:{extension_license}',
 			'blender_version_min': blext_spec_dict['blender_version_min'],
 			'blender_version_max': blext_spec_dict['blender_version_max'],
-			# Permissions
-			'permissions': blext_spec_dict.get('permissions', {}),
-			# Addon Tags
-			'tags': blext_spec_dict['bl_tags'],
-			'license': (f'SPDX:{extension_license}',),
+			'permissions': blext_spec_dict.get('permissions'),
+			'tags': blext_spec_dict.get('bl_tags'),
 			'copyright': blext_spec_dict['copyright'],
+			'maintainer': (
+				f'{first_maintainer["name"]} <{first_maintainer["email"]}>'
+				if first_maintainer is not None
+				else None
+			),
 			'website': homepage,
 		}
 
@@ -780,7 +797,9 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	@classmethod
 	def set_default_bl_platforms_to_universal(cls, data: typ.Any) -> typ.Any:  # pyright: ignore[reportAny]
 		"""Set the default BLPlatforms to the largest common subset of platforms supported by given Blender versions."""
-		if isinstance(data, dict) and 'bl_platforms' not in data:
+		if (isinstance(data, dict) and 'bl_platforms' not in data) or data[
+			'bl_platforms'
+		] is None:
 			if (
 				'blender_version_min' in data
 				and isinstance(data['blender_version_min'], str)
@@ -794,7 +813,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			):
 				released_bl_versions = (
 					extyp.BLReleaseOfficial.from_official_version_range(
-						data['blender_version_min'],
+						data['blender_version_min'],  # pyright: ignore[reportUnknownArgumentType]
 						data.get('blender_version_max'),  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
 					)
 				)

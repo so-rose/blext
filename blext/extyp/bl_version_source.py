@@ -46,7 +46,7 @@ class BLVersionSource(pyd.BaseModel, frozen=True):
 
 			**Do not use `self.version`** either.
 
-			Instead, handle versions in a manner consistent with each particular `BLVersionLocation` subclass.
+			Instead, handle versions in a manner consistent with each particular `BLVersionSource` subclass.
 
 		Notes:
 			- Must correspond to an official releases `>=4.2.0`.
@@ -64,7 +64,7 @@ class BLVersionSource(pyd.BaseModel, frozen=True):
 
 			**Do not use `self.version`** either.
 
-			Instead, handle versions in a manner consistent with each particular `BLVersionLocation` subclass.
+			Instead, handle versions in a manner consistent with each particular `BLVersionSource` subclass.
 
 		Notes:
 			- Must correspond to an official release `>=4.2.1`.
@@ -169,15 +169,18 @@ class BLVersionSources(BLVersionSource, frozen=True):
 	def version(self) -> str:
 		"""Deduce the range of Blender version sources."""
 		if self.are_official_sources_consecutive:
-			if self.official_sources:
-				return f'{self.blender_version_min}-{self.blender_version_max}'
+			if len(self.official_sources) == 1:
+				return next(iter(self.official_sources)).version
+			if len(self.official_sources) > 1:
+				return f'v{self.blender_version_min}-v{self.blender_version_max}'
+
 			return ','.join(
 				[
 					bl_version_location.version
 					for bl_version_location in self.unofficial_sources
 				]
 			)
-		msg = f"'BLVersionLocationSmooshed' doesn't support non-consecutive 'BLVersionLocationOfficial' releases: {self.official_sources}"
+		msg = f"'BLVersionSources' doesn't support non-consecutive 'BLVersionLocationOfficial' releases: {self.official_sources}"
 		raise ValueError(msg)
 
 	@functools.cached_property
@@ -192,7 +195,7 @@ class BLVersionSources(BLVersionSource, frozen=True):
 	def blender_version_max(self) -> str:
 		"""The exact next `M.m.p+1` version is the maximum."""
 		if self.official_sources:
-			return self.official_sources[0].blender_version_max
+			return self.official_sources[-1].blender_version_max
 
 		raise NotImplementedError
 
@@ -256,8 +259,9 @@ class BLVersionSources(BLVersionSource, frozen=True):
 				):
 					return False
 
-				major_counter += 1
-				minor_counter = 0
-				patch_counter = 0
+				else:
+					major_counter += 1
+					minor_counter = 0
+					patch_counter = 0
 
 		return True

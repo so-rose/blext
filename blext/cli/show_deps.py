@@ -66,10 +66,22 @@ def show_deps(
 	# - UI: Create Table w/Wheel Data
 	####################
 	if format == 'table':
+		bl_version_strs = {
+			wheel: ', '.join(
+				[
+					bl_version.version
+					for bl_version in blext_spec.bl_versions_by_wheel[wheel]
+				]
+			)
+			for wheel in blext_wheels
+		}
+		all_the_same = len(set(bl_version_strs.values())) == 1
+
 		table = rich.table.Table()
 		table.add_column('Name')
 		table.add_column('Version', no_wrap=True)
-		table.add_column('BL')
+		if not all_the_same:
+			table.add_column('BL')
 		table.add_column('Platforms')
 		table.add_column('Py|ABI', no_wrap=True)
 		table.add_column('Size', no_wrap=True)
@@ -78,12 +90,7 @@ def show_deps(
 			table.add_row(
 				wheel.project,
 				wheel.version,
-				', '.join(
-					[
-						bl_version.version
-						for bl_version in blext_spec.bl_versions_by_wheel[wheel]
-					]
-				),
+				*([bl_version_strs[wheel]] if not all_the_same else []),
 				', '.join(list(wheel.platform_tags)),
 				', '.join(list(wheel.python_tags))
 				+ '|'
@@ -94,7 +101,15 @@ def show_deps(
 		table.add_row(
 			f'={len(blext_wheels)} wheels',
 			'',
-			', '.join([bl_version.version for bl_version in blext_spec.bl_versions]),
+			*(
+				[
+					', '.join(
+						[bl_version.version for bl_version in blext_spec.bl_versions]
+					)
+				]
+				if not all_the_same
+				else []
+			),
 			', '.join(blext_spec.bl_platforms),
 			'',
 			'',

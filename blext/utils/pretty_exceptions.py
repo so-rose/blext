@@ -64,8 +64,8 @@ def exception_hook(
 				[
 					[
 						f'> `{ex.title}.{".".join(str(el) for el in err["loc"])}`',
-						f'> - **Error**: {err["msg"]}.',
 						f'> - **Input**: `{err["input"]}`',
+						f'> - **Error**: {err["msg"]}.',
 						f'> - **Context**: `{err["ctx"]}`'  # pyright: ignore[reportTypedDictNotRequiredAccess]
 						if err.get('ctx') is not None
 						else '>',
@@ -98,6 +98,7 @@ def exception_hook(
 
 	# Present
 	ERROR_CONSOLE.print(
+		'\n',
 		f'[bold red]{ex_name}[/bold red]',
 		'\n',
 		md_messages,

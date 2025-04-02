@@ -30,7 +30,7 @@ from .bl_manifest import BLManifest, BLManifest_1_0_0
 class BLManifestVersion(enum.StrEnum):
 	"""Known Blender extension manifest schema versions."""
 
-	V1_0_0 = enum.auto()
+	V1_0_0 = '1.0.0'
 
 	@functools.cached_property
 	def manifest_type(self) -> type[BLManifest]:

@@ -108,7 +108,7 @@ def is_copyright_name_valid(s: str) -> bool:
 
 def wheel_filename_has_no_double_quotes(s: str) -> bool:
 	"""Whether `s`, a wheel filename, contains double quotes."""
-	return r'"' in s
+	return r'"' not in s
 
 
 def wheel_filename_has_no_backward_slashes(s: str) -> bool:
@@ -119,7 +119,7 @@ def wheel_filename_has_no_backward_slashes(s: str) -> bool:
 
 		It should be noted that the error message in this snippet claims to be checking for "forward slashes", when in fact it checks for backslash characters.
 	"""
-	return '\\' in s
+	return '\\' not in s
 
 
 def lowercase_wheel_filename_endswith_whl(s: str) -> bool:

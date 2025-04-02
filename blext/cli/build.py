@@ -79,7 +79,7 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 				rich.markdown.Markdown(
 					'\n'.join(
 						[
-							f'Selected **all {len(bl_versions)} extension-supported Blender version** chunks:',
+							f'Selected **all {len(bl_versions)} ext-supported Blender version** chunk(s):',
 							*[
 								f'- `{bl_version.version}`'
 								for bl_version in sorted(
@@ -88,7 +88,8 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 							],
 						]
 					)
-				)
+				),
+				'',
 			)
 
 		case ('detect',):
@@ -113,7 +114,8 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 							],
 						]
 					)
-				)
+				),
+				'',
 			)
 
 	####################
@@ -125,14 +127,15 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 				rich.markdown.Markdown(
 					'\n'.join(
 						[
-							f'Selected **all {len(blext_spec.bl_platforms)} extension-supported platforms**:',
+							f'Selected **all {len(blext_spec.bl_platforms)} ext-supported platform(s)**:',
 							*[
 								f'- `{bl_platform}`'
 								for bl_platform in sorted(blext_spec.bl_platforms)
 							],
 						]
 					)
-				)
+				),
+				'',
 			)
 		case ('detect',):
 			bl_platform = next(iter(blext_spec.bl_platforms))
@@ -153,8 +156,37 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 							],
 						]
 					)
+				),
+				'',
+			)
+
+	if any(
+		[
+			blext_spec.deps.min_glibc_version is not None,
+			blext_spec.deps.min_macos_version is not None,
+			blext_spec.deps.valid_python_tags is not None,
+			blext_spec.deps.valid_abi_tags is not None,
+		]
+	):
+		if blext_spec.deps.min_glibc_version is not None:
+			CONSOLE.print(
+				rich.markdown.Markdown(
+					f'Using **modified platform support** `min_glibc_version={list(blext_spec.deps.min_glibc_version)}`'
 				)
 			)
+		if blext_spec.deps.min_macos_version is not None:
+			CONSOLE.print(
+				rich.markdown.Markdown(
+					f'Using **modified platform support**: `min_macos_version={list(blext_spec.deps.min_macos_version)}`'
+				)
+			)
+		if blext_spec.deps.valid_python_tags is not None:
+			CONSOLE.print(
+				rich.markdown.Markdown(
+					f'Using **modified platform support**: `valid_python_tags={sorted(blext_spec.deps.valid_python_tags)}`'
+				)
+			)
+		CONSOLE.print()
 
 	####################
 	# - Select Paths
@@ -196,7 +228,9 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	####################
 	if wheels_in_cache:
 		CONSOLE.print(
-			f'Found [bold]{len(wheels_in_cache)} wheel(s)[/bold] in download cache'
+			rich.markdown.Markdown(
+				f'Found **{len(wheels_in_cache)} wheel(s)** in cache'
+			)
 		)
 
 	with ui.ui_download_wheels(
@@ -211,19 +245,26 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 			cb_finish_wheel_download=ui_callbacks.cb_finish_wheel_download,
 		)
 
-	if wheels_to_download:
-		CONSOLE.print(f'Downloaded [bold]{len(wheels_to_download)} wheel(s)[/bold]')
+	CONSOLE.print(
+		rich.markdown.Markdown(f'Downloaded **{len(wheels_to_download)} wheel(s)**')
+	)
 
 	####################
 	# - Pre-Pack Extension
 	####################
 	for bl_version in bl_versions:
+		CONSOLE.print()
+		CONSOLE.print(
+			rich.markdown.Markdown(f'**Pre-Packing** for `{bl_version.version}`')
+		)
 		files_in_prepack_cache = pack.existing_prepacked_files(
 			files_in_prepack[bl_version], path_zip_prepack=path_zip_prepacks[bl_version]
 		)
 		if files_in_prepack_cache:
 			CONSOLE.print(
-				f'Found [bold]{len(files_in_prepack_cache)} file(s)[/bold] in pre-pack cache for Blender version(s) `{bl_version.version}`'
+				rich.markdown.Markdown(
+					f'Found **{len(files_in_prepack_cache)} pre-packed file(s)** in cache'
+				)
 			)
 
 		files_to_prepack = {
@@ -244,7 +285,9 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 
 		if files_in_prepack:
 			CONSOLE.print(
-				f'Pre-packed [bold]{len(files_to_prepack)} file(s)[/bold] for Blender version(s) `{bl_version.version}`'
+				rich.markdown.Markdown(
+					f'Pre-Packed **{len(files_to_prepack)} file(s)**'
+				)
 			)
 
 	####################
@@ -278,9 +321,15 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 		rich.markdown.Markdown(
 			'\n'.join(
 				[
-					f'Built extension [bold]{blext_spec.id}[/bold] to:',
+					f'Built `{blext_spec.id}` extension(s):',
+					'',
 					*[
-						f'- `{bl_version.version}`: {path_zips[bl_version]}`'
+						'\n'.join(
+							[
+								f'- {path_zips[bl_version]}',
+								'',
+							]
+						)
 						for bl_version in blext_info.bl_versions(global_config)
 					],
 				]

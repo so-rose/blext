@@ -33,6 +33,8 @@ import typing as typ
 import pydantic as pyd
 from frozendict import deepfreeze, frozendict
 
+from blext.utils.pydantic_frozendict import FrozenDict
+
 from .bl_manifest_version import BLManifestVersion
 from .bl_platform import BLPlatform
 from .bl_version_source import BLVersionSource, BLVersionSources
@@ -68,6 +70,9 @@ class BLVersion(pyd.BaseModel, frozen=True):
 	pymarker_extras: frozenset[str]
 	pymarker_implementation_name: str
 	pymarker_platform_python_implementation: str
+
+	# Bundled site-packages
+	vendored_site_packages: FrozenDict[str, str]
 
 	####################
 	# - Version String
@@ -206,6 +211,7 @@ class BLVersion(pyd.BaseModel, frozen=True):
 			for bl_platform in self.valid_bl_platforms
 		}
 
+		_initial_frozenset: frozenset[str] = frozenset()
 		pymarker_environments = {
 			bl_platform: [
 				{
@@ -221,24 +227,14 @@ class BLVersion(pyd.BaseModel, frozen=True):
 					'sys_platform': bl_platform.pymarker_sys_platform,
 					'extra': pymarker_extra,
 				}
-				for platform_machine, pymarker_extra in zip(
-					[
-						*(
-							pymarker_platform_machines[bl_platform]
-							if pkg_name is None
-							else pymarker_platform_machines[bl_platform]
-							+ pymarker_platform_machines[bl_platform]
-						)
-					],
-					[
-						*self.pymarker_extras,
-						*(
-							[]
-							if pkg_name is None
-							else self.pymarker_encoded_package_extras(pkg_name)
-						),
-					],
-					strict=True,
+				for platform_machine in pymarker_platform_machines[bl_platform]
+				for pymarker_extra in (
+					self.pymarker_extras
+					| (
+						_initial_frozenset
+						if pkg_name is None
+						else self.pymarker_encoded_package_extras(pkg_name)
+					)
 				)
 			]
 			for bl_platform in self.valid_bl_platforms
@@ -294,7 +290,7 @@ class BLVersion(pyd.BaseModel, frozen=True):
 				if ext_wheels_python_tags is None
 				else (
 					ext_wheels_python_tags.issubset(self.valid_python_tags)
-					and ext_wheels_python_tags.issubset(other.valid_bl_platforms)
+					and ext_wheels_python_tags.issubset(other.valid_python_tags)
 				)
 			)
 			# ABI tags must match.
@@ -304,8 +300,8 @@ class BLVersion(pyd.BaseModel, frozen=True):
 				self.valid_abi_tags == other.valid_abi_tags
 				if ext_wheels_abi_tags is None
 				else (
-					ext_wheels_abi_tags.issubset(self.valid_python_tags)
-					and ext_wheels_abi_tags.issubset(other.valid_bl_platforms)
+					ext_wheels_abi_tags.issubset(self.valid_abi_tags)
+					and ext_wheels_abi_tags.issubset(other.valid_abi_tags)
 				)
 			)
 			# Available / valid extension tags must match.
@@ -368,6 +364,7 @@ class BLVersion(pyd.BaseModel, frozen=True):
 				pymarker_extras=self.pymarker_extras | other.pymarker_extras,
 				pymarker_implementation_name=self.pymarker_implementation_name,
 				pymarker_platform_python_implementation=self.pymarker_platform_python_implementation,
+				vendored_site_packages=self.vendored_site_packages,
 			)
 
 		msg = "Tried to 'smoosh' two incompatible BLVersions together."

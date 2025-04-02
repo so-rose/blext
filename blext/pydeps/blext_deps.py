@@ -34,7 +34,7 @@ from .pydep_wheel import PyDepWheel
 class BLExtDeps(pyd.BaseModel, frozen=True):
 	"""All Python dependencies needed by a Blender extension."""
 
-	pydeps: FrozenDict[str, PyDep]
+	pydeps: FrozenDict[tuple[str, str], PyDep]
 	target_pydeps: FrozenDict[str, PyDepMarker | None]
 
 	# PyDepWheel Constraint Overrides
@@ -56,22 +56,33 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		## - Each node is annotated with a PyDepPyDepWheel
 		pydeps_graph.add_nodes_from(  # pyright: ignore[reportUnknownMemberType]
 			(
-				pydep_name,
+				(pydep_name, pydep_version),
 				{'pydep': pydep},
 			)
-			for pydep_name, pydep in self.pydeps.items()
+			for (pydep_name, pydep_version), pydep in self.pydeps.items()
 		)
 
 		## Add Edges w/Markers
 		## - Each edge may have a "marker" denoting a conditional dependency.
 		pydeps_graph.add_edges_from(  # pyright: ignore[reportUnknownMemberType]
 			(
-				pydep_upstream_name,
-				pydep_downstream_name,
+				(
+					pydep_upstream_name,
+					pydep_upsteam_version,
+				),
+				(pydep_downstream_name, pydep_downstream_version),
 				{'marker': dependency_marker},
 			)
-			for pydep_downstream_name, pydep_downstream in self.pydeps.items()
-			for pydep_upstream_name, dependency_marker in pydep_downstream.pydep_markers
+			for (
+				pydep_downstream_name,
+				pydep_downstream_version,
+			), pydep_downstream in self.pydeps.items()
+			for pydep_upstream_name, dependency_marker in pydep_downstream.pydep_markers.items()
+			for pydep_upsteam_version in [
+				pydep_version
+				for pydep_name, pydep_version in self.pydeps
+				if pydep_upstream_name == pydep_name
+			]
 		)
 
 		return pydeps_graph  # pyright: ignore[reportUnknownVariableType]
@@ -84,49 +95,112 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		*,
 		pkg_name: str,
 		bl_version: extyp.BLVersion,
-		bl_platform: extyp.BLPlatform,
+		bl_platforms: frozenset[extyp.BLPlatform],
 	) -> frozendict[str, PyDep]:
 		"""All Python dependencies needed by the given Python environment."""
 
-		def filter_edge(node_upstream: str, node_downstream: str) -> bool:
+		def filter_edge(
+			node_upstream: tuple[str, str],
+			node_downstream: tuple[str, str],
+		) -> bool:
 			"""Checks if each marker is `None`, or valid, on the edge between upstream/downstream node."""
 			pydep_marker: PyDepMarker | None = self.pydeps_graph[node_upstream][  # pyright: ignore[reportUnknownMemberType]
 				node_downstream
 			]['marker']
 
-			return pydep_marker is None or pydep_marker.is_valid_for(
-				pkg_name=pkg_name,
-				bl_version=bl_version,
-				bl_platform=bl_platform,
+			return pydep_marker is None or any(
+				pydep_marker.is_valid_for(
+					pkg_name=pkg_name,
+					bl_version=bl_version,
+					bl_platform=bl_platform,
+				)
+				for bl_platform in bl_platforms
 			)
 
-		if bl_platform in bl_version.valid_bl_platforms:
-			return frozendict(
+		if any(
+			bl_platform in bl_version.valid_bl_platforms for bl_platform in bl_platforms
+		):
+			valid_pydep_target_names = {
+				pydep_target_name
+				for bl_platform in bl_platforms
+				for pydep_target_name, pydep_marker in self.target_pydeps.items()
+				if (
+					pydep_marker is None
+					or pydep_marker.is_valid_for(
+						pkg_name=pkg_name,
+						bl_version=bl_version,
+						bl_platform=bl_platform,
+					)
+				)
+			}
+			valid_pydep_targets: set[tuple[str, str]] = {
+				next(
+					iter(
+						(pydep_target_name, pydep_version)
+						for pydep_name, pydep_version in self.pydeps
+						if pydep_target_name == pydep_name
+					)
+				)
+				for pydep_target_name in valid_pydep_target_names
+			}
+			valid_pydep_ancestors: set[tuple[str, str]] = {
+				(pydep_ancestor_name, pydep_ancestor_version)
+				for pydep_target_name, pydep_target_version in valid_pydep_targets
+				for pydep_ancestor_name, pydep_ancestor_version in nx.ancestors(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+					nx.subgraph_view(
+						self.pydeps_graph,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+						filter_edge=filter_edge,
+					),
+					(pydep_target_name, pydep_target_version),
+				)
+				if (
+					pydep_ancestor_name not in bl_version.vendored_site_packages
+					or (
+						pydep_ancestor_version
+						== bl_version.vendored_site_packages[pydep_ancestor_name]
+					)
+				)
+			}
+
+			pydeps: frozendict[str, PyDep] = frozendict(
 				{
-					self.pydeps[pydep_name]
-					for pydep_name in (
-						pydep_name
-						for pydep_name, pydep_marker in self.target_pydeps.items()
-						if pydep_marker is None
-						or pydep_marker.is_valid_for(
-							pkg_name=pkg_name,
-							bl_version=bl_version,
-							bl_platform=bl_platform,
-						)
+					pydep_name: self.pydeps[(pydep_name, pydep_version)]
+					for pydep_name, pydep_version in sorted(
+						valid_pydep_targets | valid_pydep_ancestors,
+						key=lambda el: el[0],
 					)
-					for pydep_name in nx.ancestors(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-						nx.subgraph_view(
-							self.pydeps_graph,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-							filter_edge=filter_edge,
-						),
-						pydep_name,
-					)
-					# TODO: Exclude each bl_version's no-no list.
-					## - Also, some kind of error if someone's trying to include something from the no-no list.
 				}
 			)
 
-		msg = f'Given `bl_platform` (`{bl_platform}`) is not supported by the given Blender version (`{bl_version.version}`).'
+			# PyDeps that overlap with vendored site-packages must be identical.
+			err_site_packages_overlap: list[str] = []
+			for pydep_name, pydep in pydeps.items():
+				if (
+					pydep_name in bl_version.vendored_site_packages
+					and pydep.version != bl_version.vendored_site_packages[pydep_name]
+				):
+					err_site_packages_overlap.extend(
+						[
+							f'**Conflict**: Requested version of **{pydep_name}** conflicts with vendored `site-packages` of Blender `{bl_version.version}`.',
+							f'> **Provided by Blender `{bl_version.version}`**: `{pydep_name}=={bl_version.vendored_site_packages[pydep_name]}`',
+							'>',
+							f'> **Requested**: `{pydep_name}=={pydep.version}`',
+							'',
+						]
+					)
+
+			if err_site_packages_overlap:
+				raise ValueError(*err_site_packages_overlap)
+
+			return frozendict(
+				{
+					pydep_name: pydep
+					for pydep_name, pydep in pydeps.items()
+					if pydep_name not in bl_version.vendored_site_packages
+				}
+			)
+
+		msg = f'A given `bl_platform` in `{bl_platforms}` is not supported by the given Blender version (`{bl_version.version}`).'
 		raise ValueError(msg)
 
 	####################
@@ -137,67 +211,95 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		*,
 		pkg_name: str,
 		bl_version: extyp.BLVersion,
-		bl_platform: extyp.BLPlatform,
+		bl_platforms: frozenset[extyp.BLPlatform],
 	) -> frozenset[PyDepWheel]:
 		"""All wheels needed for a Blender extension.
 
 		Notes:
 			Computed from `self.validated_graph`.
 		"""
-		err_msgs: list[str] = []
-		wheels: frozenset[PyDepWheel | None] = frozenset(
-			{
-				pydep.select_wheel(
-					bl_platform=bl_platform,
-					min_glibc_version=(
-						bl_version.min_glibc_version
-						if self.min_glibc_version is None
-						else self.min_glibc_version
-					),
-					min_macos_version=(
-						bl_version.min_macos_version
-						if self.min_macos_version is None
-						else self.min_macos_version
-					),
-					valid_python_tags=(
-						bl_version.valid_python_tags
-						if self.valid_python_tags is None
-						else self.valid_python_tags
-					),
-					valid_abi_tags=(
-						bl_version.valid_abi_tags
-						if self.valid_abi_tags is None
-						else self.valid_abi_tags
-					),
-					err_msgs=err_msgs,
-				)
-				for pydep in self.pydeps_by(
-					pkg_name=pkg_name, bl_version=bl_version, bl_platform=bl_platform
-				).values()
-			}
-		)
-		if all(wheel is not None for wheel in wheels):
-			return wheels  # pyright: ignore[reportReturnType]
+		err_msgs: dict[extyp.BLPlatform, list[str]] = {
+			bl_platform: [] for bl_platform in bl_platforms
+		}
+		pydep_wheels = {
+			pydep: pydep.select_wheels(
+				bl_platforms=bl_platforms,
+				min_glibc_version=(
+					bl_version.min_glibc_version
+					if self.min_glibc_version is None
+					else self.min_glibc_version
+				),
+				min_macos_version=(
+					bl_version.min_macos_version
+					if self.min_macos_version is None
+					else self.min_macos_version
+				),
+				valid_python_tags=(
+					bl_version.valid_python_tags
+					if self.valid_python_tags is None
+					else self.valid_python_tags
+				),
+				valid_abi_tags=(
+					bl_version.valid_abi_tags
+					if self.valid_abi_tags is None
+					else self.valid_abi_tags
+				),
+				target_descendants=frozenset(
+					{  # pyright: ignore[reportUnknownArgumentType]
+						node
+						for node in nx.descendants(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+							self.pydeps_graph,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+							(pydep.name, pydep.version),
+						)
+						if self.pydeps_graph.out_degree(node) == 0  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+					}
+				),
+				err_msgs=err_msgs,
+			)
+			for pydep in self.pydeps_by(
+				pkg_name=pkg_name,
+				bl_version=bl_version,
+				bl_platforms=bl_platforms,
+			).values()
+		}
 
-		err_msgs.append(
-			f'**Missing Dependencies**: {sum(wheel is None for wheel in wheels)}'
+		num_missing_dependencies = sum(
+			len(wheels_by_platform) == 0
+			for _, wheel_selections in pydep_wheels.items()
+			for _, wheels_by_platform in wheel_selections.items()
 		)
-		err_msgs.extend([])
-		raise ValueError(*err_msgs)
+		if num_missing_dependencies == 0:
+			return frozenset(
+				{
+					wheel
+					for _, wheel_selections in pydep_wheels.items()
+					for _, wheels_by_platform in wheel_selections.items()
+					for wheel in wheels_by_platform
+				}
+			)
+
+		raise ValueError(
+			*[
+				err_msg
+				for bl_platform_err_msgs in err_msgs.values()
+				for err_msg in bl_platform_err_msgs
+			],
+			f'**Missing Wheels** for `{bl_version.version}`: {num_missing_dependencies}',
+		)
 
 	def total_size_bytes_by(
 		self,
 		*,
 		pkg_name: str,
 		bl_version: extyp.BLVersion,
-		bl_platform: extyp.BLPlatform,
+		bl_platforms: frozenset[extyp.BLPlatform],
 	) -> pyd.ByteSize:
 		"""Total size of all wheels."""
 		return pyd.ByteSize(
 			sum(
 				int(wheel.size)
 				for wheel in self.wheels_by(
-					pkg_name=pkg_name, bl_version=bl_version, bl_platform=bl_platform
+					pkg_name=pkg_name, bl_version=bl_version, bl_platforms=bl_platforms
 				)
 			)
 		)
@@ -237,10 +339,11 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		## - Projects: [[package]] list has extension package AND only upstream dependencies.
 		## - Single-File Scripts: [[package]] list has only upstream dependencies.
 		if 'package' not in uv_lock:
-			pydeps: dict[str, PyDep] = {}  ## No PyDeps
+			pydeps: dict[tuple[str, str], PyDep] = {}  ## No PyDeps
 		else:
 			pydeps = {
-				nrm_name(package['name']): PyDep(  # pyright: ignore[reportAny]
+				# TODO: Index by a tuple (name, version) to deal with deps that have differing versions across Blender versions
+				(nrm_name(package['name']), package['version']): PyDep(  # pyright: ignore[reportAny]
 					name=nrm_name(package['name']),  # pyright: ignore[reportAny]
 					version=package['version'],  # pyright: ignore[reportAny]
 					registry=package['source']['registry'],  # pyright: ignore[reportAny]
@@ -261,20 +364,21 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 							nrm_name(dependency['name']): (  # pyright: ignore[reportAny]
 								PyDepMarker(marker_str=dependency['marker'])  # pyright: ignore[reportAny]
 								if 'marker' in dependency
-								else None,
+								else None
 							)
 							for dependency in [  # pyright: ignore[reportAny]
 								# Always include mandatory dependencies.
-								*package['dependencies'],
+								*package.get('dependencies', []),  # pyright: ignore[reportAny]
 								# Always include "all" optional dependencies.
 								## - uv has already worked out which optional deps are needed.
 								## - Unused [optional-dependencies] simply aren't in uv.lock.
 								## - So, it's safe to pretend that they are all normal dependencies.
 								*[
 									resolved_opt_dependency
-									for resolved_opt_dependencies in package[  # pyright: ignore[reportAny]
-										'optional-dependencies'
-									].values()
+									for resolved_opt_dependencies in package.get(  # pyright: ignore[reportAny]
+										'optional-dependencies',
+										{},
+									).values()
 									for resolved_opt_dependency in resolved_opt_dependencies  # pyright: ignore[reportAny]
 								],
 							]

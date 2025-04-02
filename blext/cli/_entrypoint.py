@@ -77,9 +77,6 @@ def entrypoint():
 
 		sys.exit(return_code)
 
-	# TODO: Override global exception handling here.
-	## - Instead of all the exception handler 'with' statements.
-
 	####################
 	# - Install Exception Hook
 	####################

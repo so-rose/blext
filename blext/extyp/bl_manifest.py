@@ -124,7 +124,6 @@ class BLManifest_1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
 	tagline: typ.Annotated[
 		str,
 		atyp.MaxLen(64),
-		atyp.Predicate(str.isidentifier),
 		atyp.Predicate(validators.no_dunder_in_string),
 		atyp.Predicate(validators.no_str_startswith_underscore),
 		atyp.Predicate(validators.no_str_endswith_underscore),

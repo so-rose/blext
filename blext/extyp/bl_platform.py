@@ -54,6 +54,12 @@ class BLPlatform(enum.StrEnum):
 	windows_x64 = 'windows-x64'
 	windows_arm64 = 'windows-arm64'
 
+	@functools.cached_property
+	def is_windows(self) -> bool:
+		"""Whether this is a Windows-based platform."""
+		P = BLPlatform
+		return self is P.windows_x64 or self is P.windows_arm64
+
 	####################
 	# - PyPi Information
 	####################
@@ -119,8 +125,8 @@ class BLPlatform(enum.StrEnum):
 			BLP.linux_arm64: 'manylinux_',
 			BLP.macos_x64: 'macosx_',
 			BLP.macos_arm64: 'macosx_',
-			BLP.windows_x64: 'windows_',
-			BLP.windows_arm64: 'windows_',
+			BLP.windows_x64: 'win',
+			BLP.windows_arm64: 'win',
 		}[self]
 
 	####################
