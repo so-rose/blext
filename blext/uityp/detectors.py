@@ -21,10 +21,10 @@ import platform
 import shutil
 from pathlib import Path
 
-from blext import extyp
+from blext.extyp.bl_platform import BLPlatform
 
 
-def detect_local_bl_platform() -> extyp.BLPlatform:
+def detect_local_bl_platform() -> BLPlatform:
 	"""Deduce the local Blender platform from `platform.system()` and `platform.machine()`.
 
 	Warning:
@@ -45,31 +45,53 @@ def detect_local_bl_platform() -> extyp.BLPlatform:
 
 	match (platform_system, platform_machine):
 		case ('linux' | 'linux2', 'x86_64' | 'amd64'):
-			return extyp.BLPlatform.linux_x64
+			return BLPlatform.linux_x64
 		case ('linux' | 'linux2', arch) if arch.startswith(('aarch64', 'arm')):
-			return extyp.BLPlatform.linux_arm64
+			return BLPlatform.linux_arm64
 		case ('darwin', 'x86_64' | 'amd64'):
-			return extyp.BLPlatform.macos_x64
+			return BLPlatform.macos_x64
 		case ('darwin', arch) if arch.startswith(('aarch64', 'arm')):
-			return extyp.BLPlatform.macos_arm64
+			return BLPlatform.macos_arm64
 		case ('win32' | 'cygwin' | 'msys', 'x86_64' | 'amd64'):
-			return extyp.BLPlatform.windows_x64
+			return BLPlatform.windows_x64
 		case ('win32' | 'cygwin' | 'msys', arch) if arch.startswith(('aarch64', 'arm')):
-			return extyp.BLPlatform.windows_arm64
+			return BLPlatform.windows_arm64
 		case _:
-			msg = f"Could not detect a local operating system supported by Blender from 'platform.system(), platform.machine() = {platform_system}, {platform_machine}'"
-			raise ValueError(msg)
+			msgs = [
+				'**Unknown Platform**: Could not detect a local Blender platform.',
+				'> **Detected Platform Information**:',
+				f'> - `platform.system().lower()`: {platform_system}',
+				f'> - `platform.machine().lower()`: {platform_machine}',
+				f'> - **(OS, Arch) Pair**: `{platform_system}, {platform_machine}`',
+				'',
+				'> **Detectable (OS, Arch) Pairs**:',
+				*[
+					'> - `linux|linux2, x86_64|amd64`',
+					'> - `linux|linux2, aarch64|arm*`',
+					'> - `darwin, x86_64|amd64`',
+					'> - `darwin, aarch64|arm*`',
+					'> - `win32|cygwin|msys, x86_64|amd64`',
+					'> - `win32|cygwin|msys, aarch64|arm*`',
+				],
+				'>',
+				'> **Remedies**:',
+				"> 1. Report a bug in `blext`, requesting that support be added for your platform. _Make sure you copy/paste this entire error message and describe which OS / architecture you're trying to run `blext` on_.",
+				'> 2. Run `blext` on a supported platform. _Platforms supported by `blext` must have a detectable (OS, Arch) pair._',
+			]
+			raise RuntimeError(*msgs)
 
 
-def find_blender_exe() -> Path:
+def find_blender_exe(local_bl_platform: BLPlatform | None = None) -> Path:
 	"""Locate the Blender executable, using the current platform as a hint.
 
 	Returns:
 		Absolute path to a valid Blender executable, as a string.
 	"""
-	bl_platform = detect_local_bl_platform()
-	match bl_platform:
-		case extyp.BLPlatform.linux_x64 | extyp.BLPlatform.linux_arm64:
+	local_bl_platform = (
+		detect_local_bl_platform() if local_bl_platform is None else local_bl_platform
+	)
+	match local_bl_platform:
+		case BLPlatform.linux_x64 | BLPlatform.linux_arm64:
 			blender_exe = shutil.which('blender')
 			if blender_exe is not None:
 				return Path(blender_exe)
@@ -77,7 +99,7 @@ def find_blender_exe() -> Path:
 			msg = "Couldn't find executable command 'blender' on the system PATH. Is it installed?"
 			raise ValueError(msg)
 
-		case extyp.BLPlatform.macos_arm64 | extyp.BLPlatform.macos_x64:
+		case BLPlatform.macos_arm64 | BLPlatform.macos_x64:
 			# Search PATH: 'blender'
 			blender_exe = shutil.which('blender')
 			if blender_exe is not None:
@@ -91,7 +113,7 @@ def find_blender_exe() -> Path:
 			msg = "Couldn't find Blender executable (tried searching for 'blender' on the system path, and at '/Applications/Blender.app/Contents/MacOS/Blender'). Is it installed?"
 			raise ValueError(msg)
 
-		case extyp.BLPlatform.windows_x64 | extyp.BLPlatform.windows_arm64:
+		case BLPlatform.windows_x64 | BLPlatform.windows_arm64:
 			# Search PATH: 'blender'
 			blender_exe = shutil.which('blender')
 			if blender_exe is not None:

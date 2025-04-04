@@ -14,28 +14,86 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import importlib.metadata
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-from blext import uityp
 from blext.utils import pretty_exceptions
+from blext.utils.search_in_parents import search_in_parents
 
 
 def entrypoint():
-	from . import APP
+	####################
+	# - Install Exception Hook
+	####################
+	sys.excepthook = pretty_exceptions.exception_hook
+
+	####################
+	# - Proxy Global -> Project-Local
+	####################
+	path_pyproject_toml = search_in_parents(Path().resolve(), 'pyproject.toml')
+	if path_pyproject_toml is not None:
+		# Find currently available 'blext' executable.
+		## This feels more robust than other methods.
+		blext_files = importlib.metadata.files('blext')
+		if blext_files is None:
+			msgs = [
+				'Could not locate a `uv` executable path on the filesystem.',
+				'> This can happen if `blext` was installed in an unsupported manner, such that the files of its dependencies are not plain filesystem paths (user error).',
+			]
+			raise ValueError(*msgs)
+
+		current_blext_exe = Path(
+			next(
+				iter(
+					package_path
+					for package_path in blext_files
+					if package_path.name == 'blext'
+					and package_path.parent.name == 'bin'
+				)
+			).locate()
+		).resolve()
+
+		# Check if current 'blext' executable is a subdirectory of the project's `.venv`.
+		## If so, then the project-local 'blext' is in use, and no proxying should occur.
+		## If not, we should check whether `blext` is available, and if so, proxy to it.
+		if current_blext_exe != path_pyproject_toml.parent / '.venv' / 'bin' / 'blext':
+			blext_proxy_process = subprocess.Popen(
+				[
+					str(path_pyproject_toml.parent / '.venv' / 'bin' / 'blext'),
+					*sys.argv[1:],
+				],
+				bufsize=0,
+				env=os.environ,
+				stdin=sys.stdin,
+				stdout=sys.stdout,
+				stderr=sys.stderr,
+				text=True,
+			)
+
+			try:
+				return_code = blext_proxy_process.wait()
+			except KeyboardInterrupt:
+				blext_proxy_process.terminate()
+				sys.exit(1)
+
+			sys.exit(return_code)
 
 	####################
 	# - Alias: blext blender
 	####################
 	if len(sys.argv) > 1 and sys.argv[1] == 'blender':
-		global_config = uityp.GlobalConfig.from_local(
+		from blext.uityp.global_config import PATH_GLOBAL_CONFIG, GlobalConfig
+
+		global_config = GlobalConfig.from_config(
+			PATH_GLOBAL_CONFIG,
 			environ=dict(os.environ),
 		)
 
 		bl_process = subprocess.Popen(
 			[str(global_config.path_default_blender_exe), *sys.argv[2:]],
-			bufsize=0,
 			env=os.environ,
 			stdin=sys.stdin,
 			stdout=sys.stdout,
@@ -55,13 +113,15 @@ def entrypoint():
 	# - Alias: blext uv
 	####################
 	if len(sys.argv) > 1 and sys.argv[1] == 'uv':
-		global_config = uityp.GlobalConfig.from_local(
+		from blext.uityp.global_config import PATH_GLOBAL_CONFIG, GlobalConfig
+
+		global_config = GlobalConfig.from_config(
+			PATH_GLOBAL_CONFIG,
 			environ=dict(os.environ),
 		)
 
 		uv_process = subprocess.Popen(
 			[str(global_config.path_uv_exe), *sys.argv[2:]],
-			bufsize=0,
 			env=os.environ,
 			stdin=sys.stdin,
 			stdout=sys.stdout,
@@ -78,11 +138,20 @@ def entrypoint():
 		sys.exit(return_code)
 
 	####################
-	# - Install Exception Hook
-	####################
-	sys.excepthook = pretty_exceptions.exception_hook
-
-	####################
 	# - Run CLI
 	####################
+	from . import (  # noqa: F401
+		build,  # pyright: ignore[reportUnusedImport]
+		check,  # pyright: ignore[reportUnusedImport]
+		run,  # pyright: ignore[reportUnusedImport]
+		show_blender_manifest,  # pyright: ignore[reportUnusedImport]
+		show_deps,  # pyright: ignore[reportUnusedImport]
+		show_global_config,  # pyright: ignore[reportUnusedImport]
+		show_path_blender,  # pyright: ignore[reportUnusedImport]
+		show_path_global_config,  # pyright: ignore[reportUnusedImport]
+		show_path_uv,  # pyright: ignore[reportUnusedImport]
+		show_profile,  # pyright: ignore[reportUnusedImport]
+	)
+	from ._context import APP
+
 	APP()

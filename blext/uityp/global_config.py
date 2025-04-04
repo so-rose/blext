@@ -19,6 +19,7 @@
 import functools
 import json
 import os
+import tomllib
 import typing as typ
 from pathlib import Path
 
@@ -80,24 +81,28 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 		)
 	)
 
+	# Local Information
+	local_bl_platform: extyp.BLPlatform = pyd.Field(
+		default_factory=detectors.detect_local_bl_platform
+	)
+
 	# External Binaries
 	path_default_blender_exe: typ.Annotated[
 		Path,
 		cyclopts.Parameter(
 			env_var='BLEXT_PATH_BLENDER_EXE',
 		),
-	] = pyd.Field(default_factory=detectors.find_blender_exe)
+	] = pyd.Field(
+		default_factory=lambda data: detectors.find_blender_exe(
+			data['local_bl_platform']  # pyright: ignore[reportAny]
+		),
+	)
 	path_uv_exe: typ.Annotated[
 		Path,
 		cyclopts.Parameter(
 			env_var='BLEXT_PATH_UV_EXE',
 		),
 	] = pyd.Field(default_factory=detectors.find_uv_exe)
-
-	# Local
-	local_bl_platform: extyp.BLPlatform = pyd.Field(
-		default_factory=detectors.detect_local_bl_platform
-	)
 
 	####################
 	# - Properties: Detect Blender Version
@@ -171,11 +176,36 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 	# - Creation
 	####################
 	@classmethod
-	def from_local(cls, *, environ: dict[str, str] | None = None) -> typ.Self:
+	def from_config(
+		cls, path_config: Path, *, environ: dict[str, str] | None = None
+	) -> typ.Self:
 		"""Load from config file and given environment variables."""
-		environ = dict(os.environ) if environ is None else None
+		# Load Environment Dictionary
+		environ = {} if environ is None else environ
 
-		raise NotImplementedError
+		# Load Config File
+		try:
+			with path_config.open('rb') as f:
+				config = tomllib.load(f)
+		except FileNotFoundError:
+			config = {}
+
+		# Extract Attribute Values
+		attr_dict = {}
+		for attr in [
+			'path_global_cache',
+			'local_bl_platform',
+			'path_default_blender_exe',
+			'path_uv_exe',
+		]:
+			attr_env_var = 'BLEXT_' + attr.upper()
+			if attr_env_var in environ:
+				attr_dict[attr] = environ[attr_env_var]
+			elif attr in config:
+				attr_dict[attr] = config[attr]
+
+		# pydantic Handles the Rest
+		return cls(**attr_dict)  # pyright: ignore[reportUnknownArgumentType]
 
 	####################
 	# - Validation[path_global_cache]: Ensure that it Exists

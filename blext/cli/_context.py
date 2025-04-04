@@ -21,6 +21,7 @@ import typing as typ
 
 import cyclopts
 import rich
+import rich.console
 import rich.theme
 
 from blext import uityp
