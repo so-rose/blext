@@ -16,7 +16,7 @@
 
 """Tools for finding common information and files using platform-specific methods."""
 
-import os
+import importlib.metadata
 import platform
 import shutil
 from pathlib import Path
@@ -106,10 +106,7 @@ def find_blender_exe() -> Path:
 			raise ValueError(msg)
 
 
-def find_uv_exe(
-	*,
-	search_venv: bool = True,
-) -> Path:
+def find_uv_exe() -> Path:
 	"""Locate the `uv` executable.
 
 	Parameters:
@@ -118,12 +115,22 @@ def find_uv_exe(
 	Returns:
 		Absolute path to a valid `uv` executable.
 	"""
-	if search_venv and 'VIRTUAL_ENV' in os.environ:
-		path_venv = Path(os.environ['VIRTUAL_ENV'])
-		path_uv = path_venv / 'bin' / 'uv'
+	uv_files = importlib.metadata.files('uv')
 
-		if path_uv.is_file():
-			return path_uv.resolve()
+	if uv_files is not None:
+		uv_exe = None
+		for package_path in uv_files:
+			if package_path.name == 'uv' and package_path.parent.name == 'bin':
+				located_uv_exe = package_path.locate()
+				uv_exe = Path(located_uv_exe).resolve()
+				break
 
-	msg = "Could not find a 'uv' executable."
-	raise ValueError(msg)
+		if uv_exe is not None and uv_exe.is_file():
+			return uv_exe
+		msgs = [
+			'Could not locate a `uv` executable path on the filesystem.',
+			'> This can happen if `blext` was installed in an unsupported manner, such that the files of its dependencies are not plain filesystem paths (user error).',
+		]
+		raise ValueError(*msgs)
+	msg = "'uv' was not installed, even though it's a dependency of 'blext'. Please report this bug."
+	raise RuntimeError(msg)
