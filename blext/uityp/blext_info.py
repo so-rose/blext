@@ -27,6 +27,7 @@ from frozendict import frozendict
 
 from blext import extyp, pydeps
 from blext.spec import BLExtSpec
+from blext.utils.lru_method import lru_method
 
 from .global_config import GlobalConfig
 
@@ -217,6 +218,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	####################
 	# - Derived BLExt Types
 	####################
+	@lru_method()
 	def requested_bl_platforms(
 		self, global_config: GlobalConfig
 	) -> frozenset[extyp.BLPlatform]:
@@ -230,6 +232,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			}
 		)
 
+	@lru_method()
 	def requested_bl_versions(
 		self, global_config: GlobalConfig
 	) -> frozenset[extyp.BLVersion]:
@@ -243,6 +246,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			}
 		)
 
+	@lru_method()
 	def blext_location(self, global_config: GlobalConfig) -> extyp.BLExtLocation:
 		"""Extension location that the user requested.
 
@@ -322,6 +326,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 
 		raise ValueError(*err_msgs)
 
+	@lru_method()
 	def blext_spec(self, global_config: GlobalConfig) -> BLExtSpec:
 		"""Load the extension specification.
 
@@ -363,6 +368,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			return blext_spec
 		return blext_spec.replace_bl_platforms(bl_platforms)
 
+	@lru_method()
 	def bl_versions(self, global_config: GlobalConfig) -> frozenset[extyp.BLVersion]:
 		"""All selected Blender versions."""
 		blext_spec = self.blext_spec(global_config)
@@ -381,6 +387,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			}
 		)
 
+	@lru_method()
 	def bl_platforms(self, global_config: GlobalConfig) -> frozenset[extyp.BLPlatform]:
 		"""All selected Blender versions."""
 		requested_bl_platforms = self.requested_bl_platforms(global_config)
@@ -391,6 +398,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	####################
 	# - Zip Paths
 	####################
+	@lru_method()
 	def path_zip_prepacks(
 		self, global_config: GlobalConfig
 	) -> frozendict[extyp.BLVersion, Path]:
@@ -415,6 +423,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			}
 		)
 
+	@lru_method()
 	def path_zips(
 		self, global_config: GlobalConfig
 	) -> frozendict[extyp.BLVersion, Path]:
