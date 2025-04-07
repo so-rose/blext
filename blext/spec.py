@@ -115,8 +115,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	# - Core Attributes
 	####################
 	@functools.cached_property
-	def bl_versions(self) -> frozenset[extyp.BLVersion]:
-		"""All Blender versions supported by this extension.
+	def bl_versions_by_granular(self) -> frozendict[extyp.BLVersion, extyp.BLVersion]:
+		"""All Blender versions supported by this extension, indexed by the granular input version.
 
 		Warnings:
 			`blext` doesn't support official Blender versions released after a particular `blext` version was published.
@@ -141,6 +141,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 		idx_smoosh = 0
 		smooshed_bl_versions: list[extyp.BLVersion] = [granular_bl_versions[0]]
+		granular_to_smooshed_idx: dict[extyp.BLVersion, int] = {}
 		for granular_bl_version in granular_bl_versions:
 			if smooshed_bl_versions[idx_smoosh].is_smooshable_with(
 				granular_bl_version,
@@ -158,11 +159,32 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					ext_wheels_abi_tags=self.deps.valid_abi_tags,
 					ext_tags=self.tags,
 				)
+
 			else:
 				smooshed_bl_versions.append(granular_bl_version)
 				idx_smoosh += 1
 
-		return frozenset(smooshed_bl_versions)
+			granular_to_smooshed_idx[granular_bl_version] = idx_smoosh
+
+		granular_to_smooshed = {
+			granular_bl_version: smooshed_bl_versions[smooshed_idx]
+			for granular_bl_version, smooshed_idx in granular_to_smooshed_idx.items()
+		}
+		return frozendict(granular_to_smooshed)
+
+	@functools.cached_property
+	def bl_versions(self) -> frozenset[extyp.BLVersion]:
+		"""All Blender versions supported by this extension.
+
+		Warnings:
+			`blext` doesn't support official Blender versions released after a particular `blext` version was published.
+
+			This is because `blext` has no way of knowing critical information about such future releases, ex. the versions of vendored `site-packages` dependencies.
+
+		Notes:
+			Derived by comparing `self.blender_version_min` and `self.blender_version_max` to hard-coded Blender versions that have already been released, whose properties are known.
+		"""
+		return frozenset(self.bl_versions_by_granular.values())
 
 	@functools.cached_property
 	def is_universal(self) -> bool:
@@ -270,6 +292,12 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		Raises:
 			ValueError: When `fmt` is unknown.
 		"""
+		if (
+			bl_version not in self.bl_versions
+			and bl_version in self.bl_versions_by_granular
+		):
+			bl_version = self.bl_versions_by_granular[bl_version]
+
 		_empty_frozenset: frozenset[PyDepWheel] = frozenset()
 		match bl_manifest_version:
 			case extyp.BLManifestVersion.V1_0_0:
@@ -408,15 +436,18 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	) -> frozenset[PyDepWheel]:
 		"""Wheels that have already been correctly downloaded."""
 		bl_versions = self.bl_versions if bl_versions is None else bl_versions
+		if all(bl_version in self.bl_versions for bl_version in bl_versions):
+			return frozenset(
+				{
+					wheel
+					for bl_version in sorted(bl_versions, key=lambda el: el.version)
+					for wheel in self.wheels[bl_version]
+					if wheel.is_download_valid(path_wheels / wheel.filename)
+				}
+			)
 
-		return frozenset(
-			{
-				wheel
-				for bl_version in sorted(bl_versions, key=lambda el: el.version)
-				for wheel in self.wheels[bl_version]
-				if wheel.is_download_valid(path_wheels / wheel.filename)
-			}
-		)
+		msg = 'Requested cached wheels for `BLVersion`(s) not given in `self.bl_versions`.'
+		raise ValueError(msg)
 
 	def missing_wheels(
 		self,
@@ -427,14 +458,18 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		"""Wheels that need to be downloaded, since they are not available / valid."""
 		bl_versions = self.bl_versions if bl_versions is None else bl_versions
 
-		return frozenset(
-			{
-				wheel
-				for bl_version in sorted(bl_versions, key=lambda el: el.version)
-				for wheel in self.wheels[bl_version]
-				if not wheel.is_download_valid(path_wheels / wheel.filename)
-			}
-		)
+		if all(bl_version in self.bl_versions for bl_version in bl_versions):
+			return frozenset(
+				{
+					wheel
+					for bl_version in sorted(bl_versions, key=lambda el: el.version)
+					for wheel in self.wheels[bl_version]
+					if not wheel.is_download_valid(path_wheels / wheel.filename)
+				}
+			)
+
+		msg = 'Requested missing wheels for `BLVersion`(s) not given in `self.bl_versions`.'
+		raise ValueError(msg)
 
 	def wheel_paths_to_prepack(
 		self, *, path_wheels: Path

@@ -23,12 +23,10 @@ from .bl_platform import BLPlatform
 from .bl_release_discovered import BLReleaseDiscovered
 from .bl_release_official import BLReleaseOfficial
 from .bl_version import BLVersion
-from .bl_version_source import (
-	BLVersionSource,
-	BLVersionSourceGit,
-	BLVersionSourceOfficial,
-	BLVersionSources,
-)
+from .bl_version_source import BLVersionSource
+from .bl_version_source_git import BLVersionSourceGit
+from .bl_version_source_official import BLVersionSourceOfficial
+from .bl_version_source_smooshed import BLVersionSourceSmooshed
 from .blext_location import BLExtLocation
 from .blext_location_git import BLExtLocationGit
 from .blext_location_http import BLExtLocationHttp
@@ -53,7 +51,7 @@ __all__ = [
 	'BLVersionSource',
 	'BLVersionSourceGit',
 	'BLVersionSourceOfficial',
-	'BLVersionSources',
+	'BLVersionSourceSmooshed',
 	'ReleaseProfile',
 	'SPDXLicense',
 	'StandardReleaseProfile',

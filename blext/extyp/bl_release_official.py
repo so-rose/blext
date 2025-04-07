@@ -25,7 +25,7 @@ from frozendict import frozendict
 from .bl_manifest_version import BLManifestVersion
 from .bl_platform import BLPlatform
 from .bl_version import BLVersion
-from .bl_version_source import BLVersionSourceOfficial
+from .bl_version_source_official import BLVersionSourceOfficial
 
 
 class BLReleaseOfficial(enum.StrEnum):

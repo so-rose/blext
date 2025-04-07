@@ -37,7 +37,8 @@ from blext.utils.pydantic_frozendict import FrozenDict
 
 from .bl_manifest_version import BLManifestVersion
 from .bl_platform import BLPlatform
-from .bl_version_source import BLVersionSource, BLVersionSources
+from .bl_version_source import BLVersionSource
+from .bl_version_source_smooshed import BLVersionSourceSmooshed
 
 
 ####################
@@ -334,17 +335,17 @@ class BLVersion(pyd.BaseModel, frozen=True):
 			ext_tags=ext_tags,
 		):
 			return BLVersion(  # pyright: ignore[reportReturnType]
-				source=BLVersionSources(
+				source=BLVersionSourceSmooshed(
 					# Every smoosh increments the "smoosh list", with order-preservation.
 					sources=(
 						(
 							self.source.sources
-							if isinstance(self.source, BLVersionSources)
+							if isinstance(self.source, BLVersionSourceSmooshed)
 							else frozenset({self.source})
 						)
 						| (
 							other.source.sources
-							if isinstance(other.source, BLVersionSources)
+							if isinstance(other.source, BLVersionSourceSmooshed)
 							else frozenset({other.source})
 						)
 					)

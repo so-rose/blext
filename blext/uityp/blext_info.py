@@ -181,14 +181,6 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	## --bl-version 4.[3:5]: Select every release from 4.3 to 4.5
 	## --bl-version 4.2.[1:]: Select all 4.2 releases except 4.2.0.
 	##
-	## TODO: Include options on what how the raw versions specified by --bl-version are simplified.
-	## --simplify-bl-version include
-	##     - Smoosh the extension's supported BLVersions, then pick as few as possible from there.
-	## --simplify-bl-version exact
-	##     - Smoosh the specified BLVersions, and constrain BLExtSpec to whatever's left.
-	## --simplify-bl_version none
-	##     - No smooshing.
-	##
 	## **Several BLVersions may come out of this**. In practice, this is dealt with by:
 	## - show valid_bl_versions: Print out all valid BLVersions for the ext, after simplification.
 	## - run: Choose the highest BLVersion that we have an executable for.
@@ -373,10 +365,21 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 
 	def bl_versions(self, global_config: GlobalConfig) -> frozenset[extyp.BLVersion]:
 		"""All selected Blender versions."""
+		blext_spec = self.blext_spec(global_config)
+
 		requested_bl_versions = self.requested_bl_versions(global_config)
 		if not requested_bl_versions:
-			return self.blext_spec(global_config).bl_versions
-		return requested_bl_versions
+			return blext_spec.bl_versions
+		return frozenset(
+			{
+				(
+					bl_version
+					if bl_version in blext_spec.bl_versions
+					else blext_spec.bl_versions_by_granular[bl_version]
+				)
+				for bl_version in requested_bl_versions
+			}
+		)
 
 	def bl_platforms(self, global_config: GlobalConfig) -> frozenset[extyp.BLPlatform]:
 		"""All selected Blender versions."""
@@ -606,6 +609,8 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			with blext_location.path_spec.open('r') as f:
 				doc = tomlkit.parse(f.read())
 
+			original_doc = tomlkit.dumps(doc)  # pyright: ignore[reportUnknownMemberType]
+
 			# The user must already have defined a `[project]` table.
 			## If it's not a table, then that's an error.
 			## Otherwise, `pyproject.toml` isn't valid.
@@ -763,7 +768,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 				)
 			}
 			for idx_to_remove in sorted(conflict_idxs_to_remove, reverse=True):
-				doc['tool']['uv']['conflicts'].pop(idx_to_remove)  # pyright: ignore[reportIndexIssue, reportAttributeAccessIssue, reportUnknownMemberType]
+				_ = doc['tool']['uv']['conflicts'].pop(idx_to_remove)  # pyright: ignore[reportIndexIssue, reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownVariableType]
 
 			# Add the conflicts entry line by line.
 			## These should be removed, as they are redundant together with what we're adding.
@@ -794,8 +799,10 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 				indent=' ' * 4,
 			)
 			doc['tool']['uv']['conflicts'].multiline(True)  # pyright: ignore[reportAttributeAccessIssue, reportIndexIssue, reportUnknownMemberType]
-			with blext_location.path_spec.open('w') as f:
-				_ = f.write(tomlkit.dumps(doc))  # pyright: ignore[reportUnknownMemberType]
+
+			if original_doc != tomlkit.dumps(doc):  # pyright: ignore[reportUnknownMemberType]
+				with blext_location.path_spec.open('w') as f:
+					_ = f.write(tomlkit.dumps(doc))  # pyright: ignore[reportUnknownMemberType]
 
 		elif blext_location.path_spec.name.endswith('.py'):
 			# TODO: A bit of a scheme here:
