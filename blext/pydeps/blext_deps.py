@@ -96,6 +96,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		pkg_name: str,
 		bl_version: extyp.BLVersion,
 		bl_platform: extyp.BLPlatform,
+		err_msgs: dict[extyp.BLPlatform, list[str]],
 	) -> frozendict[str, PyDep]:
 		"""All Python dependencies needed by the given Python environment."""
 
@@ -171,7 +172,9 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			## No need to refer to Knuth. Just `nx.ancestors` and `nx.subgraph_view`.
 			valid_pydep_ancestors: set[tuple[str, str]] = {
 				(pydep_ancestor_name, pydep_ancestor_version)
-				for pydep_target_name, pydep_target_version in valid_pydep_targets
+				for pydep_target_name, pydep_target_version in sorted(
+					valid_pydep_targets
+				)
 				for pydep_ancestor_name, pydep_ancestor_version in nx.ancestors(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 					nx.subgraph_view(
 						self.pydeps_graph,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
@@ -179,6 +182,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					),
 					(pydep_target_name, pydep_target_version),
 				)
+				if pydep_ancestor_name not in bl_version.vendored_site_packages
 			}
 			# Assemble a mapping from name to PyDep, indexed by by name and version
 			pydeps: frozendict[str, PyDep] = frozendict(
@@ -186,30 +190,25 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					pydep_name: self.pydeps[(pydep_name, pydep_version)]
 					for pydep_name, pydep_version in sorted(
 						valid_pydep_targets | valid_pydep_ancestors,
-						key=lambda el: el[0],
 					)
 				}
 			)
 
 			# PyDeps that overlap with vendored site-packages must be identical.
-			err_site_packages_overlap: list[str] = []
 			for pydep_name, pydep in pydeps.items():
 				if (
 					pydep_name in bl_version.vendored_site_packages
 					and pydep.version != bl_version.vendored_site_packages[pydep_name]
 				):
-					err_site_packages_overlap.extend(
+					err_msgs[bl_platform].extend(
 						[
-							f'**Conflict**: Requested version of **{pydep_name}** conflicts with vendored `site-packages` of Blender `{bl_version.version}`.',
+							f'**Conflict** [{bl_platform}]: Requested version of **{pydep_name}** conflicts with vendored `site-packages` of Blender `{bl_version.version}`.',
 							f'> **Provided by Blender `{bl_version.version}`**: `{pydep_name}=={bl_version.vendored_site_packages[pydep_name]}`',
 							'>',
 							f'> **Requested**: `{pydep_name}=={pydep.version}`',
 							'',
 						]
 					)
-
-			if err_site_packages_overlap:
-				raise ValueError(*err_site_packages_overlap)
 
 			# After a long journey, you've found a return statement.
 			## But will you ever be the same?
@@ -247,57 +246,69 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		err_msgs: dict[extyp.BLPlatform, list[str]] = {
 			bl_platform: [] for bl_platform in sorted(bl_platforms)
 		}
-		pydep_wheels = {
-			pydep: pydep.select_wheel(
-				bl_platform=bl_platform,
-				min_glibc_version=(
-					bl_version.min_glibc_version
-					if self.min_glibc_version is None
-					else self.min_glibc_version
-				),
-				min_macos_version=(
-					bl_version.min_macos_version
-					if self.min_macos_version is None
-					else self.min_macos_version
-				),
-				valid_python_tags=(
-					bl_version.valid_python_tags
-					if self.valid_python_tags is None
-					else self.valid_python_tags
-				),
-				valid_abi_tags=(
-					bl_version.valid_abi_tags
-					if self.valid_abi_tags is None
-					else self.valid_abi_tags
-				),
-				target_descendants=frozenset(
-					{  # pyright: ignore[reportUnknownArgumentType]
-						node
-						for node in nx.descendants(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
-							self.pydeps_graph,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
-							(pydep.name, pydep.version),
-						)
-						if self.pydeps_graph.out_degree(node) == 0  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-					}
-				),
-				err_msgs=err_msgs,
-			)
+		wheels = {
+			bl_platform: {
+				pydep: pydep.select_wheel(
+					bl_platform=bl_platform,
+					min_glibc_version=(
+						bl_version.min_glibc_version
+						if self.min_glibc_version is None
+						else self.min_glibc_version
+					),
+					min_macos_version=(
+						bl_version.min_macos_version
+						if self.min_macos_version is None
+						else self.min_macos_version
+					),
+					valid_python_tags=(
+						bl_version.valid_python_tags
+						if self.valid_python_tags is None
+						else self.valid_python_tags
+					),
+					valid_abi_tags=(
+						bl_version.valid_abi_tags
+						if self.valid_abi_tags is None
+						else self.valid_abi_tags
+					),
+					target_descendants=frozenset(
+						{  # pyright: ignore[reportUnknownArgumentType]
+							node
+							for node in nx.descendants(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+								self.pydeps_graph,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+								(pydep.name, pydep.version),
+							)
+							if self.pydeps_graph.out_degree(node) == 0  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+						}
+					),
+					err_msgs=err_msgs,
+				)
+				for pydep in self.pydeps_by(
+					pkg_name=pkg_name,
+					bl_version=bl_version,
+					bl_platform=bl_platform,
+					err_msgs=err_msgs,
+				).values()
+			}
 			for bl_platform in sorted(bl_platforms)
-			for pydep in self.pydeps_by(
-				pkg_name=pkg_name,
-				bl_version=bl_version,
-				bl_platform=bl_platform,
-			).values()
 		}
 
 		# Return the monster if every pydep/platform has a wheel.
 		## Otherwise, say what's missing, why, and what can be done about it.
 		num_missing_wheels = sum(
-			1 if wheel_selection is None else 0
-			for wheel_selection in pydep_wheels.values()
+			1 if wheel is None else 0
+			for _, pydeps_wheels in wheels.items()
+			for _, wheel in pydeps_wheels.items()
 		)
-		if num_missing_wheels == 0:
-			return frozenset(pydep_wheels.values())  # pyright: ignore[reportReturnType]
+		if (
+			not any(err_msgs_by_platform for err_msgs_by_platform in err_msgs.values())
+			and num_missing_wheels == 0
+		):
+			return frozenset(
+				wheel
+				for _, pydeps_wheels in wheels.items()
+				for _, wheel in pydeps_wheels.items()
+				if wheel is not None
+			)
 
 		raise ValueError(
 			*[
