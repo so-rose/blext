@@ -347,10 +347,6 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			- `blext.finders.find_proj_spec`: Find a project by its URI, returning a location.
 		"""
 		blext_location = self.blext_location(global_config=global_config)
-		pydeps.uv.update_uv_lock(
-			blext_location.path_uv_lock,
-			path_uv_exe=global_config.path_uv_exe,
-		)
 
 		# Load BLExtSpec
 		## Also, update project specification.
@@ -360,6 +356,10 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			release_profile_id=self.profile,
 		)
 		if self.update_proj_spec(global_config, blext_spec=blext_spec):
+			pydeps.uv.update_uv_lock(
+				blext_location.path_uv_lock,
+				path_uv_exe=global_config.path_uv_exe,
+			)
 			blext_spec = BLExtSpec.from_proj_spec_path(
 				blext_location.path_spec,
 				path_uv_exe=global_config.path_uv_exe,
