@@ -80,6 +80,7 @@ dependencies = [
     { name = "scipy" },
     { name = "semver" },
     { name = "tomli-w" },
+    { name = "tomlkit" },
     { name = "uv" },
     { name = "wheel-filename" },
 ]
@@ -118,6 +119,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.15.2" },
     { name = "semver", specifier = ">=3.0.4" },
     { name = "tomli-w", specifier = ">=1.1.0" },
+    { name = "tomlkit", specifier = ">=0.13.2" },
     { name = "uv", specifier = ">=0.6.0" },
     { name = "wheel-filename", specifier = ">=1.4.2" },
 ]

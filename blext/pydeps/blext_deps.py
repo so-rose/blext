@@ -99,6 +99,8 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 	) -> frozendict[str, PyDep]:
 		"""All Python dependencies needed by the given Python environment."""
 
+		# Buckle up kids!
+		## I confused myself repeatedly, so I wrote some comments to help myself.
 		def filter_edge(
 			node_upstream: tuple[str, str],
 			node_downstream: tuple[str, str],
@@ -120,19 +122,46 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		if any(
 			bl_platform in bl_version.valid_bl_platforms for bl_platform in bl_platforms
 		):
+			# Deduce which pydep_name the user asked for.
+			## **If** the user specified markers, then we check and respect them.
+			## **Don't** include targets that are vendored by Blender.
 			valid_pydep_target_names = {
 				pydep_target_name
 				for bl_platform in bl_platforms
 				for pydep_target_name, pydep_marker in self.target_pydeps.items()
 				if (
-					pydep_marker is None
-					or pydep_marker.is_valid_for(
-						pkg_name=pkg_name,
-						bl_version=bl_version,
-						bl_platform=bl_platform,
+					pydep_target_name not in bl_version.vendored_site_packages
+					and (
+						pydep_marker is None
+						or pydep_marker.is_valid_for(
+							pkg_name=pkg_name,
+							bl_version=bl_version,
+							bl_platform=bl_platform,
+						)
 					)
 				)
 			}
+			## NOTE: This allow Blender-vendored pydeps to have only sdist.
+			## - Blender does a lot of its own building of dependencies.
+			## - This is sensible. Look what we have to do to play with pydeps.
+			## - But, not all of Blender's site-package have wheels.
+			## - In fact, not all of them are on PyPi at all.
+			## - This makes it difficult to duplicate Blender Python environment.
+			## - (Need it be so?)
+			## - We deal with this by never letting them progress to "finding wheels"...
+			## - ...since no wheels would be able to be found.
+			## - This works. Kind of. Egh.
+			##
+			## Dear Blender Devs: I beg you to run a PyPi repo for your homebrew builds.
+			## - That way we can all just pin your repo...
+			## - ...and easily duplicate Blender's Python environment...
+			## - ...without destructive `sys.path` flooding.
+			## - How-To for Gitea: https://docs.gitea.com/1.18/packages/packages/pypi
+			## - I love you all <3. And thank you for coming to my TED Talk.
+
+			# Compute (pydep_name, pydep_version) from each target pydep_name.
+			## There should be exactly one of these, otherwise something is very wrong.
+			## That's why you're here, isn't it? *Sigh*.
 			valid_pydep_targets: set[tuple[str, str]] = {
 				next(
 					iter(
@@ -143,6 +172,9 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				)
 				for pydep_target_name in valid_pydep_target_names
 			}
+
+			# Compute non-vendored ancestors of all target (pydep_name, pydep_version).
+			## No need to refer to Knuth. Just `nx.ancestors` and `nx.subgraph_view`.
 			valid_pydep_ancestors: set[tuple[str, str]] = {
 				(pydep_ancestor_name, pydep_ancestor_version)
 				for pydep_target_name, pydep_target_version in valid_pydep_targets
@@ -153,15 +185,8 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					),
 					(pydep_target_name, pydep_target_version),
 				)
-				if (
-					pydep_ancestor_name not in bl_version.vendored_site_packages
-					or (
-						pydep_ancestor_version
-						== bl_version.vendored_site_packages[pydep_ancestor_name]
-					)
-				)
 			}
-
+			# Assemble a mapping from name to PyDep, indexed by by name and version
 			pydeps: frozendict[str, PyDep] = frozendict(
 				{
 					pydep_name: self.pydeps[(pydep_name, pydep_version)]
@@ -192,6 +217,10 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			if err_site_packages_overlap:
 				raise ValueError(*err_site_packages_overlap)
 
+			# After a long journey, you've find a return statement.
+			## But will you ever be the same?
+			## The elves have offered to let you sail West with them.
+			## For now, have a cookie.
 			return frozendict(
 				{
 					pydep_name: pydep
@@ -218,6 +247,9 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		Notes:
 			Computed from `self.validated_graph`.
 		"""
+		# I know it looks like a monster, but give it a chance, eh?
+		## Even monsters deserve love. [1]
+		## [1]: Shrek (2001)
 		err_msgs: dict[extyp.BLPlatform, list[str]] = {
 			bl_platform: [] for bl_platform in bl_platforms
 		}
@@ -263,12 +295,14 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			).values()
 		}
 
-		num_missing_dependencies = sum(
+		# Return the monster if every pydep/platform has a wheel.
+		## Otherwise, say what's missing, why, and what can be done about it.
+		num_missing_wheels = sum(
 			len(wheels_by_platform) == 0
 			for _, wheel_selections in pydep_wheels.items()
 			for _, wheels_by_platform in wheel_selections.items()
 		)
-		if num_missing_dependencies == 0:
+		if num_missing_wheels == 0:
 			return frozenset(
 				{
 					wheel
@@ -277,31 +311,13 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					for wheel in wheels_by_platform
 				}
 			)
-
 		raise ValueError(
 			*[
 				err_msg
 				for bl_platform_err_msgs in err_msgs.values()
 				for err_msg in bl_platform_err_msgs
 			],
-			f'**Missing Wheels** for `{bl_version.version}`: {num_missing_dependencies}',
-		)
-
-	def total_size_bytes_by(
-		self,
-		*,
-		pkg_name: str,
-		bl_version: extyp.BLVersion,
-		bl_platforms: frozenset[extyp.BLPlatform],
-	) -> pyd.ByteSize:
-		"""Total size of all wheels."""
-		return pyd.ByteSize(
-			sum(
-				int(wheel.size)
-				for wheel in self.wheels_by(
-					pkg_name=pkg_name, bl_version=bl_version, bl_platforms=bl_platforms
-				)
-			)
+			f'**Missing Wheels** for `{bl_version.version}`: {num_missing_wheels}',
 		)
 
 	####################
@@ -355,7 +371,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 								hash=wheel_info.get('hash'),  # pyright: ignore[reportAny]
 								size=wheel_info.get('size'),  # pyright: ignore[reportAny]
 							)
-							for wheel_info in package['wheels']  # pyright: ignore[reportAny]
+							for wheel_info in package.get('wheels', [])  # pyright: ignore[reportAny]
 							if 'url' in wheel_info
 						}
 					),
@@ -394,8 +410,6 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					# Package must have a registry URL.
 					and 'source' in package
 					and 'registry' in package['source']
-					# Package must have wheels.
-					and 'wheels' in package
 					# Package must not be the "current" package.
 					## - We've made the decision not to consider the root (L0) package as a PyDep.
 					and module_name != nrm_name(package['name'])  # pyright: ignore[reportAny]
@@ -405,13 +419,13 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		####################
 		# - Stage 2: Parse Target (L1) Dependencies
 		####################
-		## - The L0 (root) PyDep is the blext project itself, pulling in all other PyDeps.
-		## - The L1 (target) PyDeps are all of the immediate user-requested PyDeps (were 'uv add'ed).
-		## - L1 PyDeps come in "groups" such as '_' (default), 'dev', and also Blender version-specific.
+		## The L0 (root) PyDep is the blext project itself, pulling in all other PyDeps.
+		## The L1 (target) PyDeps are all of the immediate user-requested PyDeps (were 'uv add'ed).
+		## L1 PyDeps come in "groups" such as '_' (default), 'dev', and also Blender version-specific.
 
 		target_pydeps: dict[str, PyDepMarker | None] = {}
 
-		## - Single-File Scripts: [manifest] table has top-level dependencies - make a "fake" PyDep.
+		# Single-File Scripts: [manifest] table has top-level dependencies - make a "fake" PyDep.
 		if 'manifest' in uv_lock:
 			# Parse Mandatory Dependencies
 			## - Always found in 'manifest.requirements'.
@@ -424,7 +438,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				msg = '`uv.lock` has a `[manifest]`, but no `manifest.requirements`. Was it generated correctly?'
 				raise RuntimeError(msg)
 
-		## - Projects: Find L1 Deps from the L0 Dep (the root package == the blext project)
+		# Projects: Find L1 Deps from the L0 Dep (the root package == the blext project)
 		elif 'package' in uv_lock:
 			# Find the Root Package
 			root_package: dict[str, typ.Any] = next(
@@ -436,7 +450,6 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			# Parse Target Dependencies
 			## - Always found in root_package['metadata']['requires-dist'].
 			## - In `pyproject.toml`, they are given as 'project.dev-dependencies'.
-			## - NOTE: It's safe to ignore 'extra', as this is already accounted for in uv.lock.
 			if (
 				'metadata' in root_package
 				and 'requires-dist' in root_package['metadata']
@@ -449,6 +462,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					else None
 					for dependency in root_package['metadata']['requires-dist']  # pyright: ignore[reportAny]
 				}
+				## NOTE: It's safe to ignore 'extra'. uv.lock's resolution already managed this.
 
 		return cls(
 			pydeps=frozendict(pydeps),

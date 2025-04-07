@@ -25,6 +25,7 @@ dependencies = [
 	"scipy>=1.15.2",
 	"semver>=3.0.4",
 	"tomli-w>=1.1.0",
+	"tomlkit>=0.13.2",
 	"uv>=0.6.0",
 	"wheel-filename>=1.4.2",
 ]

@@ -64,15 +64,17 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 		check_output: Run `blext check` on the packed `.zip`.
 	"""
 	blext_info = blext_info.parse_proj(proj)
-
 	blext_location = blext_info.blext_location(global_config)
-	blext_spec = blext_info.blext_spec(global_config)
 
-	bl_versions = blext_info.bl_versions(global_config)
+	####################
+	# - Parse Specification
+	####################
+	blext_spec = blext_info.blext_spec(global_config)
 
 	####################
 	# - Report BLVersion Selection(s)
 	####################
+	bl_versions = blext_info.bl_versions(global_config)
 	match blext_info.bl_version:
 		case ():
 			CONSOLE.print(
@@ -121,16 +123,17 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	####################
 	# - Report BLPlatform Selection(s)
 	####################
-	match blext_info.bl_platform:
+	bl_platforms = blext_info.bl_platforms(global_config)
+	match blext_info.platform:
 		case ():
 			CONSOLE.print(
 				rich.markdown.Markdown(
 					'\n'.join(
 						[
-							f'Selected **all {len(blext_spec.bl_platforms)} ext-supported platform(s)**:',
+							f'Selected **all {len(bl_platforms)} ext-supported platform(s)**:',
 							*[
 								f'- `{bl_platform}`'
-								for bl_platform in sorted(blext_spec.bl_platforms)
+								for bl_platform in sorted(bl_platforms)
 							],
 						]
 					)
@@ -138,7 +141,7 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 				'',
 			)
 		case ('detect',):
-			bl_platform = next(iter(blext_spec.bl_platforms))
+			bl_platform = next(iter(bl_platforms))
 			CONSOLE.print(
 				rich.markdown.Markdown(
 					f'Selected **detected local Blender platform**: `{bl_platform}`'
@@ -149,10 +152,10 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 				rich.markdown.Markdown(
 					'\n'.join(
 						[
-							f'Selected **{len(blext_spec.bl_platforms)} Blender platforms**:',
+							f'Selected **{len(bl_platforms)} Blender platforms**:',
 							*[
 								f'- `{bl_platform}`'
-								for bl_platform in sorted(blext_spec.bl_platforms)
+								for bl_platform in sorted(bl_platforms)
 							],
 						]
 					)
@@ -186,7 +189,6 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 					f'Using **modified platform support**: `valid_python_tags={sorted(blext_spec.deps.valid_python_tags)}`'
 				)
 			)
-		CONSOLE.print()
 
 	####################
 	# - Select Paths

@@ -505,7 +505,7 @@ class BLReleaseOfficial(enum.StrEnum):
 	# - Python Environment: Marker Information
 	####################
 	@functools.cached_property
-	def pymarker_extra(self) -> typ.Literal['bl4-2', 'bl4-3', 'bl4-4']:
+	def pymarker_extra(self) -> typ.Literal['blender4-2', 'blender4-3', 'blender4-4']:
 		"""Optional dependency `extra` name corresponding to this Blender version.
 
 		Warnings:
@@ -519,13 +519,13 @@ class BLReleaseOfficial(enum.StrEnum):
 		"""
 		match self:
 			case v if v.is_4_2:
-				return 'bl4-2'
+				return 'blender4-2'
 
 			case v if v.is_4_3:
-				return 'bl4-3'
+				return 'blender4-3'
 
 			case v if v.is_4_4:
-				return 'bl4-4'
+				return 'blender4-4'
 
 			case _:
 				msg = f'Cannot determine Python version of unreleased Blender version: {self.official_git_tag}'

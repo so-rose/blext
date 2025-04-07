@@ -305,7 +305,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	def export_extension_filenames(
 		self,
 		with_bl_version: bool = True,
-		with_bl_platforms: bool = False,
+		with_bl_platforms: bool = True,
 	) -> frozendict[extyp.BLVersion, str]:
 		"""Default filename of the extension zipfile."""
 		extension_filenames: dict[extyp.BLVersion, str] = {}
@@ -316,7 +316,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				basename += f'__{bl_version.version}'
 
 			if with_bl_platforms:
-				basename += '__' + '_'.join(self.bl_platforms)
+				basename += '__' + '_'.join(sorted(self.bl_platforms))
 
 			extension_filenames[bl_version] = f'{basename}.zip'
 		return frozendict(extension_filenames)
@@ -413,17 +413,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			{
 				wheel
 				for bl_version in sorted(bl_versions, key=lambda el: el.version)
-				for wheel in self.deps.wheels_by(
-					pkg_name=self.id,
-					bl_version=bl_version,
-					bl_platforms=frozenset(
-						{
-							bl_platform
-							for bl_platform in self.bl_platforms
-							if bl_platform in bl_version.valid_bl_platforms
-						}
-					),
-				)
+				for wheel in self.wheels[bl_version]
 				if wheel.is_download_valid(path_wheels / wheel.filename)
 			}
 		)
@@ -441,17 +431,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			{
 				wheel
 				for bl_version in sorted(bl_versions, key=lambda el: el.version)
-				for wheel in self.deps.wheels_by(
-					pkg_name=self.id,
-					bl_version=bl_version,
-					bl_platforms=frozenset(
-						{
-							bl_platform
-							for bl_platform in self.bl_platforms
-							if bl_platform in bl_version.valid_bl_platforms
-						}
-					),
-				)
+				for wheel in self.wheels[bl_version]
 				if not wheel.is_download_valid(path_wheels / wheel.filename)
 			}
 		)
@@ -465,17 +445,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				path_wheels / wheel.filename: Path('wheels') / wheel.filename
 				for bl_platform in sorted(self.bl_platforms)
 				if bl_platform in bl_version.valid_bl_platforms
-				for wheel in self.deps.wheels_by(
-					pkg_name=self.id,
-					bl_version=bl_version,
-					bl_platforms=frozenset(
-						{
-							bl_platform
-							for bl_platform in self.bl_platforms
-							if bl_platform in bl_version.valid_bl_platforms
-						}
-					),
-				)
+				for wheel in self.wheels[bl_version]
 			}
 			for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
 		}

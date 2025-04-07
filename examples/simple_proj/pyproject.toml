@@ -9,7 +9,7 @@ maintainers = [
     { name = "John Doe", email = "john.doe@example.com" },
 ]
 readme = "README.md"
-requires-python = "~= 3.11"
+requires-python = ">=3.11, !=3.12, <=3.13"
 license = { text = "AGPL-3.0-or-later" }
 dependencies = [
     "polars[async]>=1.26.0",
@@ -19,119 +19,92 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-bl4_2 = [
-	'autopep8==1.6.0',
-	'certifi==2021.10.8',
-	'charset_normalizer==2.0.10',
-	'Cython==0.29.30',
-	'idna==3.3',
-	#'MaterialX==??',
-	'numpy==1.24.3',
-	#'OpenImageIO==??',
-	'pip==23.2.1',
-	#'pkg_resources==??',
-	#'pxr==??',
-	'pycodestyle==2.8.0',
-	#'PyOpenColorIO==??',
-	#'pyximport==??',
-	'requests==2.27.1',
-	'setuptools==63.2.0',
-	'toml==0.10.2',
-	'urllib3==1.26.8',
-	'zstandard==0.16.0',
-	#'pyopenvdb==??',  ## Careful - not on PyPi
+blender4_2 = [
+    "autopep8==1.6.0", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
+    "certifi==2021.10.8",
+    "charset_normalizer==2.0.10",
+    "Cython==0.29.30",
+    "idna==3.3",
+    "numpy==1.24.3",
+    "pip==23.2.1",
+    "pycodestyle==2.8.0",
+    "requests==2.27.1",
+    "setuptools==63.2.0",
+    "toml==0.10.2",
+    "urllib3==1.26.8",
+    "zstandard==0.16.0", # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
 ]
-bl4_3 = [
-	'autopep8==2.3.1',
-	'certifi==2021.10.8',
-	'charset_normalizer==2.0.10',
-	'Cython==0.29.30',
-	'idna==3.3',
-	#'MaterialX==??',
-	'numpy==1.24.3',
-	#'OpenImageIO==??',
-	'pip==24.0',
-	#'pkg_resources==??',
-	#'pxr==??',
-	'pycodestyle==2.12.1',
-	#'PyOpenColorIO==??',
-	#'pyximport==??',
-	'requests==2.27.1',
-	'setuptools==63.2.0',
-	'toml==0.10.2',
-	'urllib3==1.26.8',
-	'zstandard==0.16.0',
-	#'pyopenvdb==??',  ## Careful - not on PyPi
+blender4_3 = [
+    "autopep8==1.6.0", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
+    "certifi==2021.10.8",
+    "charset_normalizer==2.0.10",
+    "Cython==0.29.30",
+    "idna==3.3",
+    "numpy==1.24.3",
+    "pip==23.2.1",
+    "pycodestyle==2.8.0",
+    "requests==2.27.1",
+    "setuptools==63.2.0",
+    "toml==0.10.2",
+    "urllib3==1.26.8",
+    "zstandard==0.16.0", # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
 ]
-bl4_4 = [
-	'autopep8==2.3.1',
-	'certifi==2021.10.8',
-	'charset_normalizer==2.0.10',
-	'Cython==3.0.11',
-	'idna==3.3',
-	#'MaterialX==??',
-	'numpy==1.26.4',
-	#'OpenImageIO==??',
-	'pip==24.0',
-	#'pkg_resources==??',
-	#'pxr==??',
-	'pycodestyle==2.12.1',
-	#'PyOpenColorIO==??',
-	#'pyximport==??',
-	'requests==2.27.1',
-	'setuptools==63.2.0',
-	'urllib3==1.26.8',
-	'zstandard==0.16.0',
-	#'pyopenvdb==??',  ## Careful - not on PyPi
+blender4_4 = [
+    "autopep8==1.6.0", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
+    "certifi==2021.10.8",
+    "charset_normalizer==2.0.10",
+    "Cython==0.29.30",
+    "idna==3.3",
+    "numpy==1.24.3",
+    "pip==23.2.1",
+    "pycodestyle==2.8.0",
+    "requests==2.27.1",
+    "setuptools==63.2.0",
+    "toml==0.10.2",
+    "urllib3==1.26.8",
+    "zstandard==0.16.0", # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
 ]
 
-####################
-# - Blender Extension
-####################
-[tool.blext]
-pretty_name = "BLExt Simple Example"
-blender_version_min = '4.2.0'
-blender_version_max = '4.4.0'
-bl_tags = ["Development"]
-copyright = ["2024 blext Contributors"]
-
-supported_platforms = [
-	'windows-x64',
-	'macos-arm64',
-	'linux-x64',
-]
-min_macos_version = [12, 0]
-#supported_python_tags = [
-#	'cp38',
-#	'cp39',
-#	'cp310',
-#	'cp311',
-#]
-#supported_abi_tags = [
-#	'none',
-#	'abi3',
-#	'cp311',
-#]
-
-####################
-# - Blender Extension
-####################
 [tool.uv]
-managed = true
-conflicts = [
-    [
-      { extra = "bl4_2" },
-      { extra = "bl4_3" },
-      { extra = "bl4_4" },
-    ],
-]
+package = false
 dev-dependencies = [
     "basedpyright>=1.28.3",
     "commitizen>=2.29.3",
     "pytest>=8.3.5",
     "ruff>=0.11.2",
 ]
-package = false
+conflicts = [
+    [
+        {extra = "blender4_2"}, # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
+        {extra = "blender4_3"},
+        {extra = "blender4_4"}, # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
+    ],
+]
+
+[tool.blext]
+pretty_name = "BLExt Simple Example"
+blender_version_min = '4.2.0'
+blender_version_max = '4.5.0'
+bl_tags = ["Development"]
+copyright = ["2024 blext Contributors"]
+
+supported_platforms = [
+    'windows-x64',
+    'macos-arm64',
+    'linux-x64',
+]
+min_macos_version = [12, 0]
+#supported_python_tags = [
+#    'cp38',
+#    'cp39',
+#    'cp310',
+#    'cp311',
+#]
+#supported_abi_tags = [
+#    'none',
+#    'abi3',
+#    'cp311',
+#]
 
 ####################
 # - Tooling: Ruff
@@ -143,75 +116,75 @@ line-length = 88
 [tool.ruff.lint]
 task-tags = ["TODO"]
 select = [
-	"E",   # pycodestyle  ## General Purpose
-	"F",   # pyflakes  ## General Purpose
-	"PL",  # Pylint  ## General Purpose
-	
-	## Code Quality
-	"TCH", # flake8-type-checking  ## Type Checking Block Validator
-	"C90", # mccabe  ## Avoid Too-Complex Functions
-	"ERA", # eradicate  ## Ban Commented Code
-	"TRY", # tryceratops  ## Exception Handling Style
-	"B",   # flake8-bugbear  ## Opinionated, Probable-Bug Patterns
-	"N",   # pep8-naming
-	"D",   # pydocstyle
-	"SIM", # flake8-simplify  ## Sanity-Check for Code Simplification
-	"SLF", # flake8-self  ## Ban Private Member Access
-	"RUF", # Ruff-specific rules  ## Extra Good-To-Have Rules
-	
-	## Style
-	"I",   # isort  ## Force import Sorting
-	"UP",  # pyupgrade  ## Enforce Upgrade to Newer Python Syntaxes
-	"COM", # flake8-commas  ## Enforce Trailing Commas
-	"Q",   # flake8-quotes  ## Finally - Quoting Style!
-	"PTH", # flake8-use-pathlib  ## Enforce pathlib usage
-	"A",   # flake8-builtins  ## Prevent Builtin Shadowing
-	"C4",  # flake9-comprehensions  ## Check Compehension Appropriateness
-	"DTZ", # flake8-datetimez  ## Ban naive Datetime Creation
-	"EM",  # flake8-errmsg  ## Check Exception String Formatting
-	"ISC", # flake8-implicit-str-concat  ## Enforce Good String Literal Concat
-	"G",   # flake8-logging-format  ## Enforce Good Logging Practices
-	"INP", # flake8-no-pep420  ## Ban PEP420; Enforce __init__.py.
-	"PIE", # flake8-pie  ## Misc Opinionated Checks
-	"T20", # flake8-print  ## Ban print()
-	"RSE", # flake8-raise  ## Check Niche Exception Raising Pattern
-	"RET", # flake8-return  ## Enforce Good Returning
-	"ARG", # flake8-unused-arguments  ## Ban Unused Arguments
-	
-	# Specific 
-	"PT", # flake8-pytest-style  ## pytest-Specific Checks
+    "E",   # pycodestyle  ## General Purpose
+    "F",   # pyflakes  ## General Purpose
+    "PL",  # Pylint  ## General Purpose
+    
+    ## Code Quality
+    "TCH", # flake8-type-checking  ## Type Checking Block Validator
+    "C90", # mccabe  ## Avoid Too-Complex Functions
+    "ERA", # eradicate  ## Ban Commented Code
+    "TRY", # tryceratops  ## Exception Handling Style
+    "B",   # flake8-bugbear  ## Opinionated, Probable-Bug Patterns
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "SIM", # flake8-simplify  ## Sanity-Check for Code Simplification
+    "SLF", # flake8-self  ## Ban Private Member Access
+    "RUF", # Ruff-specific rules  ## Extra Good-To-Have Rules
+    
+    ## Style
+    "I",   # isort  ## Force import Sorting
+    "UP",  # pyupgrade  ## Enforce Upgrade to Newer Python Syntaxes
+    "COM", # flake8-commas  ## Enforce Trailing Commas
+    "Q",   # flake8-quotes  ## Finally - Quoting Style!
+    "PTH", # flake8-use-pathlib  ## Enforce pathlib usage
+    "A",   # flake8-builtins  ## Prevent Builtin Shadowing
+    "C4",  # flake9-comprehensions  ## Check Compehension Appropriateness
+    "DTZ", # flake8-datetimez  ## Ban naive Datetime Creation
+    "EM",  # flake8-errmsg  ## Check Exception String Formatting
+    "ISC", # flake8-implicit-str-concat  ## Enforce Good String Literal Concat
+    "G",   # flake8-logging-format  ## Enforce Good Logging Practices
+    "INP", # flake8-no-pep420  ## Ban PEP420; Enforce __init__.py.
+    "PIE", # flake8-pie  ## Misc Opinionated Checks
+    "T20", # flake8-print  ## Ban print()
+    "RSE", # flake8-raise  ## Check Niche Exception Raising Pattern
+    "RET", # flake8-return  ## Enforce Good Returning
+    "ARG", # flake8-unused-arguments  ## Ban Unused Arguments
+    
+    # Specific 
+    "PT", # flake8-pytest-style  ## pytest-Specific Checks
 ]
 ignore = [
-	"COM812",  # Conflicts w/Formatter
-	"ISC001",  # Conflicts w/Formatter
-	"Q000",  # Conflicts w/Formatter
-	"Q001",  # Conflicts w/Formatter
-	"Q002",  # Conflicts w/Formatter
-	"Q003",  # Conflicts w/Formatter
-	"D206", # Conflicts w/Formatter
-	"B008", # FastAPI uses this for Depends(), Security(), etc. .
-	"E701", # class foo(Parent): pass or if simple: return are perfectly elegant
-	"ERA001", # 'Commented-out code' seems to be just about anything to ruff
-	"F722", # jaxtyping uses type annotations that ruff sees as "syntax error"
-	"N806", # Sometimes we like using types w/uppercase in functions, sue me
-	"RUF001", # We use a lot of unicode, yes, on purpose!
-	#"RUF012", # ruff misunderstands which ClassVars are actually mutable.
+    "COM812",  # Conflicts w/Formatter
+    "ISC001",  # Conflicts w/Formatter
+    "Q000",  # Conflicts w/Formatter
+    "Q001",  # Conflicts w/Formatter
+    "Q002",  # Conflicts w/Formatter
+    "Q003",  # Conflicts w/Formatter
+    "D206", # Conflicts w/Formatter
+    "B008", # FastAPI uses this for Depends(), Security(), etc. .
+    "E701", # class foo(Parent): pass or if simple: return are perfectly elegant
+    "ERA001", # 'Commented-out code' seems to be just about anything to ruff
+    "F722", # jaxtyping uses type annotations that ruff sees as "syntax error"
+    "N806", # Sometimes we like using types w/uppercase in functions, sue me
+    "RUF001", # We use a lot of unicode, yes, on purpose!
+    #"RUF012", # ruff misunderstands which ClassVars are actually mutable.
 
-	# Line Length - Controversy Incoming
-	## Hot Take: Let the Formatter Worry about Line Length
-	## - Yes dear reader, I'm with you. Soft wrap can go too far.
-	## - ...but also, sometimes there are real good reasons not to split.
-	## - Ex. I think 'one sentence per line' docstrings are a valid thing.
-	## - Overlong lines tend to be be a code smell anyway
-	## - We'll see if my hot takes survive the week :)
-	"E501",  # Let Formatter Worry about Line Length
+    # Line Length - Controversy Incoming
+    ## Hot Take: Let the Formatter Worry about Line Length
+    ## - Yes dear reader, I'm with you. Soft wrap can go too far.
+    ## - ...but also, sometimes there are real good reasons not to split.
+    ## - Ex. I think 'one sentence per line' docstrings are a valid thing.
+    ## - Overlong lines tend to be be a code smell anyway
+    ## - We'll see if my hot takes survive the week :)
+    "E501",  # Let Formatter Worry about Line Length
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
-	"SLF001", # It's okay to not have module-level docstrings in test modules.
-	"D100", # It's okay to not have module-level docstrings in test modules.
-	"D104", # Same for packages.
+    "SLF001", # It's okay to not have module-level docstrings in test modules.
+    "D100", # It's okay to not have module-level docstrings in test modules.
+    "D104", # Same for packages.
 ]
 
 ####################

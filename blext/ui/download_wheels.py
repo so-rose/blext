@@ -196,7 +196,7 @@ def ui_download_wheels(
 			style='italic',
 			justify='left',
 			no_wrap=False,
-			ratio=1,
+			ratio=2,
 		)
 		table_wheel_progress.add_column(
 			'Progress',

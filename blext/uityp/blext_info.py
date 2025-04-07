@@ -21,12 +21,22 @@ from pathlib import Path
 
 import cyclopts
 import pydantic as pyd
+import tomlkit
+import tomlkit.items
 from frozendict import frozendict
 
-from blext import extyp
+from blext import extyp, pydeps
 from blext.spec import BLExtSpec
 
 from .global_config import GlobalConfig
+
+####################
+# - Constants
+####################
+TOML_MANAGED_COMMENTS = (
+	tomlkit.comment('⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳'),
+	tomlkit.comment('⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱'),
+)
 
 ####################
 # - Constants: CLI Groups
@@ -196,7 +206,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			negative=[],
 		),
 	] = ()
-	bl_platform: typ.Annotated[
+	platform: typ.Annotated[
 		tuple[extyp.BLPlatform | typ.Literal['detect'], ...],
 		cyclopts.Parameter(
 			group=SPECIFICATION_GROUP,
@@ -224,7 +234,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 				global_config.local_bl_platform
 				if bl_platform == 'detect'
 				else bl_platform
-				for bl_platform in self.bl_platform
+				for bl_platform in self.platform
 			}
 		)
 
@@ -335,12 +345,23 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			- `blext.location.BLExtLocation`: Abstract location of a Blender extension.
 			- `blext.finders.find_proj_spec`: Find a project by its URI, returning a location.
 		"""
+		blext_location = self.blext_location(global_config=global_config)
+
+		# Update Project Specification
+		self.update_proj_spec(global_config)
+		pydeps.uv.update_uv_lock(
+			blext_location.path_uv_lock,
+			path_uv_exe=global_config.path_uv_exe,
+		)
+
+		# Load BLExtSpec
 		blext_spec = BLExtSpec.from_proj_spec_path(
-			self.blext_location(global_config=global_config).path_spec,
+			blext_location.path_spec,
 			path_uv_exe=global_config.path_uv_exe,
 			release_profile_id=self.profile,
 		)
 
+		# Constrain BLPlatforms
 		bl_platforms = self.requested_bl_platforms(global_config)
 		if not bl_platforms:
 			return blext_spec
@@ -352,6 +373,13 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		if not requested_bl_versions:
 			return self.blext_spec(global_config).bl_versions
 		return requested_bl_versions
+
+	def bl_platforms(self, global_config: GlobalConfig) -> frozenset[extyp.BLPlatform]:
+		"""All selected Blender versions."""
+		requested_bl_platforms = self.requested_bl_platforms(global_config)
+		if not requested_bl_platforms:
+			return self.blext_spec(global_config).bl_platforms
+		return requested_bl_platforms
 
 	####################
 	# - Zip Paths
@@ -535,3 +563,261 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			raise ValueError(*err_msgs)
 
 		return self.__class__(**kwargs)  # pyright: ignore[reportAny]
+
+	####################
+	# - Modify Project Specification
+	####################
+	def update_proj_spec(self, global_config: GlobalConfig) -> None:  # noqa: C901, PLR0912, PLR0915
+		"""Update a project specification to take vendored `site-packages` into account from all supported Blender versions."""
+		# TODO: blext inject bl_version_deps
+		## - This runs `install_to_proj_spec`, then runs `uv lock`.
+		## - If `blender_version_*` was updated, then `uv lock` willl error with a good error message.
+		## - Just show that error message!
+		blext_location = self.blext_location(global_config=global_config)
+		all_extras = {
+			(
+				pymarker_extra.replace(
+					'-', '_'
+				),  ## '-'/'_' differ between uv.lock/pyproject.toml
+				bl_version.vendored_site_packages,
+			)
+			for bl_version in sorted(
+				self.bl_versions(global_config),
+				key=lambda el: tuple(
+					int(v) for v in el.source.blender_version_min.split('.')
+				),
+			)
+			for pymarker_extra in bl_version.pymarker_extras
+		}
+		if len({extra[0] for extra in all_extras}) < len(all_extras):
+			msg = 'In BLReleaseOfficial, two entries with identical `pymarker_extra`s have differing `vendored_site_packages`. Please report this as a bug in `blext`.'
+			raise RuntimeError(msg)
+
+		if blext_location.path_spec.name == 'pyproject.toml':
+			####################
+			# - Stage 0: Handle Blender Versions in [projects.optional-dependencies]
+			####################
+			with blext_location.path_spec.open('r') as f:
+				doc = tomlkit.parse(f.read())
+
+			# The user must already have defined a `[project]` table.
+			## If it's not a table, then that's an error.
+			## Otherwise, `pyproject.toml` isn't valid.
+			if 'project' not in doc:
+				msgs = [
+					'In `pyproject.toml`, `[project]` does not exists.',
+					'> Please define the `[project]` table.',
+				]
+				raise ValueError(*msgs)
+			if not isinstance(doc['project'], tomlkit.items.Table):
+				msgs = [
+					"In `pyproject.toml`, `[project]` exists, but isn't a table.",
+					'> Please define `[project]` as a table.',
+				]
+				raise ValueError(*msgs)
+
+			# The user need not have defined optional-dependencies - otherwise we do it for them.
+			## If it isn't a table, then that's an error.
+			if 'optional-dependencies' not in doc['project']:  # pyright: ignore[reportOperatorIssue]
+				doc['project']['optional-dependencies'] = tomlkit.table()  # pyright: ignore[reportIndexIssue]
+			elif not isinstance(
+				doc['project']['optional-dependencies'],  # pyright: ignore[reportIndexIssue]
+				tomlkit.items.Table,
+			):
+				msg = "In `pyproject.toml`, `[project.optional-dependencies]` exists, but isn't a table."
+				raise ValueError(msg)
+
+			# Now we iterate over all the extras aka. Blender versions with vendored pydep versions.
+			for extra in sorted(all_extras, key=lambda el: el[0]):
+				extra_name = extra[0]
+				vendored_site_packages = [
+					f'{pkg_name}=={pkg_version}'
+					for pkg_name, pkg_version in extra[1].items()
+				]  ## Use explicit `==` to precisely match what Blender ships with
+
+				# If 'extra_name' is already there, we need to be very precise.
+				## Since pyproject.toml is user-authored, we must be careful to preserve styling.
+				if extra_name not in doc['project']['optional-dependencies']:  # pyright: ignore[reportOperatorIssue, reportIndexIssue]
+					doc['project'][  # pyright: ignore[reportIndexIssue, reportUnknownMemberType, reportUnusedCallResult]
+						'optional-dependencies'
+					].append(  # pyright: ignore[reportAttributeAccessIssue]
+						extra_name,
+						tomlkit.array(),
+					)
+
+				# The 'extras' dependency group must be an array.
+				if not isinstance(
+					doc['project']['optional-dependencies'][extra_name],  # pyright: ignore[reportIndexIssue]
+					tomlkit.items.Array,
+				):
+					msgs = [
+						f"In `pyproject.toml`, `project.optional-dependencies.{extra_name}` exists, but isn't an array.",
+						f'> **Value**: `{doc["project"]["optional-dependencies"][extra_name]}`',  # pyright: ignore[reportIndexIssue]
+					]
+					raise TypeError(*msgs)
+
+				# All elements of that array must be strings.
+				if not all(
+					isinstance(el, str)
+					for el in doc['project']['optional-dependencies'][extra_name]  # pyright: ignore[reportIndexIssue, reportGeneralTypeIssues, reportUnknownVariableType]
+				):
+					msgs = [
+						f"In `pyproject.toml`, `project.optional-dependencies.{extra_name}` exists, but isn't an array.",
+						f'> **Value**: `{doc["project"]["optional-dependencies"][extra_name]}`',  # pyright: ignore[reportIndexIssue]
+					]
+					raise ValueError(*msgs)
+
+				# We must delete those retained strings that conflict with vendored_site_packages.
+				## Why not error? If the user sets an incompatible version, they're wrong.
+				## By considering it "managed", we don't have to bug the user for a rote fix.
+				## This also naturally allows non-conflicting user deps to "float to the top".
+				## Be good to the user, for they are benevolent.
+				pydep_strs_to_delete: set[str] = {
+					current_pydep_str
+					for current_pydep_str in doc['project']['optional-dependencies'][  # pyright: ignore[reportIndexIssue, reportGeneralTypeIssues, reportUnknownVariableType]
+						extra_name
+					]
+					if any(
+						current_pydep_str.startswith(pkg_name)  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+						for pkg_name in extra[1]
+					)
+				}
+				for pydep_str_to_delete in pydep_strs_to_delete:
+					_ = doc['project']['optional-dependencies'][extra_name].remove(  # pyright: ignore[reportIndexIssue, reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownVariableType]
+						pydep_str_to_delete
+					)
+
+				# Finally, all vendored site-packages are dumped to the TOML
+				## Why not error? If the user sets an incompatible version, they're wrong.
+				for i, pydep_str in enumerate(vendored_site_packages):
+					if i == 0:
+						comment = TOML_MANAGED_COMMENTS[0]
+					elif i == len(vendored_site_packages) - 1:
+						comment = TOML_MANAGED_COMMENTS[1]
+					else:
+						comment = None
+
+					doc['project']['optional-dependencies'][extra_name].add_line(  # pyright: ignore[reportIndexIssue, reportAttributeAccessIssue, reportUnknownMemberType]
+						pydep_str,
+						comment=comment,
+						indent=' ' * 4,
+					)
+
+				doc['project']['optional-dependencies'][extra_name].multiline(True)  # pyright: ignore[reportIndexIssue, reportAttributeAccessIssue, reportUnknownMemberType]
+
+			####################
+			# - Stage 1: Handle Extra Conflicts in [tool.uv]
+			####################
+			# The extras are not supplementary - they are mutually exclusive.
+			## We can tell 'uv' about this situation by setting tool.uv.conflicts correctly.
+			if 'tool' not in doc and 'uv' not in doc['tool']:  # pyright: ignore[reportOperatorIssue]
+				msgs = [
+					'In `pyproject.toml`, `[tool.uv]` does not exists.',
+					'> Please define the `[tool.uv]` table.',
+				]
+				raise ValueError(*msgs)
+
+			# Make sure tool.uv.package is False.
+			## As far as uv is concerned, extensions are virtual packages.
+			if doc['tool']['uv'].get('package', True):  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportIndexIssue]
+				msgs = [
+					'In `pyproject.toml`, `tool.uv.package` is either undefined or `true`.',
+					'> `blext` projects must define `tool.uv.package = false`.',
+					'>',
+					'> **See**: <https://docs.astral.sh/uv/reference/settings/#package>',
+				]
+				raise ValueError(*msgs)
+
+			# Create tool.uv.conflicts if it doesn't exist.
+			if 'conflicts' not in doc['tool']['uv']:  # pyright: ignore[reportIndexIssue, reportOperatorIssue]
+				doc['tool']['uv']['conflicts'] = tomlkit.array()  # pyright: ignore[reportIndexIssue]
+
+			# Ensure tool.uv.conflicts is an array.
+			if not isinstance(doc['tool']['uv']['conflicts'], tomlkit.items.Array):  # pyright: ignore[reportIndexIssue]
+				msgs = [
+					"In `pyproject.toml`, `tool.uv.conflicts` exists, but isn't an array.",
+					'> Please define `tool.uv.conflicts` as an array.',
+				]
+				raise ValueError(*msgs)
+
+			# Scan conflicts array for those with only { extra = <extra in all_extras> }
+			## These should be removed, as they are redundant together with what we're adding.
+			all_extra_names = {extra[0] for extra in all_extras}
+			conflict_idxs_to_remove = {
+				i
+				for i, conflict_spec_arr in enumerate(doc['tool']['uv']['conflicts'])  # pyright: ignore[reportUnknownVariableType, reportIndexIssue, reportArgumentType]
+				if all(
+					# There exactly one key specifying the conflicting element.
+					len(conflict_spec_table) == 1  # pyright: ignore[reportUnknownArgumentType]
+					# That one key is 'extra'.
+					and conflict_spec_table.get('extra') is not None  # pyright: ignore[reportUnknownMemberType]
+					# The output of that key is one of the extra names.
+					and conflict_spec_table['extra'] in all_extra_names
+					for conflict_spec_table in conflict_spec_arr  # pyright: ignore[reportUnknownVariableType]
+				)
+			}
+			for idx_to_remove in sorted(conflict_idxs_to_remove, reverse=True):
+				doc['tool']['uv']['conflicts'].pop(idx_to_remove)  # pyright: ignore[reportIndexIssue, reportAttributeAccessIssue, reportUnknownMemberType]
+
+			# Add the conflicts entry line by line.
+			## These should be removed, as they are redundant together with what we're adding.
+			conflict_spec_arr_to_add = tomlkit.array()
+			for i, extra in enumerate(sorted(all_extras, key=lambda el: el[0])):
+				extra_name = extra[0]
+
+				extra_conflict_table = tomlkit.inline_table()
+				extra_conflict_table['extra'] = extra_name
+
+				if i == 0:
+					comment = TOML_MANAGED_COMMENTS[0]
+				elif i == len(all_extras) - 1:
+					comment = TOML_MANAGED_COMMENTS[1]
+				else:
+					comment = None
+
+				conflict_spec_arr_to_add.add_line(
+					extra_conflict_table,
+					indent=' ' * 8,
+					comment=comment,  # pyright: ignore[reportArgumentType]
+				)
+			_ = conflict_spec_arr_to_add.multiline(True)
+			conflict_spec_arr_to_add._trivia.indent = ' ' * 4  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
+
+			doc['tool']['uv']['conflicts'].add_line(  # pyright: ignore[reportAttributeAccessIssue, reportIndexIssue, reportUnknownMemberType]
+				conflict_spec_arr_to_add,
+				indent=' ' * 4,
+			)
+			doc['tool']['uv']['conflicts'].multiline(True)  # pyright: ignore[reportAttributeAccessIssue, reportIndexIssue, reportUnknownMemberType]
+			with blext_location.path_spec.open('w') as f:
+				_ = f.write(tomlkit.dumps(doc))  # pyright: ignore[reportUnknownMemberType]
+
+		elif blext_location.path_spec.name.endswith('.py'):
+			# TODO: A bit of a scheme here:
+			## blender_version_min - blender_version_max must have identical site-packages.
+			##
+			## If they are not, there's a loophole.
+			## Whatever deps from any of the BLVersion's site-packages that the extension uses...
+			## ...must be identical across all specified BLVersions.
+			##
+			## It's an important loophole, as it's vital not to inconvenience no-dependency exts.
+			##
+			## If not? Error - script dependencies must be "single version-chunk" on two fronts:
+			## - All supported BLVersions must be smooshable for this extension.
+			## - *All supported BLVersions must have identical site-packages for this extension.
+			## - All supported BLVersions must have identical site-packages for this extension.
+			##
+			## The * conditions are specific to scripts, contra  projects w/a single version-chunk.
+			## (If uv supported the dep groups / conflicts for scripts, that'd help).
+			##
+			## If so, we effectively read inline script metadata as if it were TOML.
+			## For the single version-chunk, we retrieve the vendored_site-packages...
+			## ...and mercilessly dump it into the top-level `dependencies`...
+			## ...with the usual 'MANAGED BY BLEXT' commentary.
+			## From there on, we must merely have good error messages passed through `pydeps.uv`...
+			## ...since we may just have broken the user's desired dependencies...
+			## ...but rightfully so, since what they asked for doesn't work...
+			## ...so instead, they'll have to delete that dependency and re-add it...
+			## ...so that uv gets a change to take the surrounding site-packages into account.
+			##
+			## Overall, good error message communication really matters here.
+			raise NotImplementedError

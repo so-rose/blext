@@ -16,6 +16,7 @@
 
 """Types for the CLI user interface."""
 
+from . import detectors
 from .blext_info import LOCATION_GROUP, SPECIFICATION_GROUP, BLExtUI
 from .global_config import APPAUTHOR, APPNAME, PATH_GLOBAL_CONFIG, GlobalConfig
 
@@ -27,4 +28,5 @@ __all__ = [
 	'SPECIFICATION_GROUP',
 	'BLExtUI',
 	'GlobalConfig',
+	'detectors',
 ]

@@ -59,7 +59,7 @@ def run(
 	blext_info = blext_info.model_copy(
 		update={
 			'platform': (
-				('detect',) if blext_info.bl_platform == () else blext_info.bl_platform
+				('detect',) if blext_info.platform == () else blext_info.platform
 			),
 			'bl_version': (
 				('detect',) if blext_info.bl_version == () else blext_info.bl_version

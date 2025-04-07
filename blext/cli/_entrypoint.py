@@ -20,6 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import rich
+
 from blext.utils import pretty_exceptions
 from blext.utils.search_in_parents import search_in_parents
 
@@ -60,6 +62,9 @@ def entrypoint():
 		## If so, then the project-local 'blext' is in use, and no proxying should occur.
 		## If not, we should check whether `blext` is available, and if so, proxy to it.
 		if current_blext_exe != path_pyproject_toml.parent / '.venv' / 'bin' / 'blext':
+			rich.print('Using [bold]project-local[/bold] [italic]blext[/italic]')
+			rich.print()
+
 			blext_proxy_process = subprocess.Popen(
 				[
 					str(path_pyproject_toml.parent / '.venv' / 'bin' / 'blext'),

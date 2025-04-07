@@ -96,6 +96,18 @@ class BLExtLocation(pyd.BaseModel, frozen=True):
 	####################
 	# - Extension Source Code Path
 	####################
+	@functools.cached_property
+	def path_uv_lock(self) -> Path:
+		"""Path to the `blext` project's `uv.lock` file."""
+		if self.is_project_extension:
+			return self.path_spec.parent / 'uv.lock'
+
+		if self.is_script_extension:
+			return self.path_spec.parent / (self.path_spec.name + '.lock')
+
+		msg = f"Extension project path ({self.path_spec}) is neither a script extension or a project extension. This shouldn't happen."
+		raise RuntimeError(msg)
+
 	def path_pysrc(self, pkg_name: str) -> Path:
 		"""Path to the extension source code.
 
@@ -119,7 +131,7 @@ class BLExtLocation(pyd.BaseModel, frozen=True):
 			return self.path_spec
 
 		msg = f"Extension project path ({self.path_spec}) is neither a script extension or a project extension. This shouldn't happen."
-		raise ValueError(msg)
+		raise RuntimeError(msg)
 
 	####################
 	# - Extension Data Path

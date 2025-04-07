@@ -428,6 +428,9 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 	@functools.cached_property
 	def pretty_bl_platforms(self) -> str:
 		"""Retrieve prettified, unfiltered `bl_platforms` for this wheel."""
+		if 'any' in self.platform_tags:
+			return 'all'
+
 		return ', '.join(
 			sorted(
 				[
