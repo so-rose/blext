@@ -146,6 +146,7 @@ def entrypoint():
 	# - Run CLI
 	####################
 	from . import (  # noqa: F401
+		blender,  # pyright: ignore[reportUnusedImport]
 		build,  # pyright: ignore[reportUnusedImport]
 		check,  # pyright: ignore[reportUnusedImport]
 		run,  # pyright: ignore[reportUnusedImport]
@@ -156,6 +157,7 @@ def entrypoint():
 		show_path_global_config,  # pyright: ignore[reportUnusedImport]
 		show_path_uv,  # pyright: ignore[reportUnusedImport]
 		show_profile,  # pyright: ignore[reportUnusedImport]
+		uv,  # pyright: ignore[reportUnusedImport]
 	)
 	from ._context import APP
 
