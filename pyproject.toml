@@ -196,7 +196,8 @@ docstring-code-format = false
 [tool.basedpyright]
 defineConstant = { DEBUG = true }
 
-#include = ["blext"]
+include = ["blext"]
+exclude = ["examples/**"]
 #strict = ["blext"]
 
 

@@ -27,6 +27,10 @@ from frozendict import frozendict
 
 from blext import extyp, pydeps
 from blext.spec import BLExtSpec
+from blext.utils.inline_script_metadata import (
+	parse_inline_script_metadata_str,
+	replace_inline_script_metadata_str,
+)
 from blext.utils.lru_method import lru_method
 
 from .global_config import GlobalConfig
@@ -587,10 +591,8 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		self, global_config: GlobalConfig, *, blext_spec: BLExtSpec
 	) -> bool:
 		"""Update a project specification to take vendored `site-packages` into account from all supported Blender versions."""
-		# TODO: blext inject bl_version_deps
-		## - This runs `install_to_proj_spec`, then runs `uv lock`.
-		## - If `blender_version_*` was updated, then `uv lock` willl error with a good error message.
-		## - Just show that error message!
+		altered_spec = False
+
 		blext_location = self.blext_location(global_config=global_config)
 		all_extras = {
 			(
@@ -813,36 +815,82 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 				with blext_location.path_spec.open('w') as f:
 					_ = f.write(tomlkit.dumps(doc))  # pyright: ignore[reportUnknownMemberType]
 
-		elif blext_location.path_spec.name.endswith('.py'):
-			# TODO: A bit of a scheme here:
-			## blender_version_min - blender_version_max must have identical site-packages.
-			##
-			## If they are not, there's a loophole.
-			## Whatever deps from any of the BLVersion's site-packages that the extension uses...
-			## ...must be identical across all specified BLVersions.
-			##
-			## It's an important loophole, as it's vital not to inconvenience no-dependency exts.
-			##
-			## If not? Error - script dependencies must be "single version-chunk" on two fronts:
-			## - All supported BLVersions must be smooshable for this extension.
-			## - *All supported BLVersions must have identical site-packages for this extension.
-			## - All supported BLVersions must have identical site-packages for this extension.
-			##
-			## The * conditions are specific to scripts, contra  projects w/a single version-chunk.
-			## (If uv supported the dep groups / conflicts for scripts, that'd help).
-			##
-			## If so, we effectively read inline script metadata as if it were TOML.
-			## For the single version-chunk, we retrieve the vendored_site-packages...
-			## ...and mercilessly dump it into the top-level `dependencies`...
-			## ...with the usual 'MANAGED BY BLEXT' commentary.
-			## From there on, we must merely have good error messages passed through `pydeps.uv`...
-			## ...since we may just have broken the user's desired dependencies...
-			## ...but rightfully so, since what they asked for doesn't work...
-			## ...so instead, they'll have to delete that dependency and re-add it...
-			## ...so that uv gets a change to take the surrounding site-packages into account.
-			##
-			## Overall, good error message communication really matters here.
-			raise NotImplementedError
+				altered_spec = True
 
-		return True
-		## TODO: Track whether blext_spec actually needs to be regenerated.
+		elif blext_location.path_spec.name.endswith('.py'):
+			# Check for single smooshed version
+			if len(all_extras) != 1:
+				msgs = [
+					'Script extensions may not support more than one "smooshable" version of Blender.'
+				]
+				raise ValueError(*msgs)
+
+			vendored_site_packages = next(iter(extra[1] for extra in all_extras))
+
+			# Load the inline script metadata
+			with blext_location.path_spec.open('r') as f:
+				py_source_code = f.read()
+				doc_str = parse_inline_script_metadata_str(
+					py_source_code=py_source_code
+				)
+
+			# Ensure there's inline script metadata actually available
+			if doc_str is None:
+				msg = f'No inline script metadata found in script extension: {blext_location.path_spec}'
+				raise ValueError(msg)
+
+			# Load the document.
+			doc = tomlkit.parse(doc_str)
+
+			####################
+			# - Stage 0: Handle Vendored site-package in 'dependencies'
+			####################
+			if 'dependencies' not in doc:
+				msg = f'No `dependencies` field found in inline script metadata: {blext_location.path_spec}'
+				raise ValueError(msg)
+			pydep_strs_to_delete_from_script: set[str] = {
+				current_pydep_str
+				for current_pydep_str in doc['dependencies']  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+				if any(
+					current_pydep_str.startswith(pkg_name)  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+					for pkg_name in vendored_site_packages
+				)
+			}
+			for pydep_str_to_delete in pydep_strs_to_delete_from_script:
+				_ = doc['dependencies'].remove(  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownVariableType]
+					pydep_str_to_delete
+				)
+
+			# All vendored site-packages are dumped to the TOML
+			## Why not error? If the user sets an incompatible version, they're wrong.
+			for i, pydep_str in enumerate(
+				[
+					f'{pkg_name}=={pkg_version}'
+					for pkg_name, pkg_version in vendored_site_packages.items()
+				]
+			):
+				if i == 0:
+					comment = TOML_MANAGED_COMMENTS[0]
+				elif i == len(vendored_site_packages) - 1:
+					comment = TOML_MANAGED_COMMENTS[1]
+				else:
+					comment = None
+
+				doc['dependencies'].add_line(  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+					pydep_str,
+					comment=comment,
+					indent=' ' * 4,
+				)
+
+			doc['dependencies'].multiline(True)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+			if doc_str != tomlkit.dumps(doc):  # pyright: ignore[reportUnknownMemberType]
+				new_py_source_code = replace_inline_script_metadata_str(
+					py_source_code=py_source_code,
+					metadata_str=tomlkit.dumps(doc),  # pyright: ignore[reportUnknownMemberType]
+				)
+				with blext_location.path_spec.open('w') as f:
+					_ = f.write(new_py_source_code)
+
+				altered_spec = True
+
+		return altered_spec

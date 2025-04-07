@@ -29,7 +29,7 @@ from frozendict import deepfreeze, frozendict
 from pydantic_extra_types.semantic_version import SemanticVersion
 
 from . import extyp
-from .pydeps import BLExtDeps, PyDep, PyDepWheel, uv
+from .pydeps import BLExtDeps, PyDepWheel, uv
 from .utils.inline_script_metadata import parse_inline_script_metadata
 from .utils.pydantic_frozendict import FrozenDict
 
@@ -198,32 +198,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		return all(
 			bl_version.valid_bl_platforms.issubset(self.bl_platforms)
 			for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
-		)
-
-	@functools.cached_property
-	def pydeps(
-		self,
-	) -> frozendict[extyp.BLVersion, frozenset[PyDep]]:
-		"""Python dependencies by (smooshed) Blender version and Blender platform."""
-		return frozendict(
-			{
-				bl_version: frozenset(
-					{
-						self.deps.pydeps_by(
-							pkg_name=self.id,
-							bl_version=bl_version,
-							bl_platforms=frozenset(
-								{
-									bl_platform
-									for bl_platform in self.bl_platforms
-									if bl_platform in bl_version.valid_bl_platforms
-								}
-							),
-						)
-					}
-				)
-				for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
-			}
 		)
 
 	@functools.cached_property
@@ -786,6 +760,41 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		else:
 			msg = f'Tried to load a Blender extension project specification from "{path_proj_spec}", but no such file exists.'
 			raise ValueError(msg)
+
+		name_from_spec = proj_spec_dict.get('project', {}).get('name')  # pyright: ignore[reportAny]
+		if name_from_spec is None:
+			msgs = [
+				'Extension has no `project.name` field.',
+			]
+			raise ValueError(*msgs)
+		if not isinstance(name_from_spec, str):
+			msgs = [
+				'`project.name` is not a string.',
+			]
+			raise TypeError(*msgs)
+
+		if (
+			path_proj_spec.name == 'pyproject.toml'
+			and not (path_proj_spec.parent / name_from_spec).is_dir()
+		):
+			msgs = [
+				'Project extension package name did not match `project.name`.',
+				'> **Remedies**:',
+				f'> 1. Rename extension package to `{name_from_spec}/`',
+				'> 1. Set `project.name` to the name of the extension package.',
+			]
+			raise ValueError(*msgs)
+
+		if path_proj_spec.name.endswith(
+			'.py'
+		) and name_from_spec != path_proj_spec.name.removesuffix('.py'):
+			msgs = [
+				'Script extension name did not match `project.name`.',
+				'> **Remedies**:',
+				f'> 1. Rename `{path_proj_spec.name}` to `{name_from_spec}.py`',
+				f'> 2. Set `project.name = {path_proj_spec.name.removesuffix(".py")}`.',
+			]
+			raise ValueError(*msgs)
 
 		# Parse Extension Specification
 		return cls.from_proj_spec_dict(

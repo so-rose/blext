@@ -331,82 +331,85 @@ class BLReleaseOfficial(enum.StrEnum):
 		"""Extension tags parseable by this Blender release."""
 		match self:
 			case v if v.is_4_2:
-				return frozendict(
-					{
-						'autopep8': '1.6.0',
-						'certifi': '2021.10.8',
-						'charset_normalizer': '2.0.10',
-						'Cython': '0.29.30',
-						'idna': '3.3',
-						## TODO: MaterialX
-						'numpy': '1.24.3',
-						## TODO: OpenImageIO
-						'pip': '23.2.1',
-						## TODO: pkg_resources
-						## TODO: pxr
-						'pycodestyle': '2.8.0',
-						## TODO: PyOpenColorIO
-						## TODO: pyximport
-						'requests': '2.27.1',
-						'setuptools': '63.2.0',
-						'toml': '0.10.2',
-						'urllib3': '1.26.8',
-						'zstandard': '0.16.0',
-						## TODO: pyopenvdb
-					}
-				)
+				vendored_site_packages = {
+					'autopep8': '1.6.0',
+					'certifi': '2021.10.8',
+					'charset_normalizer': '2.0.10',
+					'Cython': '0.29.30',
+					'idna': '3.3',
+					## TODO: MaterialX
+					'numpy': '1.24.3',
+					## TODO: OpenImageIO
+					'pip': '23.2.1',
+					## TODO: pkg_resources
+					## TODO: pxr
+					'pycodestyle': '2.8.0',
+					## TODO: PyOpenColorIO
+					## TODO: pyximport
+					'requests': '2.27.1',
+					'setuptools': '63.2.0',
+					'toml': '0.10.2',
+					'urllib3': '1.26.8',
+					'zstandard': '0.16.0',
+					## TODO: pyopenvdb
+				}
 			case v if v.is_4_3:
-				return frozendict(
-					{
-						'autopep8': '2.3.1',
-						'certifi': '2021.10.8',
-						'charset_normalizer': '2.0.10',
-						'Cython': '0.29.30',
-						'idna': '3.3',
-						## TODO: MaterialX
-						'numpy': '1.24.3',
-						## TODO: OpenImageIO
-						'pip': '24.0',
-						## TODO: pkg_resources
-						## TODO: pxr
-						'pycodestyle': '2.12.1',
-						## TODO: PyOpenColorIO
-						## TODO: pyximport
-						'requests': '2.27.1',
-						'setuptools': '63.2.0',
-						'urllib3': '1.26.8',
-						'zstandard': '0.16.0',
-						## TODO: pyopenvdb
-					}
-				)
+				vendored_site_packages = {
+					'autopep8': '2.3.1',
+					'certifi': '2021.10.8',
+					'charset_normalizer': '2.0.10',
+					'Cython': '0.29.30',
+					'idna': '3.3',
+					## TODO: MaterialX
+					'numpy': '1.24.3',
+					## TODO: OpenImageIO
+					'pip': '24.0',
+					## TODO: pkg_resources
+					## TODO: pxr
+					'pycodestyle': '2.12.1',
+					## TODO: PyOpenColorIO
+					## TODO: pyximport
+					'requests': '2.27.1',
+					'setuptools': '63.2.0',
+					'urllib3': '1.26.8',
+					'zstandard': '0.16.0',
+					## TODO: pyopenvdb
+				}
 			case v if v.is_4_4:
-				return frozendict(
-					{
-						'autopep8': '2.3.1',
-						'certifi': '2021.10.8',
-						'charset_normalizer': '2.0.10',
-						'Cython': '3.0.11',
-						'idna': '3.3',
-						## TODO: MaterialX
-						'numpy': '1.26.4',
-						## TODO: OpenImageIO
-						## TODO: oslquery
-						'pip': '24.0',
-						## TODO: pkg_resources
-						## TODO: pxr
-						'pycodestyle': '2.12.1',
-						## TODO: PyOpenColorIO
-						## TODO: pyximport
-						'requests': '2.27.1',
-						'setuptools': '63.2.0',
-						'urllib3': '1.26.8',
-						'zstandard': '0.16.0',
-						## TODO: pyopenvdb
-					}
-				)
+				vendored_site_packages = {
+					'autopep8': '2.3.1',
+					'certifi': '2021.10.8',
+					'charset_normalizer': '2.0.10',
+					'Cython': '3.0.11',
+					'idna': '3.3',
+					## TODO: MaterialX
+					'numpy': '1.26.4',
+					## TODO: OpenImageIO
+					## TODO: oslquery
+					'pip': '24.0',
+					## TODO: pkg_resources
+					## TODO: pxr
+					'pycodestyle': '2.12.1',
+					## TODO: PyOpenColorIO
+					## TODO: pyximport
+					'requests': '2.27.1',
+					'setuptools': '63.2.0',
+					'urllib3': '1.26.8',
+					'zstandard': '0.16.0',
+					## TODO: pyopenvdb
+				}
 			case _:
 				msg = f'Released Blender version `{self}` was not accounted for in `BLReleaseOfficial.valid_extension_tags`. Please report this bug.'
 				raise RuntimeError(msg)
+
+		# Coerce names to normalized PyPi naming conventions.
+		## NOTE: If we don't do this, then conflict detection may spontaneously break.
+		return frozendict(
+			{
+				pkg_name.replace('-', '_').lower(): pkg_version
+				for pkg_name, pkg_version in vendored_site_packages.items()
+			}
+		)
 
 	####################
 	# - Python Environment: Basic Information

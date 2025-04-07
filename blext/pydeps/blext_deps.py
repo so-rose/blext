@@ -95,7 +95,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		*,
 		pkg_name: str,
 		bl_version: extyp.BLVersion,
-		bl_platforms: frozenset[extyp.BLPlatform],
+		bl_platform: extyp.BLPlatform,
 	) -> frozendict[str, PyDep]:
 		"""All Python dependencies needed by the given Python environment."""
 
@@ -110,24 +110,18 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				node_downstream
 			]['marker']
 
-			return pydep_marker is None or any(
-				pydep_marker.is_valid_for(
-					pkg_name=pkg_name,
-					bl_version=bl_version,
-					bl_platform=bl_platform,
-				)
-				for bl_platform in bl_platforms
+			return pydep_marker is None or pydep_marker.is_valid_for(
+				pkg_name=pkg_name,
+				bl_version=bl_version,
+				bl_platform=bl_platform,
 			)
 
-		if any(
-			bl_platform in bl_version.valid_bl_platforms for bl_platform in bl_platforms
-		):
+		if bl_platform in bl_version.valid_bl_platforms:
 			# Deduce which pydep_name the user asked for.
 			## **If** the user specified markers, then we check and respect them.
 			## **Don't** include targets that are vendored by Blender.
 			valid_pydep_target_names = {
 				pydep_target_name
-				for bl_platform in bl_platforms
 				for pydep_target_name, pydep_marker in self.target_pydeps.items()
 				if (
 					pydep_target_name not in bl_version.vendored_site_packages
@@ -217,7 +211,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			if err_site_packages_overlap:
 				raise ValueError(*err_site_packages_overlap)
 
-			# After a long journey, you've find a return statement.
+			# After a long journey, you've found a return statement.
 			## But will you ever be the same?
 			## The elves have offered to let you sail West with them.
 			## For now, have a cookie.
@@ -229,7 +223,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				}
 			)
 
-		msg = f'A given `bl_platform` in `{bl_platforms}` is not supported by the given Blender version (`{bl_version.version}`).'
+		msg = f'The given `bl_platform` in `{bl_platform}` is not supported by the given Blender version (`{bl_version.version}`).'
 		raise ValueError(msg)
 
 	####################
@@ -251,11 +245,11 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		## Even monsters deserve love. [1]
 		## [1]: Shrek (2001)
 		err_msgs: dict[extyp.BLPlatform, list[str]] = {
-			bl_platform: [] for bl_platform in bl_platforms
+			bl_platform: [] for bl_platform in sorted(bl_platforms)
 		}
 		pydep_wheels = {
-			pydep: pydep.select_wheels(
-				bl_platforms=bl_platforms,
+			pydep: pydep.select_wheel(
+				bl_platform=bl_platform,
 				min_glibc_version=(
 					bl_version.min_glibc_version
 					if self.min_glibc_version is None
@@ -288,29 +282,23 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				),
 				err_msgs=err_msgs,
 			)
+			for bl_platform in sorted(bl_platforms)
 			for pydep in self.pydeps_by(
 				pkg_name=pkg_name,
 				bl_version=bl_version,
-				bl_platforms=bl_platforms,
+				bl_platform=bl_platform,
 			).values()
 		}
 
 		# Return the monster if every pydep/platform has a wheel.
 		## Otherwise, say what's missing, why, and what can be done about it.
 		num_missing_wheels = sum(
-			len(wheels_by_platform) == 0
-			for _, wheel_selections in pydep_wheels.items()
-			for _, wheels_by_platform in wheel_selections.items()
+			1 if wheel_selection is None else 0
+			for wheel_selection in pydep_wheels.values()
 		)
 		if num_missing_wheels == 0:
-			return frozenset(
-				{
-					wheel
-					for _, wheel_selections in pydep_wheels.items()
-					for _, wheels_by_platform in wheel_selections.items()
-					for wheel in wheels_by_platform
-				}
-			)
+			return frozenset(pydep_wheels.values())  # pyright: ignore[reportReturnType]
+
 		raise ValueError(
 			*[
 				err_msg
@@ -431,7 +419,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			## - Always found in 'manifest.requirements'.
 			if 'requirements' in uv_lock['manifest']:
 				target_pydeps = {
-					dependency['name']: None
+					nrm_name(dependency['name']): None  ## pyright: ignore[reportAny]
 					for dependency in uv_lock['manifest']['requirements']  # pyright: ignore[reportAny]
 				}
 			else:

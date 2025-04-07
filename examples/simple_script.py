@@ -17,14 +17,25 @@
 # /// script
 # requires-python = "==3.11.*"
 # dependencies = [
-#   "jupyter-core>=5.7.2",
-#   "numpy==1.24.*",
-#   "polars[async]>=1.26.0",
-#   "scipy==1.15.2",
+#     "jupyter-core>=5.7.2",
+#     "polars[async]>=1.26.0",
+#     "scipy>=1.15.2",
+#     "autopep8==2.3.1", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
+#     "certifi==2021.10.8",
+#     "charset_normalizer==2.0.10",
+#     "cython==0.29.30",
+#     "idna==3.3",
+#     "numpy==1.24.3",
+#     "pip==24.0",
+#     "pycodestyle==2.12.1",
+#     "requests==2.27.1",
+#     "setuptools==63.2.0",
+#     "urllib3==1.26.8",
+#     "zstandard==0.16.0", # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
 # ]
 #
 # [project]
-# name = "minimal_file_ext"
+# name = "simple_script"
 # version = "0.1.0"
 # description = "A quick example of a one-file Blender w/Python dependencies"
 # authors = [
@@ -40,10 +51,11 @@
 # copyright = ["2025 blext Contributors"]
 #
 # supported_platforms = [
-# 	'windows-x64',
-# 	'macos-arm64',
-# 	'linux-x64',
+#    'windows-x64',
+#    'macos-arm64',
+#    'linux-x64',
 # ]
+# min_macos_version = [12, 0]
 # ///
 
 import bpy
