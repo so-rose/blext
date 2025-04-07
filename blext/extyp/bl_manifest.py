@@ -55,10 +55,12 @@ class BLManifest_1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
 	"""Strict representation of the `1.0.0` version of the Blender extension manifest.
 
 	Notes:
+		**Source of Validation Information**: [`addons_core.bl_pkg.cli.blender_ext`](https://projects.blender.org/blender/blender/src/commit/a51f293548adba0dda086f5771401e8d8ab66227/scripts/addons_core/bl_pkg/cli/blender_ext.py#L1781).
+
 		The validation routines performed on these fields should **flawlessly** match that done by `blender --command extension validate`, for Blender version `4.2.0`.
 
 		The validation of this class is derived from the following `4.2.0` source-code permalinks (presuming `struct=True`):
-		- **Source of Validation Information**: [`addons_core.bl_pkg.cli.blender_ext`](https://projects.blender.org/blender/blender/src/commit/a51f293548adba0dda086f5771401e8d8ab66227/scripts/addons_core/bl_pkg/cli/blender_ext.py#L1781).
+
 		- `id`: Matches validation in [`pkg_idname_is_valid_or_error`](https://projects.blender.org/blender/blender/src/commit/a51f293548adba0dda086f5771401e8d8ab66227/scripts/addons_core/bl_pkg/cli/blender_ext.py#L1358).
 		- `schema_version`: Matches validation in [`pkg_manifest_validate_field_any_version`](https://projects.blender.org/blender/blender/src/commit/a51f293548adba0dda086f5771401e8d8ab66227/scripts/addons_core/bl_pkg/cli/blender_ext.py#L1533).
 		- `name`: Matches validation in [`pkg_manifest_validate_field_any_non_empty_string_stripped_no_control_chars`](https://projects.blender.org/blender/blender/src/commit/a51f293548adba0dda086f5771401e8d8ab66227/scripts/addons_core/bl_pkg/cli/blender_ext.py#L1498).
@@ -165,7 +167,6 @@ class BLManifest_1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
 			typ.Annotated[
 				str,
 				atyp.MaxLen(64),
-				atyp.Predicate(str.isidentifier),
 				atyp.Predicate(validators.no_dunder_in_string),
 				atyp.Predicate(validators.no_str_startswith_underscore),
 				atyp.Predicate(validators.no_str_endswith_underscore),

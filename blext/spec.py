@@ -121,7 +121,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			typ.Annotated[
 				str,
 				atyp.MaxLen(64),
-				atyp.Predicate(str.isidentifier),
 				atyp.Predicate(extyp.validators.no_dunder_in_string),
 				atyp.Predicate(extyp.validators.no_str_startswith_underscore),
 				atyp.Predicate(extyp.validators.no_str_endswith_underscore),
