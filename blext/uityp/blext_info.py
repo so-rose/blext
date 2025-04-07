@@ -261,9 +261,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 
 
 		Parameters:
-			proj: String shorthand for specifying a `blext` project location.
-			config: Global configuration.
-				In particular, contains locations of global paths.
+			global_config: Global configuration.
 
 		See Also:
 			- `blext.location.BLExtLocation`: Abstract location of a Blender extension.
@@ -339,8 +337,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			- Runs `blext_spec.set_bl_platforms(self.request_bl_platforms)` after loading succeeds.
 
 		Parameters:
-			config: Global configuration.
-				In particular, contains locations of global paths.
+			global_config: Global configuration.
 
 		See Also:
 			- `blext.location.BLExtLocation`: Abstract location of a Blender extension.
@@ -783,33 +780,34 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 
 			# Add the conflicts entry line by line.
 			## These should be removed, as they are redundant together with what we're adding.
-			conflict_spec_arr_to_add = tomlkit.array()
-			for i, extra in enumerate(sorted(all_extras, key=lambda el: el[0])):
-				extra_name = extra[0]
+			if len(all_extras) > 1:
+				conflict_spec_arr_to_add = tomlkit.array()
+				for i, extra in enumerate(sorted(all_extras, key=lambda el: el[0])):
+					extra_name = extra[0]
 
-				extra_conflict_table = tomlkit.inline_table()
-				extra_conflict_table['extra'] = extra_name
+					extra_conflict_table = tomlkit.inline_table()
+					extra_conflict_table['extra'] = extra_name
 
-				if i == 0:
-					comment = TOML_MANAGED_COMMENTS[0]
-				elif i == len(all_extras) - 1:
-					comment = TOML_MANAGED_COMMENTS[1]
-				else:
-					comment = None
+					if i == 0:
+						comment = TOML_MANAGED_COMMENTS[0]
+					elif i == len(all_extras) - 1:
+						comment = TOML_MANAGED_COMMENTS[1]
+					else:
+						comment = None
 
-				conflict_spec_arr_to_add.add_line(
-					extra_conflict_table,
-					indent=' ' * 8,
-					comment=comment,  # pyright: ignore[reportArgumentType]
+					conflict_spec_arr_to_add.add_line(
+						extra_conflict_table,
+						indent=' ' * 8,
+						comment=comment,  # pyright: ignore[reportArgumentType]
+					)
+				_ = conflict_spec_arr_to_add.multiline(True)
+				conflict_spec_arr_to_add._trivia.indent = ' ' * 4  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
+
+				doc['tool']['uv']['conflicts'].add_line(  # pyright: ignore[reportAttributeAccessIssue, reportIndexIssue, reportUnknownMemberType]
+					conflict_spec_arr_to_add,
+					indent=' ' * 4,
 				)
-			_ = conflict_spec_arr_to_add.multiline(True)
-			conflict_spec_arr_to_add._trivia.indent = ' ' * 4  # pyright: ignore[reportPrivateUsage] # noqa: SLF001
-
-			doc['tool']['uv']['conflicts'].add_line(  # pyright: ignore[reportAttributeAccessIssue, reportIndexIssue, reportUnknownMemberType]
-				conflict_spec_arr_to_add,
-				indent=' ' * 4,
-			)
-			doc['tool']['uv']['conflicts'].multiline(True)  # pyright: ignore[reportAttributeAccessIssue, reportIndexIssue, reportUnknownMemberType]
+				doc['tool']['uv']['conflicts'].multiline(True)  # pyright: ignore[reportAttributeAccessIssue, reportIndexIssue, reportUnknownMemberType]
 
 			if original_doc != tomlkit.dumps(doc):  # pyright: ignore[reportUnknownMemberType]
 				with blext_location.path_spec.open('w') as f:
