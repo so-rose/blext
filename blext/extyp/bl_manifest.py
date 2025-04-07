@@ -81,7 +81,8 @@ class BLManifest_1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
 
 		_Why `4.2.0`? This was the first version to support the `1.0.0` manifest schema._
 
-	Warnings:
+		---
+
 		`blext` enforces strict adherance to the `1.0.0` manifest specification and/or `4.2.0` behavior to support **ecosystem integrity**: An extension with a manifest that parses correctly in one version of Blender, must parse correctly in all future versions of Blender that support this same schema.
 		**No exceptions**.
 

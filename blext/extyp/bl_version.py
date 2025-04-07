@@ -82,7 +82,7 @@ class BLVersion(pyd.BaseModel, frozen=True):
 	def version(self) -> str:
 		"""This Blender version as a string.
 
-		Warnings:
+		Notes:
 			**Do not parse** in hopes of learning anything about where this Blender version came from.
 
 			Very little can be presumed about this string.
@@ -104,13 +104,12 @@ class BLVersion(pyd.BaseModel, frozen=True):
 	def pymarker_encoded_package_extras(self, pkg_name: str) -> frozenset[str]:
 		"""Encode the name of a pymarker `extra`, corresponding to a given package name.
 
-		Warnings:
+		Notes:
 			Compared to the keys of `[project.optional-dependencies]` in `pyproject.toml`, this property uses `-` instead of `_`.
 			This includes a transformation of `pkg_name` from use of `_`, to use of `-`.
 
 			This matches how the `extra` is defined in `uv.lock`.
 
-		Notes:
 			`blext` uses different `[project.optional-dependencies]` to encode packages whose versions differ across versions of Blender / are directly vendored by Blender.
 			As a result, `uv` automatically guarantees that any other dependencies one may add are compatible with all of the Blender versions supported by the extension.
 
@@ -182,12 +181,11 @@ class BLVersion(pyd.BaseModel, frozen=True):
 	) -> frozendict[BLPlatform, tuple[frozendict[str, str], ...]]:
 		"""All supported marker environments, indexed by `BLPlatform`.
 
-		Warnings:
-			Wheels that utilize `platform_release` marker dependencies are incompatible with Blender extensions.
+		Notes:
+			**Wheels that utilize `platform_release` marker dependencies are incompatible with Blender extensions**.
 
 			This is because there's no way to predict the user's exact `platform_release` when preparing extension wheels.
 
-		Notes:
 			Each element contains the following:
 
 			- `implementation_name`: Always `'cpython'`, as Blender only supports the "CPython" Python interpreter.

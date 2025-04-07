@@ -68,11 +68,10 @@ class BLVersionSourceOfficial(BLVersionSource, frozen=True):
 	def portable_download_url(self, bl_platform: BLPlatform) -> pyd.HttpUrl:
 		"""URL to a portable variant of this Blender release.
 
-		Warnings:
-			Currently, it is not checked whether `bl_platform` has an official Blender download available.
+		Notes:
+			Availability: Currently, it is not checked whether `bl_platform` has an official Blender download available.
 
-			Always check that this URL exists and looks reasonable before downloading.
-
+			Always check that this URL exists and looks reasonable before downloading anything.
 		"""
 		return pyd.HttpUrl(
 			'/'.join(

@@ -51,32 +51,34 @@ def run_blender(  # noqa: PLR0913
 	block: bool = True,
 	bufsize: int = 0,
 ) -> subprocess.Popen[str] | subprocess.Popen[bytes]:
-	"""Run the Blender executable in various ways.
+	"""Run a Blender command.
 
 	Notes:
-		When `block=True`, `CTRL+C` will also exit the underlying Blender process.
-		When `block=False`, `CTRL+C` must be manually handled.
+		**Env Security**: For security reasons, it may be desirable to use a minimal `env`. Depending on the threat model, passing `os.environ` may be sufficient, as this is generally not less secure than launching Blender normally.
 
-		This function does not register signal handlers.
+		**Handling `CTRL+C`**: When `block=False`, `CTRL+C` (aka. `KeyboardInterrupt`) will not automatically close the Blender subprocess.
 
-	Warnings:
-		For security reasons, it may be desirable to use a minimal `env`.
+		**Signal Handlers**: This function does not register signal handlers.
 
-		Note, however, that when starting the Blender UI with `headless=False`, there are many important env vars at work.
-		For instance, window initialization, audio, and more may all depend on appropriately env vars.
+		When `block=True`, `CTRL+C` is handled with a `try/except` that catches `KeyboardInterrupt`.
 
-		Therefore, it is strongly advised to pass `os.environ` as-is.
-		The security properties of doing so are not generally lesser than simply launching Blender regularly.
+		The behavior of `CTRL+C` while this function is running is as follows:
+
+		- When `block=True`, `CTRL+C` will also exit the underlying Blender process.
+		- When `block=False`, `CTRL+C` must be manually handled.
+
 
 	Parameters:
 		blender_exe: Path to a valid Blender executable.
 		startup_script: Path to a Python script to run as Blender starts.
 		factory_startup: Temporarily reset Blender to factory settings.
-			In particular, this disables other addons/extensions and/or non-standard preferences.
+
+			- In particular, this disables other addons/extensions and/or non-standard user preferences.
 		headless: Run Blender without a user interface.
+
+			- When `False`, it is suggested to pass `env=os.environ`, as it can be a little difficult to manually select environment variables responsible for window initialization, audio, and more, robustly enough.
 		args: Extra CLI arguments to pass to the Blender command invocation.
 		env: Environment variables to set.
-			**When using
 		capture: Whether to capture `stderr` and `stdout` to a string.
 			When `False`, Blender's I/O will passthrough completely.
 		block: Wait for `blender` to exit before returning from this function.

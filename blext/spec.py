@@ -161,12 +161,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	def bl_versions_by_granular(self) -> frozendict[extyp.BLVersion, extyp.BLVersion]:
 		"""All Blender versions supported by this extension, indexed by the granular input version.
 
-		Warnings:
+		Notes:
 			`blext` doesn't support official Blender versions released after a particular `blext` version was published.
 
 			This is because `blext` has no way of knowing critical information about such future releases, ex. the versions of vendored `site-packages` dependencies.
 
-		Notes:
 			Derived by comparing `self.blender_version_min` and `self.blender_version_max` to hard-coded Blender versions that have already been released, whose properties are known.
 		"""
 		granular_bl_versions = sorted(
@@ -219,12 +218,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	def bl_versions(self) -> frozenset[extyp.BLVersion]:
 		"""All Blender versions supported by this extension.
 
-		Warnings:
+		Notes:
 			`blext` doesn't support official Blender versions released after a particular `blext` version was published.
 
 			This is because `blext` has no way of knowing critical information about such future releases, ex. the versions of vendored `site-packages` dependencies.
 
-		Notes:
 			Derived by comparing `self.blender_version_min` and `self.blender_version_max` to hard-coded Blender versions that have already been released, whose properties are known.
 		"""
 		return frozenset(self.bl_versions_by_granular.values())
@@ -294,14 +292,15 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	) -> extyp.BLManifest:
 		"""Export the Blender extension manifest.
 
-		Warnings:
+		Notes:
 			Only `fmt='toml'` results in valid contents of `blender_manifest.toml`.
 			_This is also the default._
 
 			Other formats are included to enable easier interoperability with other systems - **not** with Blender.
 
 		Parameters:
-			fmt: String format to export Blender manifest to.
+			bl_manifest_version: The Blender manifest schema version to export to the appropriate filename.
+			bl_version: The Blender version to export a manifest schema for.
 
 		Returns:
 			String representing the Blender extension manifest.
@@ -375,7 +374,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	) -> str:
 		"""Export the Blender extension manifest.
 
-		Warnings:
+		Notes:
 			Only `fmt='toml'` results in valid contents of `blender_manifest.toml`.
 			_This is also the default._
 
@@ -419,7 +418,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			This amounts to a "new extension", which can be generated using this method.
 
 		Parameters:
-			bl_platform: The Blender platform to support exclusively.
+			bl_platforms: The Blender platforms to support exclusively.
+
 				- `frozenset[BLPlatform]`: Directly write to `self.bl_platforms`.
 				- `set[BLPlatform]`: Directly write to `self.bl_platforms`.
 				- `BLPlatform`: Place in a single-element set.

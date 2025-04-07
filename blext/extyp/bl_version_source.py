@@ -39,14 +39,14 @@ class BLVersionSource(pyd.BaseModel, frozen=True):
 	def blender_version_min(self) -> str:
 		"""Minimum supported Blender version.
 
-		Warnings:
-			**Do not parse**. Only for specialized use.
+		Notes:
+			**Do not parse**: Only for specialized use.
 
-			**Do not use `self.version`** either.
+			**Do not use `self.version` either**.
 
 			Instead, handle versions in a manner consistent with each particular `BLVersionSource` subclass.
 
-		Notes:
+			Other important properties:
 			- Must correspond to an official releases `>=4.2.0`.
 			- Corresponds directly to the same-named property in `blender_manifest.toml`.
 			- The `blender_manifest.toml` format enforces that this be given by all `BLVersion`s. For ex. forks that don't always have such a clean descriptor, it's okay to lie to make it work.
@@ -57,16 +57,16 @@ class BLVersionSource(pyd.BaseModel, frozen=True):
 	def blender_version_max(self) -> str | None:
 		"""Maximum supported Blender version, **not including** this version.
 
-		Warnings:
-			**Do not parse**. Only for specialized use.
+		Notes:
+			**Do not parse**: Only for specialized use.
 
-			**Do not use `self.version`** either.
+			**Do not use `self.version` either**.
 
 			Instead, handle versions in a manner consistent with each particular `BLVersionSource` subclass.
 
-		Notes:
+			Other important properties:
 			- Must correspond to an official release `>=4.2.1`.
 			- Corresponds directly to the same-named property in `blender_manifest.toml`.
-			- Does not have to be given.
+			- When not given, "all versions" are allowed.
 		"""
 		return None

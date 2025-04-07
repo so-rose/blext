@@ -55,16 +55,11 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 	Notes:
 		`path_global_cache` can only be overridden in the user's global configuration file.
 
-	Parameters:
-		path_global_cache: Global cache directory of `blext`.
-		path_blender_exe: Override path to `blender` executable.
-		path_uv_exe: Override path to `uv` executable.
-		use_log_file: Write `blext` logs to a file.
-		log_file_path: Path to log-file, when enabled.
-		log_file_level: Minimum log-level to write to the file.
-		use_log_console: Write `blext` logs to the console.
-			_Disables interactive output._
-		console_file_level: Minimum log-level to write to the console.
+	Attributes:
+		path_global_cache: Path to global cache directory used by `blext`.
+		local_bl_platform: The current system's `BLPlatform`.
+		path_default_blender_exe: Path to the default `blender` executable.
+		path_uv_exe: Path to the `uv` executable to use.
 	"""
 
 	# Global Cache Path

@@ -64,7 +64,3 @@ We think that's pretty fair.
 	The AGPL only applies on _distribution_.
 
 	If you don't give your `blext`-based tool to anyone, then nobody gets to claim any AGPL-protected rights.
-
-
-
-## Alternative Licenses

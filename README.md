@@ -67,7 +67,7 @@ Usage: blext COMMAND
 > 
 > We would appreciate if you took a moment to _assign a label_ to your the Issues:
 > 
-> - `user-experience`: You tried it, and have some constructive opinions to share!
+> - `user-report`: You tried it, and have some constructive opinions to share!
 > - `ux`: Something was frustrating that didn't need to be.
 > - `bug`: Something's not working the way it's supposed to.
 > 

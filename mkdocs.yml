@@ -32,13 +32,15 @@ nav:
       - reference/policies/versioning.md
       - reference/policies/licensing.md
       - reference/policies/contributing.md
+      - reference/policies/schemas.md
     - Python API:
       - reference/python_api/blext.md
       - reference/python_api/blext_cli.md
+      - reference/python_api/blext_extyp.md
       - reference/python_api/blext_pydeps.md
       - reference/python_api/blext_ui.md
+      - reference/python_api/blext_uityp.md
       - reference/python_api/blext_utils.md
-      - reference/python_api/blext_utils_blender.md
 
 markdown_extensions:
   - admonition

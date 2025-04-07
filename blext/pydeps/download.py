@@ -120,8 +120,11 @@ def download_wheels(
 	- Examine https://pypi.org/project/pillow/#files for some widely-supported tags.
 
 	Parameters:
-		blext_spec: The extension specification to pack the zip file base on.
-		bl_platform: The Blender platform to get wheels for.
+		wheels: Wheels to download.
+		path_wheels: Folder within which to download wheels to.
+		cb_start_wheel_download: Callback to trigger when starting a wheel download.
+		cb_update_wheel_download: Callback to trigger when a wheel download should update.
+		cb_finish_wheel_download: Callback to trigger when a wheel download has finished.
 	"""
 	global SIGNAL_ABORT  # noqa: PLW0603
 

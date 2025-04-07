@@ -118,7 +118,7 @@ def file_handler(path_log_file: Path, level: LogLevel) -> rich.logging.RichHandl
 def get(module_name: str) -> logging.Logger:
 	"""Retrieve and/or create a logger corresponding to a module name.
 
-	Warnings:
+	Notes:
 		MUST be used as `logger.get(__name__)`.
 
 	Parameters:

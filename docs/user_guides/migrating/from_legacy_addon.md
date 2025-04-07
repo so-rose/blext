@@ -18,6 +18,6 @@
 
 
 !!! info
-	_Expansion of this page is planned._ For now, we suggest browsing the rest of the documentation (but especially the [Official Extension Resources](../../resources/official_extension_resources.md)).
+	_Expansion of this page is planned._ For now, we suggest browsing the rest of the documentation (but especially the [Official Extension Resources](../../resources/extension_resources.md)).
 
 	Watch this space!

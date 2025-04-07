@@ -381,7 +381,7 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 			what the environment supports, and what the wheel supports.
 
 		Parameters:
-			python_tags: List of Python tags supported by a runtime environment.
+			valid_python_tags: List of Python tags supported by a runtime environment.
 
 		Returns:
 			Whether the Python tags of the environment, and the wheel, are compatible.
@@ -399,7 +399,7 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 				what the environment supports, and what the wheel supports.
 
 		Parameters:
-			python_tags: List of Python tags supported by a runtime environment.
+			valid_abi_tags: List of ABI tags supported by a runtime environment.
 
 		Returns:
 			Whether the Python tags of the environment, and the wheel, are compatible.

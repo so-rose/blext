@@ -48,7 +48,7 @@ class BLExtLocation(pyd.BaseModel, frozen=True):
 		The following methods must be overridden:
 			- `path_spec`
 
-	Parameters:
+	Attributes:
 		path_global_project_cache: Folder where extension data can be placed.
 			- Script extensions **must** have their data placed here, since they have no folder to write to.
 			- Project extensions **can** have data cached here, if their directory can't/shouldn't be written to.

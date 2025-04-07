@@ -140,9 +140,11 @@ def pack_bl_extension(  # noqa: PLR0913
 
 	Parameters:
 		blext_spec: The extension specification to pack the zip file base on.
-		force_prepack: Force pre-packing all wheels into the zip file.
-			When not set, the prepack step will always run.
+		bl_version: The Blender version to pack into the zipfile.
 		overwrite: If packing to a zip file that already exists, replace it.
+		path_zip_prepack: Path to the prepacked zipfile.
+		path_zip: Path to the zipfile to pack.
+		path_pysrc: Path to the Python source code to pack as the extension package.
 	"""
 	bl_manifest_version = bl_version.max_manifest_version
 	if not path_zip_prepack.is_file():

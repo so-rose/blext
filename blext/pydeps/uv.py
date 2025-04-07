@@ -36,7 +36,8 @@ def update_uv_lock(
 	"""Run `uv lock` within a `uv` project, which generates / update the lockfile `uv.lock`.
 
 	Parameters:
-		path_uv_root: Path to the root directory of a `uv` project.
+		path_uv_lock: Where to generate the `uv.lock` file.
+		path_uv_exe: Path to the `uv` executable.
 	"""
 	path_uv_lock = path_uv_lock.resolve()
 	if path_uv_lock.name == 'uv.lock':
@@ -80,7 +81,14 @@ def parse_requirements_txt(
 		- Always runs with `--locked`, to ensure that `uv.lock` is unaltered by this function.
 
 	Parameters:
-		path_uv_root: Path to the root directory of a `uv` project.
+		path_uv_lock: Where to generate the `uv.lock` file.
+		path_uv_exe: Path to the `uv` executable.
+		include_hashes: Include specific allowed wheel hashes in the generated `requirements.txt`.
+		include_dev: Include dependencies marked as "development only".
+
+			- In the context of extensions, development dependencies **should not** be included in the extension.
+		include_editable: Include "editable" dependencies, for instance from local filesystem paths.
+		include_comment_header: Include a comment describing how `uv` generated the file.
 	"""
 	# Find uv Executable
 	path_uv_lock = path_uv_lock.resolve()

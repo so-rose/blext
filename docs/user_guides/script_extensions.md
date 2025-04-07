@@ -229,7 +229,7 @@ Difference is, these fields live in a `# /// script` header of the file.
 	There are **exactly two** differences in fields and syntax, compared to project extensions.
 
 	- See [Project Extensions](project_extensions.md) for more on valid fields and syntax.
-	- See [Differences w/Project Extensions / Configuration][configuration] for more on the two differences.
+	- See [Differences w/Project Extensions / Configuration][differences-wproject-extensions] for more on the two differences.
 
 !!! example
 	This is an example of a valid header for a script extension:

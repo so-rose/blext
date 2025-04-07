@@ -442,10 +442,7 @@ class BLReleaseOfficial(enum.StrEnum):
 			https://projects.blender.org/blender/lib-<bl_platform>/src/tag/<git_tag>/python/include/python3.11/patchlevel.h
 			```
 
-		Warnings:
-			It's presumed that the _exact_ Python version, including patch-versions, is identical across all platforms.
-
-			If someone makes a mistake one day, this presumption may be at risk.
+			**Python Version**: It's presumed that the _exact_ Python version, including patch-versions, is identical across all platforms.
 		"""
 		match self:
 			case v if v.is_4_2:
@@ -511,14 +508,14 @@ class BLReleaseOfficial(enum.StrEnum):
 	def pymarker_extra(self) -> typ.Literal['blender4-2', 'blender4-3', 'blender4-4']:
 		"""Optional dependency `extra` name corresponding to this Blender version.
 
-		Warnings:
+		Notes:
+			This is a key to the `[project.optional-dependencies]` table in `pyproject.toml`, which defines Blender version-specific dependencies.
+
+			Blender's bundled `site-packages` must be matched as much as possible, under this property's key, to ensure that `uv`'s resolver finds compatible dependency versions.
+
 			Compared to the keys of `[project.optional-dependencies]` in `pyproject.toml`, this property uses `-` instead of `_`.
 
 			This matches how the `extra` is defined in `uv.lock`.
-
-		Notes:
-			- This is a key to the `[project.optional-dependencies]` table in `pyproject.toml`, which defines Blender version-specific dependencies.
-			- Blender's bundled `site-packages` must be matched as much as possible, under this property's key, to ensure that `uv`'s resolver finds compatible dependency versions.
 		"""
 		match self:
 			case v if v.is_4_2:
