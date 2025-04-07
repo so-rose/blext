@@ -79,35 +79,79 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	deps: BLExtDeps
 	release_profile: extyp.ReleaseProfile | None = None
 
-	id: str
-	name: str
-	tagline: str
+	id: typ.Annotated[
+		str,
+		atyp.Predicate(str.isidentifier),
+		atyp.Predicate(extyp.validators.no_dunder_in_string),
+		atyp.Predicate(extyp.validators.no_str_startswith_underscore),
+		atyp.Predicate(extyp.validators.no_str_endswith_underscore),
+	]
+	name: typ.Annotated[
+		str,
+		atyp.Predicate(extyp.validators.is_str_strip_not_empty),
+		atyp.Predicate(extyp.validators.is_str_strip_a_noop),
+		atyp.Predicate(extyp.validators.str_has_no_bl_control_chars),
+	]
+	tagline: typ.Annotated[
+		str,
+		atyp.MaxLen(64),
+		atyp.Predicate(extyp.validators.no_dunder_in_string),
+		atyp.Predicate(extyp.validators.no_str_startswith_underscore),
+		atyp.Predicate(extyp.validators.no_str_endswith_underscore),
+		atyp.Predicate(extyp.validators.last_char_is_alphanum_or_closes_bracket),
+	]
 	version: SemanticVersion
 	license: extyp.SPDXLicense
 	blender_version_min: typ.Annotated[
 		str,
-		pyd.StringConstraints(
-			pattern=r'^[4-9]+\.[2-9]+\.[0-9]+$',
-		),
+		atyp.Predicate(extyp.validators.all_version_numbers_are_digits),
+		atyp.Predicate(extyp.validators.blender_version_is_gt_4_2),
 	]
 	blender_version_max: (
 		typ.Annotated[
 			str,
-			pyd.StringConstraints(
-				pattern=r'^[4-9]+\.[2-9]+\.[0-9]+$',
-			),
+			atyp.Predicate(extyp.validators.all_version_numbers_are_digits),
+			atyp.Predicate(extyp.validators.blender_version_is_gt_4_2),
 		]
 		| None
 	) = None
 	permissions: (
 		FrozenDict[
 			typ.Literal['files', 'network', 'clipboard', 'camera', 'microphone'],
-			str,
+			typ.Annotated[
+				str,
+				atyp.MaxLen(64),
+				atyp.Predicate(str.isidentifier),
+				atyp.Predicate(extyp.validators.no_dunder_in_string),
+				atyp.Predicate(extyp.validators.no_str_startswith_underscore),
+				atyp.Predicate(extyp.validators.no_str_endswith_underscore),
+				atyp.Predicate(
+					extyp.validators.last_char_is_alphanum_or_closes_bracket
+				),
+			],
 		]
 		| None
 	) = None
-	copyright: tuple[str, ...] | None = None
-	maintainer: str | None = None
+	copyright: (
+		tuple[
+			typ.Annotated[
+				str,
+				atyp.Predicate(extyp.validators.is_copyright_year_valid),
+				atyp.Predicate(extyp.validators.is_copyright_name_valid),
+			],
+			...,
+		]
+		| None
+	) = None
+	maintainer: (
+		typ.Annotated[
+			str,
+			atyp.Predicate(extyp.validators.is_str_strip_not_empty),
+			atyp.Predicate(extyp.validators.is_str_strip_a_noop),
+			atyp.Predicate(extyp.validators.str_has_no_bl_control_chars),
+		]
+		| None
+	) = None
 	tags: frozenset[str] | None = None
 	website: pyd.HttpUrl | None = None
 
@@ -844,8 +888,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 				raise ValueError(msg)
 
 		return data  # pyright: ignore[reportUnknownVariableType]
-
-	## TODO: Guarantee that manifest export will work for all bl_versions, bl_platforms, and bl_manifest_versions.
 
 	@pyd.model_validator(mode='after')
 	def validate_tags_against_bl_versions(self) -> typ.Self:
