@@ -346,20 +346,24 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			- `blext.finders.find_proj_spec`: Find a project by its URI, returning a location.
 		"""
 		blext_location = self.blext_location(global_config=global_config)
-
-		# Update Project Specification
-		self.update_proj_spec(global_config)
 		pydeps.uv.update_uv_lock(
 			blext_location.path_uv_lock,
 			path_uv_exe=global_config.path_uv_exe,
 		)
 
 		# Load BLExtSpec
+		## Also, update project specification.
 		blext_spec = BLExtSpec.from_proj_spec_path(
 			blext_location.path_spec,
 			path_uv_exe=global_config.path_uv_exe,
 			release_profile_id=self.profile,
 		)
+		if self.update_proj_spec(global_config, blext_spec=blext_spec):
+			blext_spec = BLExtSpec.from_proj_spec_path(
+				blext_location.path_spec,
+				path_uv_exe=global_config.path_uv_exe,
+				release_profile_id=self.profile,
+			)
 
 		# Constrain BLPlatforms
 		bl_platforms = self.requested_bl_platforms(global_config)
@@ -567,7 +571,9 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	####################
 	# - Modify Project Specification
 	####################
-	def update_proj_spec(self, global_config: GlobalConfig) -> None:  # noqa: C901, PLR0912, PLR0915
+	def update_proj_spec(  # noqa: C901, PLR0912, PLR0915
+		self, global_config: GlobalConfig, *, blext_spec: BLExtSpec
+	) -> bool:
 		"""Update a project specification to take vendored `site-packages` into account from all supported Blender versions."""
 		# TODO: blext inject bl_version_deps
 		## - This runs `install_to_proj_spec`, then runs `uv lock`.
@@ -582,7 +588,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 				bl_version.vendored_site_packages,
 			)
 			for bl_version in sorted(
-				self.bl_versions(global_config),
+				blext_spec.bl_versions,
 				key=lambda el: tuple(
 					int(v) for v in el.source.blender_version_min.split('.')
 				),
@@ -821,3 +827,6 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			##
 			## Overall, good error message communication really matters here.
 			raise NotImplementedError
+
+		return True
+		## TODO: Track whether blext_spec actually needs to be regenerated.
