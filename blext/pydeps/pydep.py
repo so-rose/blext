@@ -131,36 +131,34 @@ class PyDep(pyd.BaseModel, frozen=True):
 				# min_osver_str = ''
 				# semivalid_wheel_osver_strs = {}
 
-		err_msgs[bl_platform].extend(
-			[
-				f'**{self.name}** not found for `{bl_platform}`.',
-				f'> **Extension Supports**: `{osver_str} >= {min_osver_str}`'  # pyright: ignore[reportPossiblyUnboundVariable]
+		err_msgs[bl_platform].extend([
+			f'**{self.name}** not found for `{bl_platform}`.',
+			f'> **Extension Supports**: `{osver_str} >= {min_osver_str}`'  # pyright: ignore[reportPossiblyUnboundVariable]
+			if not bl_platform.is_windows
+			else '>',
+			'>',
+			'> ----' if not bl_platform.is_windows else '>',
+			'> **Rejected Wheels**:'
+			if semivalid_wheels
+			else '> **Rejected Wheels**: No candidates were found.',
+			*(
+				[
+					f'> - {semivalid_wheel.filename}: `{osver_str} >= {semivalid_wheel_osver_strs[semivalid_wheel]}`'  # pyright: ignore[reportPossiblyUnboundVariable]
+					for semivalid_wheel in semivalid_wheels
+				]
 				if not bl_platform.is_windows
-				else '>',
-				'>',
-				'> ----' if not bl_platform.is_windows else '>',
-				'> **Rejected Wheels**:'
-				if semivalid_wheels
-				else '> **Rejected Wheels**: No candidates were found.',
-				*(
-					[
-						f'> - {semivalid_wheel.filename}: `{osver_str} >= {semivalid_wheel_osver_strs[semivalid_wheel]}`'  # pyright: ignore[reportPossiblyUnboundVariable]
-						for semivalid_wheel in semivalid_wheels
-					]
-					if not bl_platform.is_windows
-					else []
-				),
-				'>',
-				'> ----',
-				'> **Remedies**:',
-				f'> 1. **Remove** `{bl_platform}` from `tool.blext.supported_platforms`.',
-				f'> 2. **Remove** `{"==".join(next(iter(target_descendants)))}` from `project.dependencies`.'
-				if len(target_descendants) == 1
-				else f'> 2. **Remove** `{self.name}=={self.version}` from `project.dependencies`.',
-				f'> 3. **Raise** `{osver_str}` version in `tool.blext.min_{osver_str}_version`.'  # pyright: ignore[reportPossiblyUnboundVariable]
-				if semivalid_wheels and not bl_platform.is_windows
-				else '>',
-				'',
-			]
-		)
+				else []
+			),
+			'>',
+			'> ----',
+			'> **Remedies**:',
+			f'> 1. **Remove** `{bl_platform}` from `tool.blext.supported_platforms`.',
+			f'> 2. **Remove** `{"==".join(next(iter(target_descendants)))}` from `project.dependencies`.'
+			if len(target_descendants) == 1
+			else f'> 2. **Remove** `{self.name}=={self.version}` from `project.dependencies`.',
+			f'> 3. **Raise** `{osver_str}` version in `tool.blext.min_{osver_str}_version`.'  # pyright: ignore[reportPossiblyUnboundVariable]
+			if semivalid_wheels and not bl_platform.is_windows
+			else '>',
+			'',
+		])
 		return None

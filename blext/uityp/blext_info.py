@@ -227,28 +227,22 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		self, global_config: GlobalConfig
 	) -> frozenset[extyp.BLPlatform]:
 		"""Set of BLPlatforms that the user requested."""
-		return frozenset(
-			{
-				global_config.local_bl_platform
-				if bl_platform == 'detect'
-				else bl_platform
-				for bl_platform in self.platform
-			}
-		)
+		return frozenset({
+			global_config.local_bl_platform if bl_platform == 'detect' else bl_platform
+			for bl_platform in self.platform
+		})
 
 	@lru_method()
 	def requested_bl_versions(
 		self, global_config: GlobalConfig
 	) -> frozenset[extyp.BLVersion]:
 		"""Set of BLPlatforms that the user requested."""
-		return frozenset(
-			{
-				global_config.local_default_bl_version
-				if bl_release == 'detect'
-				else bl_release.bl_version
-				for bl_release in self.bl_version
-			}
-		)
+		return frozenset({
+			global_config.local_default_bl_version
+			if bl_release == 'detect'
+			else bl_release.bl_version
+			for bl_release in self.bl_version
+		})
 
 	@lru_method()
 	def blext_location(self, global_config: GlobalConfig) -> extyp.BLExtLocation:
@@ -377,16 +371,14 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		requested_bl_versions = self.requested_bl_versions(global_config)
 		if not requested_bl_versions:
 			return blext_spec.bl_versions
-		return frozenset(
-			{
-				(
-					bl_version
-					if bl_version in blext_spec.bl_versions
-					else blext_spec.bl_versions_by_granular[bl_version]
-				)
-				for bl_version in requested_bl_versions
-			}
-		)
+		return frozenset({
+			(
+				bl_version
+				if bl_version in blext_spec.bl_versions
+				else blext_spec.bl_versions_by_granular[bl_version]
+			)
+			for bl_version in requested_bl_versions
+		})
 
 	@lru_method()
 	def bl_platforms(self, global_config: GlobalConfig) -> frozenset[extyp.BLPlatform]:
@@ -415,14 +407,12 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		blext_spec = self.blext_spec(global_config)
 
 		extension_filenames = blext_spec.export_extension_filenames()
-		return frozendict(
-			{
-				bl_version: (
-					blext_location.path_prepack_cache / extension_filenames[bl_version]
-				)
-				for bl_version in blext_spec.bl_versions
-			}
-		)
+		return frozendict({
+			bl_version: (
+				blext_location.path_prepack_cache / extension_filenames[bl_version]
+			)
+			for bl_version in blext_spec.bl_versions
+		})
 
 	@lru_method()
 	def path_zips(
@@ -440,14 +430,12 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		blext_spec = self.blext_spec(global_config)
 
 		extension_filenames = blext_spec.export_extension_filenames()
-		return frozendict(
-			{
-				bl_version: (
-					blext_location.path_build_cache / extension_filenames[bl_version]
-				)
-				for bl_version in blext_spec.bl_versions
-			}
-		)
+		return frozendict({
+			bl_version: (
+				blext_location.path_build_cache / extension_filenames[bl_version]
+			)
+			for bl_version in blext_spec.bl_versions
+		})
 
 	####################
 	# - Parse Positional Parameter
@@ -473,9 +461,11 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			case (str() as proj, None, None, None) if proj.startswith('packed+http'):
 				kwargs['url'] = proj.removeprefix('packed+')
 
-			case (str() as proj, _, str() as url, _) if proj.startswith(
-				('script+http', 'packed+http', 'http')
-			):
+			case (str() as proj, _, str() as url, _) if proj.startswith((
+				'script+http',
+				'packed+http',
+				'http',
+			)):
 				err_msgs += [
 					f"**Two URLs Given**: Both `PROJ` ('{proj}') and `--url` ('{url}') are given.",
 					'> There are two ways to locate a `blext` extension by URL:',
@@ -498,9 +488,10 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			case (str() as proj, None, None, None) if proj.startswith('packed+'):
 				kwargs['path'] = proj.removeprefix('packed+')
 
-			case (str() as proj, Path() as path, _, _) if proj.startswith(
-				('script+', 'packed+')
-			) or not proj.startswith(('script+', 'project+', 'packed+', 'git+')):
+			case (str() as proj, Path() as path, _, _) if proj.startswith((
+				'script+',
+				'packed+',
+			)) or not proj.startswith(('script+', 'project+', 'packed+', 'git+')):
 				err_msgs += [
 					f"**Two Paths Given**: Both `PROJ` ('{proj}') and `--path` ('{path}') are given.",
 					'> There are two ways to locate a `blext` extension by path:',
@@ -861,12 +852,10 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 
 			# All vendored site-packages are dumped to the TOML
 			## Why not error? If the user sets an incompatible version, they're wrong.
-			for i, pydep_str in enumerate(
-				[
-					f'{pkg_name}=={pkg_version}'
-					for pkg_name, pkg_version in vendored_site_packages.items()
-				]
-			):
+			for i, pydep_str in enumerate([
+				f'{pkg_name}=={pkg_version}'
+				for pkg_name, pkg_version in vendored_site_packages.items()
+			]):
 				if i == 0:
 					comment = TOML_MANAGED_COMMENTS[0]
 				elif i == len(vendored_site_packages) - 1:

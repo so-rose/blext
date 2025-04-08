@@ -241,43 +241,35 @@ class BLReleaseOfficial(enum.StrEnum):
 		P = BLPlatform
 		match self:
 			case V.BL4_2_0:
-				return frozenset(
-					{
-						P.linux_x64,
-						P.macos_x64,
-						P.macos_arm64,
-						P.windows_x64,
-					}
-				)
+				return frozenset({
+					P.linux_x64,
+					P.macos_x64,
+					P.macos_arm64,
+					P.windows_x64,
+				})
 			case v if v.is_4_2:
-				return frozenset(
-					{
-						P.linux_x64,
-						P.macos_x64,
-						P.macos_arm64,
-						P.windows_x64,
-						P.windows_arm64,
-					}
-				)
+				return frozenset({
+					P.linux_x64,
+					P.macos_x64,
+					P.macos_arm64,
+					P.windows_x64,
+					P.windows_arm64,
+				})
 			case v if v.is_4_3 or v.is_4_4 or v.is_4_5:
-				return frozenset(
-					{
-						P.linux_x64,
-						P.macos_x64,
-						P.macos_arm64,
-						P.windows_x64,
-						P.windows_arm64,
-					}
-				)
+				return frozenset({
+					P.linux_x64,
+					P.macos_x64,
+					P.macos_arm64,
+					P.windows_x64,
+					P.windows_arm64,
+				})
 			case v if v.is_5_0:
-				return frozenset(
-					{
-						P.linux_x64,
-						P.macos_arm64,
-						P.windows_x64,
-						P.windows_arm64,
-					}
-				)
+				return frozenset({
+					P.linux_x64,
+					P.macos_arm64,
+					P.windows_x64,
+					P.windows_arm64,
+				})
 			case _:
 				msg = f'Released Blender version `{self}` was not accounted for in `BLReleaseOfficial.valid_bl_platforms`. Please report this bug.'
 				raise RuntimeError(msg)
@@ -287,41 +279,39 @@ class BLReleaseOfficial(enum.StrEnum):
 		"""Extension tags parseable by this Blender release."""
 		match self:
 			case v if v.is_4_2 or v.is_4_3 or v.is_4_4 or v.is_4_5:
-				return frozenset(
-					{
-						'3D View',
-						'Add Curve',
-						'Add Mesh',
-						'Animation',
-						'Bake',
-						'Camera',
-						'Compositing',
-						'Development',
-						'Game Engine',
-						'Geometry Nodes',
-						'Grease Pencil',
-						'Import-Export',
-						'Lighting',
-						'Material',
-						'Modeling',
-						'Mesh',
-						'Node',
-						'Object',
-						'Paint',
-						'Pipeline',
-						'Physics',
-						'Render',
-						'Rigging',
-						'Scene',
-						'Sculpt',
-						'Sequencer',
-						'System',
-						'Text Editor',
-						'Tracking',
-						'User Interface',
-						'UV',
-					}
-				)
+				return frozenset({
+					'3D View',
+					'Add Curve',
+					'Add Mesh',
+					'Animation',
+					'Bake',
+					'Camera',
+					'Compositing',
+					'Development',
+					'Game Engine',
+					'Geometry Nodes',
+					'Grease Pencil',
+					'Import-Export',
+					'Lighting',
+					'Material',
+					'Modeling',
+					'Mesh',
+					'Node',
+					'Object',
+					'Paint',
+					'Pipeline',
+					'Physics',
+					'Render',
+					'Rigging',
+					'Scene',
+					'Sculpt',
+					'Sequencer',
+					'System',
+					'Text Editor',
+					'Tracking',
+					'User Interface',
+					'UV',
+				})
 			case _:
 				msg = f'Released Blender version `{self}` was not accounted for in `BLReleaseOfficial.valid_extension_tags`. Please report this bug.'
 				raise RuntimeError(msg)
@@ -404,12 +394,10 @@ class BLReleaseOfficial(enum.StrEnum):
 
 		# Coerce names to normalized PyPi naming conventions.
 		## NOTE: If we don't do this, then conflict detection may spontaneously break.
-		return frozendict(
-			{
-				pkg_name.replace('-', '_').lower(): pkg_version
-				for pkg_name, pkg_version in vendored_site_packages.items()
-			}
-		)
+		return frozendict({
+			pkg_name.replace('-', '_').lower(): pkg_version
+			for pkg_name, pkg_version in vendored_site_packages.items()
+		})
 
 	####################
 	# - Python Environment: Basic Information

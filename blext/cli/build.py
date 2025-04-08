@@ -79,17 +79,15 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 		case ():
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					'\n'.join(
-						[
-							f'Selected **all {len(bl_versions)} ext-supported Blender version** chunk(s):',
-							*[
-								f'- `{bl_version.version}`'
-								for bl_version in sorted(
-									bl_versions, key=lambda el: el.version
-								)
-							],
-						]
-					)
+					'\n'.join([
+						f'Selected **all {len(bl_versions)} ext-supported Blender version** chunk(s):',
+						*[
+							f'- `{bl_version.version}`'
+							for bl_version in sorted(
+								bl_versions, key=lambda el: el.version
+							)
+						],
+					])
 				),
 				'',
 			)
@@ -105,17 +103,15 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 		case _:
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					'\n'.join(
-						[
-							f'Selected **{len(bl_versions)} Blender version** chunks:',
-							*[
-								f'- `{bl_version.version}`'
-								for bl_version in sorted(
-									bl_versions, key=lambda el: el.version
-								)
-							],
-						]
-					)
+					'\n'.join([
+						f'Selected **{len(bl_versions)} Blender version** chunks:',
+						*[
+							f'- `{bl_version.version}`'
+							for bl_version in sorted(
+								bl_versions, key=lambda el: el.version
+							)
+						],
+					])
 				),
 				'',
 			)
@@ -128,15 +124,10 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 		case ():
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					'\n'.join(
-						[
-							f'Selected **all {len(bl_platforms)} ext-supported platform(s)**:',
-							*[
-								f'- `{bl_platform}`'
-								for bl_platform in sorted(bl_platforms)
-							],
-						]
-					)
+					'\n'.join([
+						f'Selected **all {len(bl_platforms)} ext-supported platform(s)**:',
+						*[f'- `{bl_platform}`' for bl_platform in sorted(bl_platforms)],
+					])
 				),
 				'',
 			)
@@ -150,27 +141,20 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 		case _:
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					'\n'.join(
-						[
-							f'Selected **{len(bl_platforms)} Blender platforms**:',
-							*[
-								f'- `{bl_platform}`'
-								for bl_platform in sorted(bl_platforms)
-							],
-						]
-					)
+					'\n'.join([
+						f'Selected **{len(bl_platforms)} Blender platforms**:',
+						*[f'- `{bl_platform}`' for bl_platform in sorted(bl_platforms)],
+					])
 				),
 				'',
 			)
 
-	if any(
-		[
-			blext_spec.deps.min_glibc_version is not None,
-			blext_spec.deps.min_macos_version is not None,
-			blext_spec.deps.valid_python_tags is not None,
-			blext_spec.deps.valid_abi_tags is not None,
-		]
-	):
+	if any([
+		blext_spec.deps.min_glibc_version is not None,
+		blext_spec.deps.min_macos_version is not None,
+		blext_spec.deps.valid_python_tags is not None,
+		blext_spec.deps.valid_abi_tags is not None,
+	]):
 		if blext_spec.deps.min_glibc_version is not None:
 			CONSOLE.print(
 				rich.markdown.Markdown(
@@ -197,9 +181,9 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	if output:
 		if len(bl_versions) == 1:
 			bl_version = next(iter(bl_versions))
-			path_zips: frozendict[extyp.BLVersion, Path] = frozendict(
-				{bl_version: output}
-			)
+			path_zips: frozendict[extyp.BLVersion, Path] = frozendict({
+				bl_version: output
+			})
 		else:
 			msg = 'Cannot set filename of extension zip when building extension for multiple Blender versions.'
 			raise ValueError(msg)
@@ -321,20 +305,16 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	CONSOLE.print()
 	CONSOLE.print(
 		rich.markdown.Markdown(
-			'\n'.join(
-				[
-					f'Built `{blext_spec.id}` extension(s):',
-					'',
-					*[
-						'\n'.join(
-							[
-								f'- {path_zips[bl_version]}',
-								'',
-							]
-						)
-						for bl_version in blext_info.bl_versions(global_config)
-					],
-				]
-			)
+			'\n'.join([
+				f'Built `{blext_spec.id}` extension(s):',
+				'',
+				*[
+					'\n'.join([
+						f'- {path_zips[bl_version]}',
+						'',
+					])
+					for bl_version in blext_info.bl_versions(global_config)
+				],
+			])
 		)
 	)

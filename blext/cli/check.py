@@ -112,9 +112,9 @@ def check(
 	else:
 		all_pass_str = r'\[[yellow]-[/yellow]]'
 
-	checks_passed = len(
-		[check_status for check_status in checks.values() if check_status]
-	)
+	checks_passed = len([
+		check_status for check_status in checks.values() if check_status
+	])
 	checks_passed_str = f'{checks_passed}/{len(checks)}'
 
 	CONSOLE.print()

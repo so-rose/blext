@@ -101,9 +101,14 @@ class BLPlatform(enum.StrEnum):
 		return {
 			BLP.linux_x64: frozenset({'x86_64'}),
 			BLP.linux_arm64: frozenset({'aarch64', 'armv7l', 'arm64'}),
-			BLP.macos_x64: frozenset(
-				{'x86_64', 'universal', 'universal2', 'intel', 'fat3', 'fat64'}
-			),
+			BLP.macos_x64: frozenset({
+				'x86_64',
+				'universal',
+				'universal2',
+				'intel',
+				'fat3',
+				'fat64',
+			}),
 			BLP.macos_arm64: frozenset({'arm64', 'universal2'}),
 			BLP.windows_x64: frozenset({'', 'amd64'}),
 			BLP.windows_arm64: frozenset({'arm64'}),

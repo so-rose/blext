@@ -246,22 +246,18 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		self,
 	) -> frozendict[extyp.BLVersion, frozenset[PyDepWheel]]:
 		"""Python wheels by (smooshed) Blender version and Blender platform."""
-		return frozendict(
-			{
-				bl_version: self.deps.wheels_by(
-					pkg_name=self.id,
-					bl_version=bl_version,
-					bl_platforms=frozenset(
-						{
-							bl_platform
-							for bl_platform in self.bl_platforms
-							if bl_platform in bl_version.valid_bl_platforms
-						}
-					),
-				)
-				for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
-			}
-		)
+		return frozendict({
+			bl_version: self.deps.wheels_by(
+				pkg_name=self.id,
+				bl_version=bl_version,
+				bl_platforms=frozenset({
+					bl_platform
+					for bl_platform in self.bl_platforms
+					if bl_platform in bl_version.valid_bl_platforms
+				}),
+			)
+			for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
+		})
 
 	@functools.cached_property
 	def bl_versions_by_wheel(
@@ -269,20 +265,14 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	) -> frozendict[PyDepWheel, frozenset[extyp.BLVersion]]:
 		"""Blender versions by wheel."""
 		all_wheels = {wheel for wheels in self.wheels.values() for wheel in wheels}
-		return frozendict(
-			{
-				wheel: frozenset(
-					{
-						bl_version
-						for bl_version in sorted(
-							self.bl_versions, key=lambda el: el.version
-						)
-						if wheel in self.wheels[bl_version]
-					}
-				)
-				for wheel in all_wheels
-			}
-		)
+		return frozendict({
+			wheel: frozenset({
+				bl_version
+				for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
+				if wheel in self.wheels[bl_version]
+			})
+			for wheel in all_wheels
+		})
 
 	def bl_manifest(
 		self,
@@ -332,12 +322,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					copyright=self.copyright,
 					website=str(self.website) if self.website is not None else None,
 					wheels=tuple(
-						sorted(
-							[
-								f'./wheels/{wheel.filename}'
-								for wheel in self.wheels[bl_version]
-							]
-						)
+						sorted([
+							f'./wheels/{wheel.filename}'
+							for wheel in self.wheels[bl_version]
+						])
 					)
 					if len(self.wheels[bl_version]) > 0
 					else None,
@@ -454,14 +442,12 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		"""Wheels that have already been correctly downloaded."""
 		bl_versions = self.bl_versions if bl_versions is None else bl_versions
 		if all(bl_version in self.bl_versions for bl_version in bl_versions):
-			return frozenset(
-				{
-					wheel
-					for bl_version in sorted(bl_versions, key=lambda el: el.version)
-					for wheel in self.wheels[bl_version]
-					if wheel.is_download_valid(path_wheels / wheel.filename)
-				}
-			)
+			return frozenset({
+				wheel
+				for bl_version in sorted(bl_versions, key=lambda el: el.version)
+				for wheel in self.wheels[bl_version]
+				if wheel.is_download_valid(path_wheels / wheel.filename)
+			})
 
 		msg = 'Requested cached wheels for `BLVersion`(s) not given in `self.bl_versions`.'
 		raise ValueError(msg)
@@ -476,14 +462,12 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		bl_versions = self.bl_versions if bl_versions is None else bl_versions
 
 		if all(bl_version in self.bl_versions for bl_version in bl_versions):
-			return frozenset(
-				{
-					wheel
-					for bl_version in sorted(bl_versions, key=lambda el: el.version)
-					for wheel in self.wheels[bl_version]
-					if not wheel.is_download_valid(path_wheels / wheel.filename)
-				}
-			)
+			return frozenset({
+				wheel
+				for bl_version in sorted(bl_versions, key=lambda el: el.version)
+				for wheel in self.wheels[bl_version]
+				if not wheel.is_download_valid(path_wheels / wheel.filename)
+			})
 
 		msg = 'Requested missing wheels for `BLVersion`(s) not given in `self.bl_versions`.'
 		raise ValueError(msg)

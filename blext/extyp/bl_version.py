@@ -151,12 +151,10 @@ class BLVersion(pyd.BaseModel, frozen=True):
 			- `packaging.markers` Environment Evaluation: <https://github.com/pypa/packaging/blob/main/src/packaging/markers.py#L204>
 		"""
 		pkg_name = pkg_name.replace('_', '-')
-		return frozenset(
-			{
-				f'extra-{len(pkg_name)}-{pkg_name}-{pymarker_extra}'
-				for pymarker_extra in self.pymarker_extras
-			}
-		)
+		return frozenset({
+			f'extra-{len(pkg_name)}-{pkg_name}-{pymarker_extra}'
+			for pymarker_extra in self.pymarker_extras
+		})
 
 	@functools.cached_property
 	def pymarker_implementation_version(self) -> str:

@@ -39,12 +39,10 @@ class BLVersionSourceSmooshed(BLVersionSource, frozen=True):
 			if len(self.official_sources) > 1:
 				return f'v{self.blender_version_min}-v{self.blender_version_max}'
 
-			return ','.join(
-				[
-					bl_version_location.version
-					for bl_version_location in self.unofficial_sources
-				]
-			)
+			return ','.join([
+				bl_version_location.version
+				for bl_version_location in self.unofficial_sources
+			])
 		msg = f"'BLVersionSourceSmooshed' doesn't support non-consecutive 'BLVersionLocationOfficial' releases: {self.official_sources}"
 		raise ValueError(msg)
 
@@ -72,13 +70,11 @@ class BLVersionSourceSmooshed(BLVersionSource, frozen=True):
 		"""All non-official sources in `self.sources`."""
 		official_version_locations = frozenset(self.unofficial_sources)
 
-		return frozenset(
-			{
-				location
-				for location in self.sources
-				if location in official_version_locations
-			}
-		)
+		return frozenset({
+			location
+			for location in self.sources
+			if location in official_version_locations
+		})
 
 	@functools.cached_property
 	def official_sources(self) -> list[BLVersionSourceOfficial]:

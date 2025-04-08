@@ -185,6 +185,7 @@ max-args = 6
 # - Tool: ruff format
 ####################
 [tool.ruff.format]
+preview = true
 quote-style = "single"
 indent-style = "tab"
 docstring-code-format = false

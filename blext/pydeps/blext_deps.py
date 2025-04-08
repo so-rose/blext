@@ -185,14 +185,12 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				if pydep_ancestor_name not in bl_version.vendored_site_packages
 			}
 			# Assemble a mapping from name to PyDep, indexed by by name and version
-			pydeps: frozendict[str, PyDep] = frozendict(
-				{
-					pydep_name: self.pydeps[(pydep_name, pydep_version)]
-					for pydep_name, pydep_version in sorted(
-						valid_pydep_targets | valid_pydep_ancestors,
-					)
-				}
-			)
+			pydeps: frozendict[str, PyDep] = frozendict({
+				pydep_name: self.pydeps[(pydep_name, pydep_version)]
+				for pydep_name, pydep_version in sorted(
+					valid_pydep_targets | valid_pydep_ancestors,
+				)
+			})
 
 			# PyDeps that overlap with vendored site-packages must be identical.
 			for pydep_name, pydep in pydeps.items():
@@ -200,27 +198,23 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					pydep_name in bl_version.vendored_site_packages
 					and pydep.version != bl_version.vendored_site_packages[pydep_name]
 				):
-					err_msgs[bl_platform].extend(
-						[
-							f'**Conflict** [{bl_platform}]: Requested version of **{pydep_name}** conflicts with vendored `site-packages` of Blender `{bl_version.version}`.',
-							f'> **Provided by Blender `{bl_version.version}`**: `{pydep_name}=={bl_version.vendored_site_packages[pydep_name]}`',
-							'>',
-							f'> **Requested**: `{pydep_name}=={pydep.version}`',
-							'',
-						]
-					)
+					err_msgs[bl_platform].extend([
+						f'**Conflict** [{bl_platform}]: Requested version of **{pydep_name}** conflicts with vendored `site-packages` of Blender `{bl_version.version}`.',
+						f'> **Provided by Blender `{bl_version.version}`**: `{pydep_name}=={bl_version.vendored_site_packages[pydep_name]}`',
+						'>',
+						f'> **Requested**: `{pydep_name}=={pydep.version}`',
+						'',
+					])
 
 			# After a long journey, you've found a return statement.
 			## But will you ever be the same?
 			## The elves have offered to let you sail West with them.
 			## For now, have a cookie.
-			return frozendict(
-				{
-					pydep_name: pydep
-					for pydep_name, pydep in pydeps.items()
-					if pydep_name not in bl_version.vendored_site_packages
-				}
-			)
+			return frozendict({
+				pydep_name: pydep
+				for pydep_name, pydep in pydeps.items()
+				if pydep_name not in bl_version.vendored_site_packages
+			})
 
 		msg = f'The given `bl_platform` in `{bl_platform}` is not supported by the given Blender version (`{bl_version.version}`).'
 		raise ValueError(msg)
@@ -270,16 +264,14 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 						if self.valid_abi_tags is None
 						else self.valid_abi_tags
 					),
-					target_descendants=frozenset(
-						{  # pyright: ignore[reportUnknownArgumentType]
-							node
-							for node in nx.descendants(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
-								self.pydeps_graph,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
-								(pydep.name, pydep.version),
-							)
-							if self.pydeps_graph.out_degree(node) == 0  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-						}
-					),
+					target_descendants=frozenset({  # pyright: ignore[reportUnknownArgumentType]
+						node
+						for node in nx.descendants(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+							self.pydeps_graph,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+							(pydep.name, pydep.version),
+						)
+						if self.pydeps_graph.out_degree(node) == 0  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+					}),
 					err_msgs=err_msgs,
 				)
 				for pydep in self.pydeps_by(
@@ -362,43 +354,39 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					name=nrm_name(package['name']),  # pyright: ignore[reportAny]
 					version=package['version'],  # pyright: ignore[reportAny]
 					registry=package['source']['registry'],  # pyright: ignore[reportAny]
-					wheels=frozenset(
-						{
-							PyDepWheel(
-								url=wheel_info['url'],  # pyright: ignore[reportAny]
-								registry=package['source']['registry'],  # pyright: ignore[reportAny]
-								hash=wheel_info.get('hash'),  # pyright: ignore[reportAny]
-								size=wheel_info.get('size'),  # pyright: ignore[reportAny]
-							)
-							for wheel_info in package.get('wheels', [])  # pyright: ignore[reportAny]
-							if 'url' in wheel_info
-						}
-					),
-					pydep_markers=frozendict(
-						{
-							nrm_name(dependency['name']): (  # pyright: ignore[reportAny]
-								PyDepMarker(marker_str=dependency['marker'])  # pyright: ignore[reportAny]
-								if 'marker' in dependency
-								else None
-							)
-							for dependency in [  # pyright: ignore[reportAny]
-								# Always include mandatory dependencies.
-								*package.get('dependencies', []),  # pyright: ignore[reportAny]
-								# Always include "all" optional dependencies.
-								## - uv has already worked out which optional deps are needed.
-								## - Unused [optional-dependencies] simply aren't in uv.lock.
-								## - So, it's safe to pretend that they are all normal dependencies.
-								*[
-									resolved_opt_dependency
-									for resolved_opt_dependencies in package.get(  # pyright: ignore[reportAny]
-										'optional-dependencies',
-										{},
-									).values()
-									for resolved_opt_dependency in resolved_opt_dependencies  # pyright: ignore[reportAny]
-								],
-							]
-						}
-					),
+					wheels=frozenset({
+						PyDepWheel(
+							url=wheel_info['url'],  # pyright: ignore[reportAny]
+							registry=package['source']['registry'],  # pyright: ignore[reportAny]
+							hash=wheel_info.get('hash'),  # pyright: ignore[reportAny]
+							size=wheel_info.get('size'),  # pyright: ignore[reportAny]
+						)
+						for wheel_info in package.get('wheels', [])  # pyright: ignore[reportAny]
+						if 'url' in wheel_info
+					}),
+					pydep_markers=frozendict({
+						nrm_name(dependency['name']): (  # pyright: ignore[reportAny]
+							PyDepMarker(marker_str=dependency['marker'])  # pyright: ignore[reportAny]
+							if 'marker' in dependency
+							else None
+						)
+						for dependency in [  # pyright: ignore[reportAny]
+							# Always include mandatory dependencies.
+							*package.get('dependencies', []),  # pyright: ignore[reportAny]
+							# Always include "all" optional dependencies.
+							## - uv has already worked out which optional deps are needed.
+							## - Unused [optional-dependencies] simply aren't in uv.lock.
+							## - So, it's safe to pretend that they are all normal dependencies.
+							*[
+								resolved_opt_dependency
+								for resolved_opt_dependencies in package.get(  # pyright: ignore[reportAny]
+									'optional-dependencies',
+									{},
+								).values()
+								for resolved_opt_dependency in resolved_opt_dependencies  # pyright: ignore[reportAny]
+							],
+						]
+					}),
 				)
 				for package in uv_lock['package']  # pyright: ignore[reportAny]
 				if (

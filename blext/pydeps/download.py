@@ -129,9 +129,9 @@ def download_wheels(
 	global SIGNAL_ABORT  # noqa: PLW0603
 
 	path_wheels = path_wheels.resolve()
-	wheel_paths_current = frozenset(
-		{path_wheel.resolve() for path_wheel in path_wheels.rglob('*.whl')}
-	)
+	wheel_paths_current = frozenset({
+		path_wheel.resolve() for path_wheel in path_wheels.rglob('*.whl')
+	})
 
 	# Compute PyDepWheels to Download
 	## - Missing: Will be downloaded.

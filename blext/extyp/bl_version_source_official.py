@@ -74,11 +74,9 @@ class BLVersionSourceOfficial(BLVersionSource, frozen=True):
 			Always check that this URL exists and looks reasonable before downloading anything.
 		"""
 		return pyd.HttpUrl(
-			'/'.join(
-				[
-					str(self.base_download_url),
-					f'Blender{self.version_major_minor}',
-					f'blender-{self.version_major_minor}-{bl_platform}.{bl_platform.official_archive_file_ext}',
-				]
-			)
+			'/'.join([
+				str(self.base_download_url),
+				f'Blender{self.version_major_minor}',
+				f'blender-{self.version_major_minor}-{bl_platform}.{bl_platform.official_archive_file_ext}',
+			])
 		)

@@ -27,21 +27,19 @@ from frozendict import frozendict
 
 from blext import extyp
 
-MANYLINUX_LEGACY_ALIASES: frozendict[str, str] = frozendict(
-	{
-		'manylinux1_x86_64': 'manylinux_2_5_x86_64',
-		'manylinux1_i686': 'manylinux_2_5_i686',
-		'manylinux2010_x86_64': 'manylinux_2_12_x86_64',
-		'manylinux2010_i686': 'manylinux_2_12_i686',
-		'manylinux2014_x86_64': 'manylinux_2_17_x86_64',
-		'manylinux2014_i686': 'manylinux_2_17_i686',
-		'manylinux2014_aarch64': 'manylinux_2_17_aarch64',
-		'manylinux2014_armv7l': 'manylinux_2_17_armv7l',
-		'manylinux2014_ppc64': 'manylinux_2_17_ppc64',
-		'manylinux2014_ppc64le': 'manylinux_2_17_ppc64le',
-		'manylinux2014_s390x': 'manylinux_2_17_s390x',
-	}
-)
+MANYLINUX_LEGACY_ALIASES: frozendict[str, str] = frozendict({
+	'manylinux1_x86_64': 'manylinux_2_5_x86_64',
+	'manylinux1_i686': 'manylinux_2_5_i686',
+	'manylinux2010_x86_64': 'manylinux_2_12_x86_64',
+	'manylinux2010_i686': 'manylinux_2_12_i686',
+	'manylinux2014_x86_64': 'manylinux_2_17_x86_64',
+	'manylinux2014_i686': 'manylinux_2_17_i686',
+	'manylinux2014_aarch64': 'manylinux_2_17_aarch64',
+	'manylinux2014_armv7l': 'manylinux_2_17_armv7l',
+	'manylinux2014_ppc64': 'manylinux_2_17_ppc64',
+	'manylinux2014_ppc64le': 'manylinux_2_17_ppc64le',
+	'manylinux2014_s390x': 'manylinux_2_17_s390x',
+})
 
 WIN_PLATFORM_TAGS_TO_BL_PLATFORMS = {
 	'win32': extyp.BLPlatform.windows_x64,
@@ -134,17 +132,15 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 			- `PEP600`: https://peps.python.org/pep-0600/
 
 		"""
-		return frozenset(
-			{
-				MANYLINUX_LEGACY_ALIASES.get(platform_tag, platform_tag)
-				for platform_tag in self._parsed_wheel_filename.platform_tags
-				if not (
-					platform_tag in MANYLINUX_LEGACY_ALIASES
-					and MANYLINUX_LEGACY_ALIASES[platform_tag]
-					in self._parsed_wheel_filename.platform_tags
-				)
-			}
-		)
+		return frozenset({
+			MANYLINUX_LEGACY_ALIASES.get(platform_tag, platform_tag)
+			for platform_tag in self._parsed_wheel_filename.platform_tags
+			if not (
+				platform_tag in MANYLINUX_LEGACY_ALIASES
+				and MANYLINUX_LEGACY_ALIASES[platform_tag]
+				in self._parsed_wheel_filename.platform_tags
+			)
+		})
 
 	####################
 	# - Platform Information
@@ -157,19 +153,17 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 			- The smallest available GLIBC version indicates the minimum GLIBC support for this wheel.
 			- Non-`manylinux` platform tags will always map to `None`.
 		"""
-		return frozendict(
-			{
-				platform_tag: tuple(
-					int(glibc_version_part)
-					for glibc_version_part in platform_tag.removeprefix(
-						'manylinux_'
-					).split('_')[:2]
-				)
-				if platform_tag.startswith('manylinux_')
-				else None
-				for platform_tag in self.platform_tags
-			}
-		)
+		return frozendict({
+			platform_tag: tuple(
+				int(glibc_version_part)
+				for glibc_version_part in platform_tag.removeprefix('manylinux_').split(
+					'_'
+				)[:2]
+			)
+			if platform_tag.startswith('manylinux_')
+			else None
+			for platform_tag in self.platform_tags
+		})
 
 	@functools.cached_property
 	def macos_versions(self) -> frozendict[str, tuple[int, int] | None]:
@@ -179,19 +173,17 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 			- The smallest available MacOS version indicates the minimum GLIBC support for this wheel.
 			- Non-`macosx` platform tags will always map to `None`.
 		"""
-		return frozendict(
-			{
-				platform_tag: tuple(
-					int(macos_version_part)
-					for macos_version_part in platform_tag.removeprefix(
-						'macosx_'
-					).split('_')[:2]
-				)
-				if platform_tag.startswith('macosx')
-				else None
-				for platform_tag in self.platform_tags
-			}
-		)
+		return frozendict({
+			platform_tag: tuple(
+				int(macos_version_part)
+				for macos_version_part in platform_tag.removeprefix('macosx_').split(
+					'_'
+				)[:2]
+			)
+			if platform_tag.startswith('macosx')
+			else None
+			for platform_tag in self.platform_tags
+		})
 
 	@functools.cached_property
 	def windows_versions(self) -> frozendict[str, typ.Literal['win32'] | None]:
@@ -201,12 +193,10 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 			- In terms of ABI, there is only one on Windows: `win32`.
 			- Non-`win` platform tags will always map to `None`.
 		"""
-		return frozendict(
-			{
-				'win32' if platform_tag.startswith('win') else None
-				for platform_tag in self.platform_tags
-			}
-		)
+		return frozendict({
+			'win32' if platform_tag.startswith('win') else None
+			for platform_tag in self.platform_tags
+		})
 
 	####################
 	# - Wheel Sorting
@@ -432,15 +422,13 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 			return 'all'
 
 		return ', '.join(
-			sorted(
-				[
-					bl_platform
-					for bl_platform in extyp.BLPlatform
-					if self.works_with_platform(
-						bl_platform=bl_platform,
-						min_glibc_version=None,
-						min_macos_version=None,
-					)
-				]
-			)
+			sorted([
+				bl_platform
+				for bl_platform in extyp.BLPlatform
+				if self.works_with_platform(
+					bl_platform=bl_platform,
+					min_glibc_version=None,
+					min_macos_version=None,
+				)
+			])
 		)

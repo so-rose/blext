@@ -132,14 +132,12 @@ def ui_download_wheels(
 		wheel: pydeps.PyDepWheel,
 		_: Path,
 	) -> None:
-		task_download_wheels.update(
-			{
-				wheel: progress_download_wheels[wheel].add_task(
-					wheel.filename,
-					total=int(wheel.size),
-				)
-			}
-		)
+		task_download_wheels.update({
+			wheel: progress_download_wheels[wheel].add_task(
+				wheel.filename,
+				total=int(wheel.size),
+			)
+		})
 
 	def cb_update_wheel_download(
 		wheel: pydeps.PyDepWheel,
@@ -167,12 +165,10 @@ def ui_download_wheels(
 	####################
 	# - Layout: Static UI
 	####################
-	max_wheel_project_length = max(
-		[
-			*[len(wheel.project) for wheel in wheels_to_download],
-			len('Name'),
-		]
-	)
+	max_wheel_project_length = max([
+		*[len(wheel.project) for wheel in wheels_to_download],
+		len('Name'),
+	])
 
 	def layout() -> rich.console.Group:
 		"""Generate a static UI, valid at one moment in time."""

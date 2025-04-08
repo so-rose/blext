@@ -39,13 +39,11 @@ class _PydanticFrozenDictAnnotation:
 		) -> frozendict[typ.Any, typ.Any]:
 			return frozendict(d)
 
-		frozendict_schema = pyd_core_schema.chain_schema(
-			[
-				handler.generate_schema(dict[*typ.get_args(source_type)]),  # pyright: ignore[reportInvalidTypeArguments]
-				pyd_core_schema.no_info_plain_validator_function(validate_from_dict),
-				pyd_core_schema.is_instance_schema(frozendict),
-			]
-		)
+		frozendict_schema = pyd_core_schema.chain_schema([
+			handler.generate_schema(dict[*typ.get_args(source_type)]),  # pyright: ignore[reportInvalidTypeArguments]
+			pyd_core_schema.no_info_plain_validator_function(validate_from_dict),
+			pyd_core_schema.is_instance_schema(frozendict),
+		])
 		return pyd_core_schema.json_or_python_schema(
 			json_schema=frozendict_schema,
 			python_schema=frozendict_schema,
