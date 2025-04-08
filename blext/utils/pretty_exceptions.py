@@ -99,8 +99,7 @@ def exception_hook(
 	# Present
 	ERROR_CONSOLE.print(
 		'\n',
-		f'[bold red]{ex_name}[/bold red]',
-		'\n',
+		f'[bold red]{"["}{ex_name}{"]"}[/bold red]',
 		md_messages,
 		sep='',
 	)

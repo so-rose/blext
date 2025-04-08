@@ -263,8 +263,8 @@ class PyDepWheel(pyd.BaseModel, frozen=True):
 	####################
 	def works_with_platform(
 		self,
-		*,
 		bl_platform: extyp.BLPlatform,
+		*,
 		min_glibc_version: tuple[int, int] | None,
 		min_macos_version: tuple[int, int] | None,
 	) -> bool:

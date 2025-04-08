@@ -16,7 +16,20 @@
 
 # /// script
 # requires-python = "==3.11.*"
-# dependencies = []
+# dependencies = [
+#     "autopep8==2.3.1", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
+#     "certifi==2021.10.8",
+#     "charset_normalizer==2.0.10",
+#     "cython==0.29.30",
+#     "idna==3.3",
+#     "numpy==1.24.3",
+#     "pip==24.0",
+#     "pycodestyle==2.12.1",
+#     "requests==2.27.1",
+#     "setuptools==63.2.0",
+#     "urllib3==1.26.8",
+#     "zstandard==0.16.0", # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
+# ]
 #
 # [project]
 # name = "minimal_script"
@@ -30,15 +43,9 @@
 # [tool.blext]
 # pretty_name = "Single File Extension Example"
 # blender_version_min = '4.3.0'
-# blender_version_max = '4.3.100'
+# blender_version_max = '4.4.0'
 # bl_tags = ["Development"]
 # copyright = ["2025 blext Contributors"]
-#
-# supported_platforms = [
-#     'linux-x64',
-#     'macos-arm64',
-#     'windows-x64',
-# ]
 # ///
 
 import tomllib

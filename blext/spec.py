@@ -17,20 +17,19 @@
 """Defines the Blender extension specification."""
 
 import functools
-import json
 import tomllib
 import typing as typ
 from pathlib import Path
 
 import annotated_types as atyp
 import pydantic as pyd
-import tomli_w
-from frozendict import deepfreeze, frozendict
+from frozendict import frozendict
 from pydantic_extra_types.semantic_version import SemanticVersion
 
 from . import extyp
 from .pydeps import BLExtDeps, PyDepWheel, uv
 from .utils.inline_script_metadata import parse_inline_script_metadata
+from .utils.lru_method import lru_method
 from .utils.pydantic_frozendict import FrozenDict
 
 
@@ -75,7 +74,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		- <https://packaging.python.org/en/latest/guides/writing-pyproject-toml>
 	"""
 
-	bl_platforms: typ.Annotated[frozenset[extyp.BLPlatform], atyp.MinLen(1)]
+	granular_bl_platforms: typ.Annotated[frozenset[extyp.BLPlatform], atyp.MinLen(1)]
 	deps: BLExtDeps
 	release_profile: extyp.ReleaseProfile | None = None
 
@@ -155,39 +154,74 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	website: pyd.HttpUrl | None = None
 
 	####################
-	# - Core Attributes
+	# - Blender Versions
 	####################
 	@functools.cached_property
-	def bl_versions_by_granular(self) -> frozendict[extyp.BLVersion, extyp.BLVersion]:
-		"""All Blender versions supported by this extension, indexed by the granular input version.
+	def granular_bl_versions(self) -> frozenset[extyp.BLVersion]:
+		"""Exhaustive, unsmooshed Blender versions supported by this extension.
 
 		Notes:
-			`blext` doesn't support official Blender versions released after a particular `blext` version was published.
+			Granular `BLVersion`s include each and every explicit ex. `4.2.1`, `4.2.2`.
+			By contrast, `self.bl_versions` provides "smooshed" versions ex. `4.2.0-4.3.0`
 
-			This is because `blext` has no way of knowing critical information about such future releases, ex. the versions of vendored `site-packages` dependencies.
-
-			Derived by comparing `self.blender_version_min` and `self.blender_version_max` to hard-coded Blender versions that have already been released, whose properties are known.
+			Derived from `self.blender_version_(min|max)`, using `extyp.BLReleaseOfficial.from_official_version_range`.
 		"""
-		granular_bl_versions = sorted(
-			{
-				released_bl_version.bl_version
-				for released_bl_version in extyp.BLReleaseOfficial.from_official_version_range(
-					self.blender_version_min, self.blender_version_max
-				)
-			},
-			key=lambda el: el.source.blender_version_min,  ## Sort by theoretical BLVersion
-			## TODO: Use a tuple w/release datetime to distinguish identical bl_version_min.
-			## - This is mainly important to get sequential git commits.
-			## - This also presumes that nobody messses with the version in said git commits.
+		return frozenset({
+			released_bl_version.bl_version
+			for released_bl_version in extyp.BLReleaseOfficial.from_official_version_range(
+				self.blender_version_min, self.blender_version_max
+			)
+		})
+
+	@functools.cached_property
+	def sorted_granular_bl_versions(self) -> tuple[extyp.BLVersion, ...]:
+		"""Sorted variant of `self.granular_bl_versions`.
+
+		Notes:
+			The sorting order first prioritizes `blender_version_min` first, then prioritizes the release datetime.
+
+			Intuitively, though not formally, this should ensure a consistent, sensible ordering for any constellation of `BLVersion`s.
+		"""
+		return tuple(
+			sorted(
+				self.granular_bl_versions,
+				key=lambda el: el.source.blender_version_min,  ## Sort by theoretical BLVersion
+				## TODO: Use a tuple w/release datetime to distinguish identical bl_version_min.
+				## - This is mainly important to get sequential git commits.
+				## - This also presumes that nobody messses with the version in said git commits.
+			)
 		)
 
+	@functools.cached_property
+	def bl_versions_by_granular(self) -> frozendict[extyp.BLVersion, extyp.BLVersion]:
+		"""Map from supported _granular_ `BLVersion`s to supported _smooshed_ `BLVersion`s.
+
+		Notes:
+			**The output `frozendict` is guaranteed to be created in the same order as `self.sorted_granular_bl_versions`**.
+
+			Each granular `BLVersion` from `self.granular_bl_version` is guaranteed to be included in one of the the corresponding "smooshed" `BLVersion`s in `self.bl_versions`.
+
+			This method provides that mapping.
+		"""
+		# Initialize Consecutive "Smooshing"
+		## Non-consecutive Blender versions are extremely unlikely to be "smooshable".
+		## We define "consecutive" using the ordering of 'self.sorted_granular_bl_versions'.
 		idx_smoosh = 0
-		smooshed_bl_versions: list[extyp.BLVersion] = [granular_bl_versions[0]]
-		granular_to_smooshed_idx: dict[extyp.BLVersion, int] = {}
-		for granular_bl_version in granular_bl_versions:
+		smooshed_bl_versions: list[extyp.BLVersion] = [
+			self.sorted_granular_bl_versions[0]
+		]
+		granular_to_smooshed_idx: dict[extyp.BLVersion, int] = {
+			self.sorted_granular_bl_versions[0]: 0
+		}
+
+		# Traverse Consecutive Versions for Potential "Smooshing"
+		## Think building an injective map of pointers from granular to partially smooshed.
+		## If / when a version is reached that can't be "smooshed into" previous, increment.
+		## => If only consecutive BLVersions are smooshable, this should min. # of outputs.
+		for granular_bl_version in self.sorted_granular_bl_versions[1:]:
 			if smooshed_bl_versions[idx_smoosh].is_smooshable_with(
 				granular_bl_version,
-				ext_bl_platforms=self.bl_platforms,
+				ext_bl_platforms=self.granular_bl_platforms,
 				ext_wheels_python_tags=self.deps.valid_python_tags,
 				ext_wheels_abi_tags=self.deps.valid_abi_tags,
 				ext_tags=self.tags,
@@ -196,10 +230,15 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					idx_smoosh
 				].smoosh_with(
 					granular_bl_version,
-					ext_bl_platforms=self.bl_platforms,
+					ext_bl_platforms=self.granular_bl_platforms,
 					ext_wheels_python_tags=self.deps.valid_python_tags,
 					ext_wheels_abi_tags=self.deps.valid_abi_tags,
 					ext_tags=self.tags,
+					excl_max_version=tuple(  # pyright: ignore[reportArgumentType]
+						int(v) for v in self.blender_version_max.split('.')
+					)
+					if self.blender_version_max is not None
+					else None,
 				)
 
 			else:
@@ -208,11 +247,13 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 			granular_to_smooshed_idx[granular_bl_version] = idx_smoosh
 
-		granular_to_smooshed = {
+		# Return Constructed Mapping
+		## We recorded pointers from granular to the smooshed version it's included in.
+		## By following those pointers, we're left only with the desired mapping.
+		return frozendict({
 			granular_bl_version: smooshed_bl_versions[smooshed_idx]
 			for granular_bl_version, smooshed_idx in granular_to_smooshed_idx.items()
-		}
-		return frozendict(granular_to_smooshed)
+		})
 
 	@functools.cached_property
 	def bl_versions(self) -> frozenset[extyp.BLVersion]:
@@ -228,7 +269,22 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		return frozenset(self.bl_versions_by_granular.values())
 
 	@functools.cached_property
-	def is_universal(self) -> bool:
+	def sorted_bl_versions(self) -> tuple[extyp.BLVersion, ...]:
+		"""Sorted variant of `self.bl_versions`.
+
+		Notes:
+			**`self.bl_versions_by_granular` must be sorted in the same order as `self.sorted_granular_bl_versions`**.
+		"""
+		# NOTE: This is an order-preserving deduplication.
+		## `dict` performs insertion-order preserving deduplication of the `.values()`.
+		## The keys of this temporary `dict` are then dumped into a new tuple w/unpacking.
+		return (*dict.fromkeys(self.bl_versions_by_granular.values()),)
+
+	####################
+	# - Blender Platforms
+	####################
+	@functools.cached_property
+	def is_platform_universal(self) -> bool:
 		"""Whether this extension is works on all platforms of all supported Blender versions.
 
 		Notes:
@@ -237,49 +293,210 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			Once any non-pure-Python wheels are introduced, this condition may become very difficult to uphold, depending on which wheels are available for supported platforms.
 		"""
 		return all(
-			bl_version.valid_bl_platforms.issubset(self.bl_platforms)
-			for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
+			bl_version.valid_bl_platforms.issubset(self.granular_bl_platforms)
+			for bl_version in self.bl_versions
 		)
+
+	@functools.cached_property
+	def sorted_granular_bl_platforms(self) -> tuple[extyp.BLPlatform, ...]:
+		"""Sorted variant of `self.bl_platforms`."""
+		return tuple(sorted(self.granular_bl_platforms))
+
+	@functools.cached_property
+	def bl_platforms_by_granular(
+		self,
+	) -> frozendict[extyp.BLPlatform, extyp.BLPlatforms]:
+		"""Map from supported _granular_ `BLPlatform`s to supported _smooshed_ `BLPlatform`s."""
+		# Initialize Consecutive "Smooshing"
+		## Non-consecutive Blender versions are extremely unlikely to be "smooshable".
+		## We define "consecutive" using the ordering of 'self.sorted_granular_bl_versions'.
+		idx_smoosh = 0
+		smooshed_bl_platforms: list[extyp.BLPlatforms] = [
+			extyp.BLPlatforms.from_bl_platform(self.sorted_granular_bl_platforms[0])
+		]
+		granular_to_smooshed_idx: dict[extyp.BLPlatform, int] = {
+			self.sorted_granular_bl_platforms[0]: 0
+		}
+
+		# Traverse Consecutive Versions for Potential "Smooshing"
+		## Think building an injective map of pointers from granular to partially smooshed.
+		## If / when a version is reached that can't be "smooshed into" previous, increment.
+		## => If only consecutive BLVersions are smooshable, this should min. # of outputs.
+		for granular_bl_platform in self.sorted_granular_bl_platforms[1:]:
+			if smooshed_bl_platforms[idx_smoosh].is_smooshable_with(
+				granular_bl_platform,
+				ext_bl_versions=self.bl_versions,
+				ext_min_glibc_version=self.deps.min_glibc_version,
+				ext_min_macos_version=self.deps.min_macos_version,
+				ext_wheels_granular=self.wheels_granular,
+			):
+				smooshed_bl_platforms[idx_smoosh] = smooshed_bl_platforms[
+					idx_smoosh
+				].smoosh_with(granular_bl_platform)
+
+			else:
+				smooshed_bl_platforms.append(
+					extyp.BLPlatforms.from_bl_platform(granular_bl_platform)
+				)
+				idx_smoosh += 1
+
+			granular_to_smooshed_idx[granular_bl_platform] = idx_smoosh
+
+			# Return Constructed Mapping
+			## We recorded pointers from granular to the smooshed version it's included in.
+			## By following those pointers, we're left only with the desired mapping.
+		return frozendict({
+			granular_bl_platform: smooshed_bl_platforms[smooshed_idx]
+			for granular_bl_platform, smooshed_idx in granular_to_smooshed_idx.items()
+		})
+
+	@functools.cached_property
+	def sorted_bl_platforms(self) -> tuple[extyp.BLPlatforms, ...]:
+		"""Sorted variant of `self.bl_platforms`."""
+		# NOTE: This is an order-preserving deduplication.
+		## `dict` performs insertion-order preserving deduplication of the `.values()`.
+		## The keys of this temporary `dict` are then dumped into a new tuple w/unpacking.
+		return (*dict.fromkeys(self.bl_platforms_by_granular.values()),)
+
+	@functools.cached_property
+	def bl_platforms(self) -> frozenset[extyp.BLPlatforms]:
+		"""Sorted variant of `self.bl_platforms`."""
+		return frozenset(self.bl_platforms_by_granular.values())
+
+	####################
+	# - Wheels
+	####################
+	@functools.cached_property
+	def wheels_granular(
+		self,
+	) -> frozendict[
+		extyp.BLVersion, frozendict[extyp.BLPlatform, frozenset[PyDepWheel]]
+	]:
+		"""All Python wheels needed by the extension, by version and granlar platform."""
+		# Initialize Error Aggregators
+		## These will collect errors in finding wheels across each version and platform.
+		err_msgs = {
+			bl_version: {
+				bl_platform: list[str]()
+				for bl_platform in self.sorted_granular_bl_platforms
+				if bl_platform in bl_version.valid_bl_platforms
+			}
+			for bl_version in self.sorted_bl_versions
+		}
+		err_num_missing_wheels = {
+			bl_version: dict.fromkeys(self.sorted_granular_bl_platforms, 0)
+			for bl_version in self.sorted_bl_versions
+		}
+
+		# Collect Wheels by version snd platform.
+		wheels_granular = frozendict[
+			extyp.BLVersion, frozendict[extyp.BLPlatform, frozenset[PyDepWheel]]
+		]({
+			bl_version: frozendict[extyp.BLPlatform, frozenset[PyDepWheel]]({
+				bl_platform: self.deps.wheels_by(
+					pkg_name=self.id,
+					bl_version=bl_version,
+					bl_platform=bl_platform,
+					err_msgs=err_msgs,
+					err_num_missing_wheels=err_num_missing_wheels,
+				)
+				for bl_platform in self.granular_bl_platforms
+				if bl_platform in bl_version.valid_bl_platforms
+			})
+			for bl_version in self.sorted_bl_versions
+		})
+
+		total_missing_wheels = sum(
+			missing_wheels
+			for missing_by_platform in err_num_missing_wheels.values()
+			for missing_wheels in missing_by_platform.values()
+		)
+		if total_missing_wheels == 0:
+			return wheels_granular
+
+		msgs = [
+			err_msg
+			for bl_platform_err_msgs in err_msgs.values()
+			for err_msg in bl_platform_err_msgs
+		] + [
+			f'**Missing Wheels** for `{bl_version.version}`:\n'
+			+ '\n'.join([
+				f'> `{bl_platform}`: {err_num_missing_wheels[bl_version][bl_platform]}'
+				for bl_platform in self.sorted_granular_bl_platforms
+				if bl_platform in bl_version.valid_bl_platforms
+			])
+			for bl_version in self.sorted_bl_versions
+		]
+		raise ValueError(*msgs)
 
 	@functools.cached_property
 	def wheels(
 		self,
-	) -> frozendict[extyp.BLVersion, frozenset[PyDepWheel]]:
-		"""Python wheels by (smooshed) Blender version and Blender platform."""
+	) -> frozendict[
+		extyp.BLVersion, frozendict[extyp.BLPlatforms, frozenset[PyDepWheel]]
+	]:
+		"""All Python wheels needed by the extension, by version and platform."""
 		return frozendict({
-			bl_version: self.deps.wheels_by(
-				pkg_name=self.id,
-				bl_version=bl_version,
-				bl_platforms=frozenset({
-					bl_platform
-					for bl_platform in self.bl_platforms
-					if bl_platform in bl_version.valid_bl_platforms
-				}),
+			bl_version: frozendict[extyp.BLPlatforms, frozenset[PyDepWheel]]({
+				bl_platform: functools.reduce(
+					lambda a, b: a | b,
+					(
+						self.wheels_granular[bl_version][granular_bl_platform]
+						for granular_bl_platform in bl_platform.bl_platforms
+						if granular_bl_platform in bl_version.valid_bl_platforms
+					),
+				)
+				for bl_platform in self.sorted_bl_platforms
+			})
+			for bl_version in self.sorted_bl_versions
+		})
+
+	@functools.cached_property
+	def wheels_by_bl_version(
+		self,
+	) -> frozendict[extyp.BLVersion, frozenset[PyDepWheel]]:
+		"""All Python wheels needed by the extension, by version alone."""
+		return frozendict({
+			bl_version: functools.reduce(
+				lambda a, b: a | b,
+				self.wheels[bl_version].values(),
 			)
-			for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
+			for bl_version in self.sorted_bl_versions
 		})
 
 	@functools.cached_property
 	def bl_versions_by_wheel(
 		self,
 	) -> frozendict[PyDepWheel, frozenset[extyp.BLVersion]]:
-		"""Blender versions by wheel."""
-		all_wheels = {wheel for wheels in self.wheels.values() for wheel in wheels}
+		"""All Blender versions requesting each particular wheel."""
+		all_wheels = {
+			wheel for wheels in self.wheels_by_bl_version.values() for wheel in wheels
+		}
 		return frozendict({
 			wheel: frozenset({
 				bl_version
-				for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
-				if wheel in self.wheels[bl_version]
+				for bl_version in self.sorted_bl_versions
+				if wheel in self.wheels_by_bl_version[bl_version]
 			})
 			for wheel in all_wheels
 		})
 
-	def bl_manifest(
+	####################
+	# - Attributes
+	####################
+	@functools.cached_property
+	def sorted_tags(self) -> tuple[str, ...] | None:
+		"""Alphabetically sorted variant of `self.tags`."""
+		return tuple(sorted(self.tags)) if self.tags is not None else None
+
+	####################
+	# - Extension Manifest
+	####################
+	@lru_method()
+	def bl_manifests(
 		self,
 		bl_manifest_version: extyp.BLManifestVersion,
-		*,
-		bl_version: extyp.BLVersion,
-	) -> extyp.BLManifest:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, extyp.BLManifest]]:
 		"""Export the Blender extension manifest.
 
 		Notes:
@@ -298,68 +515,47 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		Raises:
 			ValueError: When `fmt` is unknown.
 		"""
-		if (
-			bl_version not in self.bl_versions
-			and bl_version in self.bl_versions_by_granular
-		):
-			bl_version = self.bl_versions_by_granular[bl_version]
-
-		_empty_frozenset: frozenset[PyDepWheel] = frozenset()
 		match bl_manifest_version:
 			case extyp.BLManifestVersion.V1_0_0:
-				return extyp.BLManifest_1_0_0(
-					id=self.id,
-					name=self.name,
-					version=str(self.version),
-					tagline=self.tagline,
-					maintainer=self.maintainer,
-					blender_version_min=bl_version.source.blender_version_min,
-					blender_version_max=bl_version.source.blender_version_max,
-					permissions=self.permissions,
-					platforms=sorted(self.bl_platforms),  # pyright: ignore[reportArgumentType]
-					tags=(tuple(sorted(self.tags)) if self.tags is not None else None),
-					license=(self.license,),
-					copyright=self.copyright,
-					website=str(self.website) if self.website is not None else None,
-					wheels=tuple(
-						sorted([
-							f'./wheels/{wheel.filename}'
-							for wheel in self.wheels[bl_version]
-						])
-					)
-					if len(self.wheels[bl_version]) > 0
-					else None,
-				)
+				return frozendict({
+					bl_version: frozendict[extyp.BLPlatforms, extyp.BLManifest_1_0_0]({
+						bl_platform: extyp.BLManifest_1_0_0(
+							id=self.id,
+							name=self.name,
+							version=str(self.version),
+							tagline=self.tagline,
+							maintainer=self.maintainer,
+							blender_version_min=bl_version.source.blender_version_min,
+							blender_version_max=bl_version.source.blender_version_max,
+							permissions=self.permissions,
+							platforms=bl_platform.sorted_bl_platforms,  # pyright: ignore[reportArgumentType]
+							tags=self.sorted_tags,
+							license=(self.license,),
+							copyright=self.copyright,
+							website=str(self.website)
+							if self.website is not None
+							else None,
+							wheels=tuple(
+								sorted([
+									f'./wheels/{wheel.filename}'
+									for wheel in self.wheels[bl_version][bl_platform]
+								])
+							)
+							if len(self.wheels[bl_version]) > 0
+							else None,
+						)
+						for bl_platform in self.sorted_bl_platforms
+					})
+					for bl_version in self.sorted_bl_versions
+				})
 
-	####################
-	# - Exporters
-	####################
-	def export_extension_filenames(
-		self,
-		with_bl_version: bool = True,
-		with_bl_platforms: bool = True,
-	) -> frozendict[extyp.BLVersion, str]:
-		"""Default filename of the extension zipfile."""
-		extension_filenames: dict[extyp.BLVersion, str] = {}
-		for bl_version in sorted(self.bl_versions, key=lambda el: el.version):
-			basename = f'{self.id}__{self.version}'
-
-			if with_bl_version:
-				basename += f'__{bl_version.version}'
-
-			if with_bl_platforms:
-				basename += '__' + '_'.join(sorted(self.bl_platforms))
-
-			extension_filenames[bl_version] = f'{basename}.zip'
-		return frozendict(extension_filenames)
-
-	def export_blender_manifest(
+	@lru_method()
+	def bl_manifest_strs(
 		self,
 		bl_manifest_version: extyp.BLManifestVersion,
 		*,
-		bl_version: extyp.BLVersion,
 		fmt: typ.Literal['json', 'toml'],
-	) -> str:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, str]]:
 		"""Export the Blender extension manifest.
 
 		Notes:
@@ -377,115 +573,145 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		Raises:
 			ValueError: When `fmt` is unknown.
 		"""
-		# Dump Manifest to Formatted String
-		bl_manifest = self.bl_manifest(bl_manifest_version, bl_version=bl_version)
-		if isinstance(bl_manifest, pyd.BaseModel):
-			manifest_export: dict[str, typ.Any] = bl_manifest.model_dump(
-				mode='json', exclude_none=True
-			)
-			if fmt == 'json':
-				return json.dumps(manifest_export)
-			if fmt == 'toml':
-				return tomli_w.dumps(manifest_export)
-
-		msg = '`bl_manifest` is not an instance of `pyd.BaseModel`. This should not happen.'
-		raise RuntimeError(msg)
+		bl_manifests = self.bl_manifests(bl_manifest_version)
+		return frozendict({
+			bl_version: frozendict[extyp.BLPlatforms, extyp.BLManifest]({
+				bl_platform: bl_manifests[bl_version][bl_platform].export(fmt=fmt)
+				for bl_platform in self.sorted_bl_platforms
+			})
+			for bl_version in self.sorted_bl_versions
+		})
 
 	####################
-	# - Replace Methods
+	# - Extension Filename/Path
 	####################
-	def replace_bl_platforms(
-		self, bl_platforms: frozenset[extyp.BLPlatform]
-	) -> typ.Self:
-		"""Create a copy of this extension spec, with altered platform support.
+	@functools.cached_property
+	def extension_filenames(
+		self,
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, str]]:
+		"""Filename of each extension filename to build from this spec."""
+		return frozendict({
+			bl_version: frozendict[extyp.BLPlatforms, str]({
+				bl_platform: (
+					f'{self.id}_{str(self.version).replace(".", "-")}__{bl_version.version.replace(".", "-")}__{bl_platform}'
+					if not self.is_platform_universal
+					else f'{self.id}_{str(self.version).replace(".", "-")}__{bl_version.version.replace(".", "-")}'
+				)
+				for bl_platform in self.sorted_bl_platforms
+			})
+			for bl_version in self.sorted_bl_versions
+		})
 
-		Notes:
-			By default, an extension specification defines a wide range of supported platforms.
+	def extension_zip_paths(
+		self, *, path_base: Path
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, Path]]:
+		"""Paths to each extension to build from this spec, relative to `path_base`."""
+		return frozendict({
+			bl_version: frozendict[extyp.BLPlatforms, Path]({
+				bl_platform: (
+					path_base
+					/ (self.extension_filenames[bl_version][bl_platform] + '.zip')
+				)
+				for bl_platform in self.sorted_bl_platforms
+			})
+			for bl_version in self.sorted_bl_versions
+		})
 
-			Sometimes, it's important to consider the same extension defined only for a subset of platforms (for example, to build the extension only for Windows).
-			This amounts to a "new extension", which can be generated using this method.
+	####################
+	# - Queries: Wheels
+	####################
+	@lru_method()
+	def query_required_wheels(
+		self,
+		*,
+		bl_versions: frozenset[extyp.BLVersion] | None = None,
+		bl_platforms: frozenset[extyp.BLPlatforms] | None = None,
+	) -> frozenset[PyDepWheel]:
+		"""All wheels that are needed to build extensions for all `bl_versions`.
 
 		Parameters:
-			bl_platforms: The Blender platforms to support exclusively.
+			bl_versions: Blender versions to find all wheels for.
 
-				- `frozenset[BLPlatform]`: Directly write to `self.bl_platforms`.
-				- `set[BLPlatform]`: Directly write to `self.bl_platforms`.
-				- `BLPlatform`: Place in a single-element set.
+				- When `None`, use `self.bl_versions`.
 
 		Returns:
-			A copy of `self`, with the following modifications:
-				- `self.wheels_graph.valid_bl_platforms`: Modified according to parameters.
-
-			In practice, `self.bl_platforms` will also reflect the change.l
-
+			The union-set of wheels needed by all given `bl_versions`, together.
 		"""
-		if bl_platforms.issubset(self.bl_platforms):
-			return self.model_copy(
-				update={
-					'bl_platforms': bl_platforms,
-				},
-				deep=True,
-			)
+		# Check Validity of BLVersions
+		bl_versions = self.bl_versions if bl_versions is None else bl_versions
+		if not all(bl_version in self.bl_versions for bl_version in bl_versions):
+			msg = 'Requested all required wheels for `bl_versions`, but one was not also given in `self.bl_versions`.'
+			raise ValueError(msg)
 
-		msg = "Can't set BLPlatforms that aren't already supported by an extension."
-		raise ValueError(msg)
+		# Check Validity of BLPlatforms
+		bl_platforms = self.bl_platforms if bl_platforms is None else bl_platforms
+		if not all(bl_platform in self.bl_platforms for bl_platform in bl_platforms):
+			msg = 'Requested all required wheels for `bl_platforms`, but one was not also given in `self.bl_platforms`.'
+			raise ValueError(msg)
 
-	####################
-	# - Wheels to Download
-	####################
-	def cached_wheels(
+		return frozenset({
+			wheel
+			for bl_version in bl_versions
+			for bl_platform in bl_platforms
+			for wheel in self.wheels[bl_version][bl_platform]
+		})
+
+	@lru_method()
+	def query_cached_wheels(
 		self,
 		*,
 		path_wheels: Path,
 		bl_versions: frozenset[extyp.BLVersion] | None = None,
+		bl_platforms: frozenset[extyp.BLPlatforms] | None = None,
 	) -> frozenset[PyDepWheel]:
 		"""Wheels that have already been correctly downloaded."""
-		bl_versions = self.bl_versions if bl_versions is None else bl_versions
-		if all(bl_version in self.bl_versions for bl_version in bl_versions):
-			return frozenset({
-				wheel
-				for bl_version in sorted(bl_versions, key=lambda el: el.version)
-				for wheel in self.wheels[bl_version]
-				if wheel.is_download_valid(path_wheels / wheel.filename)
-			})
+		return frozenset({
+			wheel
+			for wheel in self.query_required_wheels(
+				bl_versions=bl_versions, bl_platforms=bl_platforms
+			)
+			if wheel.is_download_valid(path_wheels / wheel.filename)
+		})
 
-		msg = 'Requested cached wheels for `BLVersion`(s) not given in `self.bl_versions`.'
-		raise ValueError(msg)
-
-	def missing_wheels(
+	@lru_method()
+	def query_missing_wheels(
 		self,
 		*,
 		path_wheels: Path,
 		bl_versions: frozenset[extyp.BLVersion] | None = None,
+		bl_platforms: frozenset[extyp.BLPlatforms] | None = None,
 	) -> frozenset[PyDepWheel]:
 		"""Wheels that need to be downloaded, since they are not available / valid."""
-		bl_versions = self.bl_versions if bl_versions is None else bl_versions
+		return frozenset({
+			wheel
+			for wheel in self.query_required_wheels(
+				bl_versions=bl_versions, bl_platforms=bl_platforms
+			)
+			if not wheel.is_download_valid(path_wheels / wheel.filename)
+		})
 
-		if all(bl_version in self.bl_versions for bl_version in bl_versions):
-			return frozenset({
-				wheel
-				for bl_version in sorted(bl_versions, key=lambda el: el.version)
-				for wheel in self.wheels[bl_version]
-				if not wheel.is_download_valid(path_wheels / wheel.filename)
-			})
+	####################
+	# - Queries: Prepack
+	####################
+	## TODO: Do the query thing for prepacking, too. This is the place!
 
-		msg = 'Requested missing wheels for `BLVersion`(s) not given in `self.bl_versions`.'
-		raise ValueError(msg)
-
+	@lru_method()
 	def wheel_paths_to_prepack(
 		self, *, path_wheels: Path
-	) -> frozendict[extyp.BLVersion, frozendict[Path, Path]]:
+	) -> frozendict[
+		extyp.BLVersion, frozendict[extyp.BLPlatforms, frozendict[Path, Path]]
+	]:
 		"""Wheel file paths that should be pre-packed."""
-		wheel_paths_to_prepack = {
-			bl_version: {
-				path_wheels / wheel.filename: Path('wheels') / wheel.filename
-				for bl_platform in sorted(self.bl_platforms)
-				if bl_platform in bl_version.valid_bl_platforms
-				for wheel in self.wheels[bl_version]
-			}
-			for bl_version in sorted(self.bl_versions, key=lambda el: el.version)
-		}
-		return deepfreeze(wheel_paths_to_prepack)  # pyright: ignore[reportAny]
+		return frozendict({
+			bl_version: frozendict[extyp.BLPlatforms, frozendict[Path, Path]]({
+				bl_platform: frozendict[Path, Path]({
+					path_wheels / wheel.filename: Path('wheels') / wheel.filename
+					for wheel in self.wheels[bl_version][bl_platform]
+				})
+				for bl_platform in self.sorted_bl_platforms
+			})
+			for bl_version in self.sorted_bl_versions
+		})
 
 	####################
 	# - Creation
@@ -712,7 +938,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			raise RuntimeError(msg)
 
 		_spec_params = {
-			'bl_platforms': blext_spec_dict.get('supported_platforms'),
+			'granular_bl_platforms': blext_spec_dict.get('supported_platforms'),
 			'deps': BLExtDeps.from_uv_lock(
 				uv.parse_uv_lock(
 					path_uv_lock,
@@ -836,10 +1062,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	####################
 	@pyd.model_validator(mode='before')
 	@classmethod
-	def set_default_bl_platforms_to_universal(cls, data: typ.Any) -> typ.Any:  # pyright: ignore[reportAny]
+	def set_default_granular_bl_platforms_to_universal(cls, data: typ.Any) -> typ.Any:  # pyright: ignore[reportAny]
 		"""Set the default BLPlatforms to the largest common subset of platforms supported by given Blender versions."""
-		if (isinstance(data, dict) and 'bl_platforms' not in data) or data[
-			'bl_platforms'
+		if (isinstance(data, dict) and 'granular_bl_platforms' not in data) or data[
+			'granular_bl_platforms'
 		] is None:
 			if (
 				'blender_version_min' in data
@@ -858,16 +1084,18 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 						data.get('blender_version_max'),  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
 					)
 				)
-				valid_bl_platforms = functools.reduce(
+				granular_bl_platforms = functools.reduce(
 					lambda a, b: a | b,
 					[
 						released_bl_version.bl_version.valid_bl_platforms
 						for released_bl_version in released_bl_versions
 					],
 				)
-				data['bl_platforms'] = valid_bl_platforms
+				data['granular_bl_platforms'] = granular_bl_platforms
 			else:
-				msg = 'blender_version_min must be given to deduce bl_platforms'
+				msg = (
+					'blender_version_min must be given to deduce granular_bl_platforms'
+				)
 				raise ValueError(msg)
 
 		return data  # pyright: ignore[reportUnknownVariableType]
@@ -890,5 +1118,5 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			raise ValueError(*msgs)
 		return self
 
-	## TODO: Check that all bl_platforms is valid in at least one of `self.bl_versions`.
+	## TODO: Check that all granular_bl_platforms is valid in at least one of `self.bl_versions`.
 	## - It's a niche thing, but might as well get it right.

@@ -16,14 +16,14 @@
 
 """Implements `blext build`."""
 
+import shutil
 import typing as typ
 from pathlib import Path
 
 import cyclopts
 import rich.markdown
-from frozendict import frozendict
 
-from blext import extyp, pack, pydeps, ui, uityp
+from blext import pack, pydeps, ui, uityp
 
 from ._context import (
 	APP,
@@ -57,7 +57,12 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 		proj: Location specifier for `blext` projects.
 		blext_info: Information used to find and load `blext` project.
 		global_config: Loaded global configuration.
-		output: Write built extension to this file / folder.
+		output: Extension zipfile path(s) to build. Supports macros:
+
+			- `%bl_version`: **Required** when selecting multiple Blender versions.
+			- `%platform`: **Required** when selecting multiple platforms.
+			- `%ext_id`: Equivalent to `project.name`.
+			- `%ext_version`: Equivalent to `project.version`.
 		overwrite: Allow overwriting `.zip`.
 		vendor: Include dependencies as wheels in the `.zip`.
 			When `False`, write `uv.lock` to the extension.
@@ -72,20 +77,17 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	blext_spec = blext_info.blext_spec(global_config)
 
 	####################
-	# - Report BLVersion Selection(s)
+	# - Select BLVersions
 	####################
-	bl_versions = blext_info.bl_versions(global_config)
 	match blext_info.bl_version:
 		case ():
 			CONSOLE.print(
 				rich.markdown.Markdown(
 					'\n'.join([
-						f'Selected **all {len(bl_versions)} ext-supported Blender version** chunk(s):',
+						f'Selected **all {len(blext_spec.bl_versions)} ext-supported Blender version** chunk(s):',
 						*[
 							f'- `{bl_version.version}`'
-							for bl_version in sorted(
-								bl_versions, key=lambda el: el.version
-							)
+							for bl_version in blext_spec.sorted_bl_versions
 						],
 					])
 				),
@@ -93,22 +95,22 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 			)
 
 		case ('detect',):
-			bl_version = next(iter(bl_versions))
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					f'Selected **detected local Blender version**: `{bl_version.version}`'
+					f'Selected **detected local Blender version**: `{global_config.local_default_bl_version.version}`'
 				)
 			)
 
 		case _:
+			requested_bl_versions = blext_info.requested_bl_versions(global_config)
 			CONSOLE.print(
 				rich.markdown.Markdown(
 					'\n'.join([
-						f'Selected **{len(bl_versions)} Blender version** chunks:',
+						f'Selected **{len(requested_bl_versions)} Blender versions**:',
 						*[
 							f'- `{bl_version.version}`'
 							for bl_version in sorted(
-								bl_versions, key=lambda el: el.version
+								requested_bl_versions, key=lambda el: el.version
 							)
 						],
 					])
@@ -116,38 +118,47 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 				'',
 			)
 
+	bl_versions = blext_info.bl_versions(global_config)
+
 	####################
-	# - Report BLPlatform Selection(s)
+	# - Select BLPlatforms
 	####################
-	bl_platforms = blext_info.bl_platforms(global_config)
 	match blext_info.platform:
 		case ():
 			CONSOLE.print(
 				rich.markdown.Markdown(
 					'\n'.join([
-						f'Selected **all {len(bl_platforms)} ext-supported platform(s)**:',
-						*[f'- `{bl_platform}`' for bl_platform in sorted(bl_platforms)],
+						f'Selected **all {len(blext_spec.granular_bl_platforms)} ext-supported platform(s)**:',
+						*[
+							f'- `{granular_bl_platform}`'
+							for granular_bl_platform in blext_spec.sorted_granular_bl_platforms
+						],
 					])
 				),
 				'',
 			)
 		case ('detect',):
-			bl_platform = next(iter(bl_platforms))
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					f'Selected **detected local Blender platform**: `{bl_platform}`'
+					f'Selected **detected local Blender platform**: `{global_config.local_bl_platform}`'
 				)
 			)
 		case _:
+			requested_bl_platforms = blext_info.requested_bl_platforms(global_config)
 			CONSOLE.print(
 				rich.markdown.Markdown(
 					'\n'.join([
-						f'Selected **{len(bl_platforms)} Blender platforms**:',
-						*[f'- `{bl_platform}`' for bl_platform in sorted(bl_platforms)],
+						f'Selected **{len(requested_bl_platforms)} Blender platforms**:',
+						*[
+							f'- `{bl_platform}`'
+							for bl_platform in sorted(requested_bl_platforms)
+						],
 					])
 				),
 				'',
 			)
+
+	bl_platforms = blext_info.bl_platforms(global_config)
 
 	if any([
 		blext_spec.deps.min_glibc_version is not None,
@@ -173,25 +184,70 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 					f'Using **modified platform support**: `valid_python_tags={sorted(blext_spec.deps.valid_python_tags)}`'
 				)
 			)
+		if blext_spec.deps.valid_abi_tags is not None:
+			CONSOLE.print(
+				rich.markdown.Markdown(
+					f'Using **modified platform support**: `valid_abi_tags={sorted(blext_spec.deps.valid_abi_tags)}`'
+				)
+			)
+
+		CONSOLE.print()
 
 	####################
-	# - Select Paths
+	# - Select Zip Path(s)
 	####################
-	# Packed .zip Paths
-	if output:
-		if len(bl_versions) == 1:
-			bl_version = next(iter(bl_versions))
-			path_zips: frozendict[extyp.BLVersion, Path] = frozendict({
-				bl_version: output
-			})
-		else:
-			msg = 'Cannot set filename of extension zip when building extension for multiple Blender versions.'
-			raise ValueError(msg)
-	else:
-		path_zips = blext_info.path_zips(global_config)
-
-	# Pre-Packed .zip Paths
+	path_zips = blext_info.path_zips(global_config)
 	path_zip_prepacks = blext_info.path_zip_prepacks(global_config)
+
+	# Select Final Zip Paths
+	## Extensions are always built in the "build cache".
+	## However, afterwards, they are optionally moved somewhere else.
+	## That "somewhere else" is specified by the user as `output`.
+	if output:
+		if len(bl_versions) > 1 and '%bl_version' not in str(output):
+			msgs = [
+				'`--output` must contain a string `%bl_version`, when more than one Blender version chunk is selected.',
+				'> **Remedies**:',
+				'> 1. Add a string `%bl_version` to `--output`, so that extensions for different Blender versions can be built to different `.zip` files.',
+				'> 2. Manually select a single `--bl-version`, so that the `BLVersion` can be unambiguously determined.',
+			]
+			raise ValueError(*msgs)
+
+		if len(bl_platforms) > 1 and '%platform' not in str(output):
+			msgs = [
+				'`--output` must contain a string `%platform`, when more than one platform is selected.',
+				'> **Remedies**:',
+				'> 1. Add a string `%platform` to `--output`, so that extensions for different platforms can be built to different `.zip` files.',
+				'> 2. Manually select a single `--platform`, so that the platform can be unambiguously determined.',
+			]
+			raise ValueError(*msgs)
+
+		path_final_zips = {
+			bl_version: {
+				bl_platform: Path(*[
+					(
+						path_part.replace('%ext_id', str(blext_spec.id))
+						.replace(
+							'%ext_version', str(blext_spec.version).replace('.', '-')
+						)
+						.replace('%bl_version', bl_version.version.replace('.', '-'))
+						.replace('%platform', bl_platform)
+						.replace('%default', bl_platform)
+					)
+					for path_part in output.parts
+				])
+				for bl_platform in bl_platforms
+			}
+			for bl_version in bl_versions
+		}
+	else:
+		path_final_zips = blext_info.path_final_zips(global_config)
+
+	####################
+	# - Select Filesystem Resources
+	####################
+	# Select Files to Pre-Pack
+	## TODO: Use spec to query a cache-file tracker.
 	if vendor:
 		files_in_prepack = blext_spec.wheel_paths_to_prepack(
 			path_wheels=blext_location.path_wheel_cache
@@ -199,25 +255,22 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	else:
 		raise NotImplementedError
 
-	# Wheel Paths (Cached & To Download)
-	wheels_in_cache = blext_spec.cached_wheels(
+	# Select Wheels to Download
+	wheels_in_cache = blext_spec.query_cached_wheels(
 		path_wheels=blext_location.path_wheel_cache,
-		bl_versions=bl_versions,
+		bl_versions=frozenset(bl_versions),
 	)
-	wheels_to_download = blext_spec.missing_wheels(
+	wheels_to_download = blext_spec.query_missing_wheels(
 		path_wheels=blext_location.path_wheel_cache,
-		bl_versions=bl_versions,
+		bl_versions=frozenset(bl_versions),
 	)
 
 	####################
 	# - Download Wheels
 	####################
-	if wheels_in_cache:
-		CONSOLE.print(
-			rich.markdown.Markdown(
-				f'Found **{len(wheels_in_cache)} wheel(s)** in cache'
-			)
-		)
+	CONSOLE.print(
+		rich.markdown.Markdown(f'Found **{len(wheels_in_cache)} wheel(s)** in cache')
+	)
 
 	with ui.ui_download_wheels(
 		wheels_to_download,
@@ -239,37 +292,44 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	# - Pre-Pack Extension
 	####################
 	for bl_version in bl_versions:
-		CONSOLE.print()
-		CONSOLE.print(
-			rich.markdown.Markdown(f'**Pre-Packing** for `{bl_version.version}`')
-		)
-		files_in_prepack_cache = pack.existing_prepacked_files(
-			files_in_prepack[bl_version], path_zip_prepack=path_zip_prepacks[bl_version]
-		)
-		if files_in_prepack_cache:
+		for bl_platform in bl_platforms:
+			bl_platform_str = 'all' if len(bl_platforms) == 1 else str(bl_platform)
+
+			CONSOLE.print()
+			CONSOLE.print(
+				rich.markdown.Markdown(
+					f'**Pre-Packing** for `{bl_version.version}'
+					+ (f':{bl_platform_str}`' if len(bl_platforms) > 1 else '`')
+				)
+			)
+			files_in_prepack_cache = pack.existing_prepacked_files(
+				files_in_prepack[bl_version][bl_platform],
+				path_zip_prepack=path_zip_prepacks[bl_version][bl_platform],
+			)
 			CONSOLE.print(
 				rich.markdown.Markdown(
 					f'Found **{len(files_in_prepack_cache)} pre-packed file(s)** in cache'
 				)
 			)
 
-		files_to_prepack = {
-			path: zipfile_path
-			for path, zipfile_path in files_in_prepack[bl_version].items()
-			if zipfile_path not in files_in_prepack_cache
-		}
-		with ui.ui_prepack_extension(
-			files_to_prepack,
-			console=CONSOLE,
-		) as ui_callbacks:
-			pack.prepack_extension(
+			files_to_prepack = {
+				path: path_inzip
+				for path, path_inzip in files_in_prepack[bl_version][
+					bl_platform
+				].items()
+				if path_inzip not in files_in_prepack_cache
+			}
+			with ui.ui_prepack_extension(
 				files_to_prepack,
-				path_zip_prepack=path_zip_prepacks[bl_version],
-				cb_pre_file_write=ui_callbacks.cb_pre_file_write,  # pyright: ignore[reportArgumentType]
-				cb_post_file_write=ui_callbacks.cb_post_file_write,  # pyright: ignore[reportArgumentType]
-			)
+				console=CONSOLE,
+			) as ui_callbacks:
+				pack.prepack_extension(
+					files_to_prepack,
+					path_zip_prepack=path_zip_prepacks[bl_version][bl_platform],
+					cb_pre_file_write=ui_callbacks.cb_pre_file_write,  # pyright: ignore[reportArgumentType]
+					cb_post_file_write=ui_callbacks.cb_post_file_write,  # pyright: ignore[reportArgumentType]
+				)
 
-		if files_in_prepack:
 			CONSOLE.print(
 				rich.markdown.Markdown(
 					f'Pre-Packed **{len(files_to_prepack)} file(s)**'
@@ -280,24 +340,31 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	# - Pack Extension
 	####################
 	for bl_version in bl_versions:
-		pack.pack_bl_extension(
-			blext_spec,
-			bl_version=bl_version,
-			overwrite=overwrite,
-			path_zip_prepack=path_zip_prepacks[bl_version],
-			path_zip=path_zips[bl_version],
-			path_pysrc=blext_location.path_pysrc(blext_spec.id),
-		)
-
-	####################
-	# - Check Extension
-	####################
-	if check_output:
-		for bl_version in bl_versions:
-			check(
-				blext_info=uityp.BLExtUI(path=path_zips[bl_version]),
-				global_config=global_config,
+		for bl_platform in bl_platforms:
+			# Build Extension to Build Cache Dir
+			pack.pack_bl_extension(
+				blext_spec,
+				bl_version=bl_version,
+				bl_platform=bl_platform,
+				overwrite=overwrite,
+				path_zip_prepack=path_zip_prepacks[bl_version][bl_platform],
+				path_zip=path_zips[bl_version][bl_platform],
+				path_pysrc=blext_location.path_pysrc(blext_spec.id),
 			)
+
+			# Move Extension from Build Cache Dir to Build Dir
+			if not path_final_zips[bl_version][bl_platform].parent.is_dir():
+				path_final_zips[bl_version][bl_platform].parent.mkdir(
+					parents=True, exist_ok=True
+				)
+			if (
+				path_zips[bl_version][bl_platform]
+				!= path_final_zips[bl_version][bl_platform]
+			):
+				shutil.move(
+					path_zips[bl_version][bl_platform],
+					path_final_zips[bl_version][bl_platform],
+				)
 
 	####################
 	# - Report Success
@@ -306,15 +373,29 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	CONSOLE.print(
 		rich.markdown.Markdown(
 			'\n'.join([
-				f'Built `{blext_spec.id}` extension(s):',
+				f'Built extension(s) for `{blext_spec.id}`:',
 				'',
 				*[
 					'\n'.join([
-						f'- {path_zips[bl_version]}',
+						f'- {path_final_zips[bl_version][bl_platform]}',
 						'',
 					])
-					for bl_version in blext_info.bl_versions(global_config)
+					for bl_version in bl_versions
+					for bl_platform in bl_platforms
 				],
 			])
 		)
 	)
+
+	####################
+	# - Check Extension
+	####################
+	if check_output:
+		for bl_version in bl_versions:
+			for bl_platform in bl_platforms:
+				check(
+					blext_info=uityp.BLExtUI(
+						path=path_final_zips[bl_version][bl_platform]
+					),
+					global_config=global_config,
+				)

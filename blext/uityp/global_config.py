@@ -72,7 +72,7 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 		platformdirs.user_cache_dir(
 			APPNAME,
 			APPAUTHOR,
-			ensure_exists=False,
+			ensure_exists=True,
 		)
 	)
 

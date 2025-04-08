@@ -20,10 +20,12 @@ Attributes:
 	_RE_MANIFEST_SEMVER: Lifted directly from the [source code of Blender `4.2.0`](https://projects.blender.org/blender/blender/src/commit/a51f293548adba0dda086f5771401e8d8ab66227/scripts/addons_core/bl_pkg/cli/blender_ext.py#L102).
 """
 
+import json
 import typing as typ
 
 import annotated_types as atyp
 import pydantic as pyd
+import tomli_w
 
 from blext.utils.pydantic_frozendict import FrozenDict
 
@@ -45,6 +47,10 @@ class BLManifest(typ.Protocol):
 	@property
 	def manifest_filename(self) -> str:
 		"""Name of the manifest file to write."""
+		...
+
+	def export(self, *, fmt: typ.Literal['json', 'toml']) -> str:
+		"""Export this Blender manifest to a string."""
 		...
 
 
@@ -225,3 +231,17 @@ class BLManifest_1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
 	) = None
 
 	license: tuple[SPDXLicense, ...] | None = None
+
+	####################
+	# - Methods
+	####################
+	def export(self, *, fmt: typ.Literal['json', 'toml']) -> str:
+		"""Export this Blender manifest to a string."""
+		manifest_export: dict[str, typ.Any] = self.model_dump(
+			mode='json', exclude_none=True
+		)
+		match fmt:
+			case 'json':
+				return json.dumps(manifest_export)
+			case 'toml':
+				return tomli_w.dumps(manifest_export)

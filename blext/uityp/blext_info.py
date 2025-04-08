@@ -223,6 +223,18 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	# - Derived BLExt Types
 	####################
 	@lru_method()
+	def requested_bl_versions(
+		self, global_config: GlobalConfig
+	) -> frozenset[extyp.BLVersion]:
+		"""Set of granular `BLVersion`s that the user requested."""
+		return frozenset({
+			global_config.local_default_bl_version
+			if bl_release == 'detect'
+			else bl_release.bl_version
+			for bl_release in self.bl_version
+		})
+
+	@lru_method()
 	def requested_bl_platforms(
 		self, global_config: GlobalConfig
 	) -> frozenset[extyp.BLPlatform]:
@@ -230,18 +242,6 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		return frozenset({
 			global_config.local_bl_platform if bl_platform == 'detect' else bl_platform
 			for bl_platform in self.platform
-		})
-
-	@lru_method()
-	def requested_bl_versions(
-		self, global_config: GlobalConfig
-	) -> frozenset[extyp.BLVersion]:
-		"""Set of BLPlatforms that the user requested."""
-		return frozenset({
-			global_config.local_default_bl_version
-			if bl_release == 'detect'
-			else bl_release.bl_version
-			for bl_release in self.bl_version
 		})
 
 	@lru_method()
@@ -356,37 +356,88 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 				path_uv_exe=global_config.path_uv_exe,
 				release_profile_id=self.profile,
 			)
-
-		# Constrain BLPlatforms
-		bl_platforms = self.requested_bl_platforms(global_config)
-		if not bl_platforms:
-			return blext_spec
-		return blext_spec.replace_bl_platforms(bl_platforms)
+		return blext_spec
 
 	@lru_method()
-	def bl_versions(self, global_config: GlobalConfig) -> frozenset[extyp.BLVersion]:
+	def bl_versions(self, global_config: GlobalConfig) -> tuple[extyp.BLVersion, ...]:
 		"""All selected Blender versions."""
 		blext_spec = self.blext_spec(global_config)
 
 		requested_bl_versions = self.requested_bl_versions(global_config)
 		if not requested_bl_versions:
-			return blext_spec.bl_versions
-		return frozenset({
+			return blext_spec.sorted_bl_versions
+
+		# Select Maximally Smooshed BLVersions
+		## We must also verify that the desired BLVersion works with the ext.
+		bl_versions = set[extyp.BLVersion]()
+		for requested_bl_version in requested_bl_versions:
+			if requested_bl_version in blext_spec.granular_bl_versions:
+				bl_versions.add(
+					blext_spec.bl_versions_by_granular[requested_bl_version]
+				)
+			else:
+				msgs = [
+					f'Requested Blender version `{requested_bl_version.version}` is not supported by this extension.',
+					'> **Supported Blender Versions**:',
+					*[
+						f'> - {bl_version.version}'
+						for bl_version in blext_spec.sorted_bl_versions
+					],
+					'>',
+					'> **Remedies**:',
+					'> 1. Select an extension-supported `BLVersion`.',
+					f'> 2. Alter the extension to support `{requested_bl_version.version}`.',
+				]
+				raise ValueError(*msgs)
+
+		return tuple(
 			(
 				bl_version
 				if bl_version in blext_spec.bl_versions
 				else blext_spec.bl_versions_by_granular[bl_version]
 			)
 			for bl_version in requested_bl_versions
-		})
+		)
 
 	@lru_method()
-	def bl_platforms(self, global_config: GlobalConfig) -> frozenset[extyp.BLPlatform]:
+	def bl_platforms(
+		self, global_config: GlobalConfig
+	) -> tuple[extyp.BLPlatforms, ...]:
 		"""All selected Blender versions."""
+		blext_spec = self.blext_spec(global_config)
+
 		requested_bl_platforms = self.requested_bl_platforms(global_config)
 		if not requested_bl_platforms:
-			return self.blext_spec(global_config).bl_platforms
-		return requested_bl_platforms
+			return blext_spec.sorted_bl_platforms
+
+		# Select Maximally Smooshed BLVersions
+		## We must also verify that the desired BLVersion works with the ext.
+		bl_platforms = set[extyp.BLPlatforms]()
+		for requested_bl_platform in requested_bl_platforms:
+			if requested_bl_platform in blext_spec.granular_bl_platforms:
+				bl_platforms.add(
+					blext_spec.bl_platforms_by_granular[requested_bl_platform]
+				)
+			else:
+				msgs = [
+					f'Requested platform `{requested_bl_platform}` is not supported by this extension.',
+					'> **Supported Blender Platforms**:',
+					*[
+						f'> - {bl_platform}'
+						for bl_platform in blext_spec.sorted_bl_platforms
+					],
+					'>',
+					'> **Remedies**:',
+					'> 1. Select an extension-supported `BLPlatform`.',
+					f'> 2. Alter the extension to support `{requested_bl_platform}`.',
+				]
+				raise ValueError(*msgs)
+
+		return tuple(
+			bl_platform
+			for bl_platform in blext_spec.bl_platforms
+			if bl_platform in bl_platforms
+		)
 
 	####################
 	# - Zip Paths
@@ -394,7 +445,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	@lru_method()
 	def path_zip_prepacks(
 		self, global_config: GlobalConfig
-	) -> frozendict[extyp.BLVersion, Path]:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, Path]]:
 		"""Paths of all extension pre-packed archives that should be prepared from `self.blext_spec`.
 
 		Parameters:
@@ -406,18 +457,14 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		blext_location = self.blext_location(global_config)
 		blext_spec = self.blext_spec(global_config)
 
-		extension_filenames = blext_spec.export_extension_filenames()
-		return frozendict({
-			bl_version: (
-				blext_location.path_prepack_cache / extension_filenames[bl_version]
-			)
-			for bl_version in blext_spec.bl_versions
-		})
+		return blext_spec.extension_zip_paths(
+			path_base=blext_location.path_prepack_cache
+		)
 
 	@lru_method()
 	def path_zips(
 		self, global_config: GlobalConfig
-	) -> frozendict[extyp.BLVersion, Path]:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, Path]]:
 		"""Paths of all extension `.zip`s that should be built from `self.blext_spec`.
 
 		Parameters:
@@ -429,13 +476,24 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		blext_location = self.blext_location(global_config)
 		blext_spec = self.blext_spec(global_config)
 
-		extension_filenames = blext_spec.export_extension_filenames()
-		return frozendict({
-			bl_version: (
-				blext_location.path_build_cache / extension_filenames[bl_version]
-			)
-			for bl_version in blext_spec.bl_versions
-		})
+		return blext_spec.extension_zip_paths(path_base=blext_location.path_build_cache)
+
+	@lru_method()
+	def path_final_zips(
+		self, global_config: GlobalConfig
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, Path]]:
+		"""Paths of all extension `.zip`s that should be built from `self.blext_spec`.
+
+		Parameters:
+			global_config: Global configuration parameters.
+
+		Returns:
+			Mapping from `BLVersion` to the corresponding `Path` to build the extension for that version (chunk) at.
+		"""
+		blext_location = self.blext_location(global_config)
+		blext_spec = self.blext_spec(global_config)
+
+		return blext_spec.extension_zip_paths(path_base=blext_location.path_build)
 
 	####################
 	# - Parse Positional Parameter

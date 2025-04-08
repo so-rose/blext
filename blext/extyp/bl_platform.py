@@ -54,6 +54,9 @@ class BLPlatform(enum.StrEnum):
 	windows_x64 = 'windows-x64'
 	windows_arm64 = 'windows-arm64'
 
+	####################
+	# - Platform Checks
+	####################
 	@functools.cached_property
 	def is_windows(self) -> bool:
 		"""Whether this is a Windows-based platform."""
@@ -61,7 +64,7 @@ class BLPlatform(enum.StrEnum):
 		return self is P.windows_x64 or self is P.windows_arm64
 
 	####################
-	# - PyPi Information
+	# - Archive File Extension
 	####################
 	@functools.cached_property
 	def official_archive_file_ext(self) -> str:

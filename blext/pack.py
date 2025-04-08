@@ -128,6 +128,7 @@ def pack_bl_extension(  # noqa: PLR0913
 	blext_spec: BLExtSpec,
 	*,
 	bl_version: extyp.BLVersion,
+	bl_platform: extyp.BLPlatforms,
 	overwrite: bool = True,
 	path_zip_prepack: Path,
 	path_zip: Path,
@@ -146,7 +147,6 @@ def pack_bl_extension(  # noqa: PLR0913
 		path_zip: Path to the zipfile to pack.
 		path_pysrc: Path to the Python source code to pack as the extension package.
 	"""
-	bl_manifest_version = bl_version.max_manifest_version
 	if not path_zip_prepack.is_file():
 		msg = f'Cannot pack extension, since no pre-packed extension was found at {path_zip_prepack}.'
 		raise RuntimeError(msg)
@@ -166,17 +166,18 @@ def pack_bl_extension(  # noqa: PLR0913
 		####################
 		# - INSTALL: Blender Manifest => /blender_manifest.toml
 		####################
-		manifest_filename = blext_spec.bl_manifest(
-			bl_manifest_version, bl_version=bl_version
-		).manifest_filename
+		bl_manifest_version = bl_version.max_manifest_version
+		bl_manifests = blext_spec.bl_manifests(bl_manifest_version)
+
+		bl_manifest_strs = blext_spec.bl_manifest_strs(bl_manifest_version, fmt='toml')
+
+		manifest_filename = bl_manifests[bl_version][bl_platform].manifest_filename
 
 		_ = cb_update_status(f'Writing `{manifest_filename}`')
 
 		f_zip.writestr(
 			manifest_filename,
-			blext_spec.export_blender_manifest(
-				bl_manifest_version, bl_version=bl_version, fmt='toml'
-			),
+			bl_manifest_strs[bl_version][bl_platform],
 		)
 
 		####################

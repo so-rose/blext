@@ -96,128 +96,138 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		pkg_name: str,
 		bl_version: extyp.BLVersion,
 		bl_platform: extyp.BLPlatform,
-		err_msgs: dict[extyp.BLPlatform, list[str]],
 	) -> frozendict[str, PyDep]:
 		"""All Python dependencies needed by the given Python environment."""
-
 		# Buckle up kids!
 		## I confused myself repeatedly, so I wrote some comments to help myself.
+		## The journey begins with a quick little check.
+		if bl_platform not in bl_version.valid_bl_platforms:
+			msg = f'The given `bl_platform` in `{bl_platform}` is not supported by the given Blender version (`{bl_version.version}`).'
+			raise ValueError(msg)
+
+		# Now a function. Getting spicier!
+		## Go read the documentation below. It's made with love <3
 		def filter_edge(
 			node_upstream: tuple[str, str],
 			node_downstream: tuple[str, str],
 		) -> bool:
-			"""Checks if each marker is `None`, or valid, on the edge between upstream/downstream node."""
-			pydep_marker: PyDepMarker | None = self.pydeps_graph[node_upstream][  # pyright: ignore[reportUnknownMemberType]
-				node_downstream
-			]['marker']
+			"""Don't follow dependency-edges with incompatible environment markers.
 
-			return pydep_marker is None or pydep_marker.is_valid_for(
+			Notes:
+				Many PyDeps will include a dependency "only if" something is true.
+				For example, "only if" on Windows.
+				Naturally, this presents a complication: **How do we know what the end-user's Python environment is like**?
+
+				Luckily, `bl_version` and `bl_platform` provide a nearly-complete description of the end-user's Python environment.
+
+				Using this, we can evaluate any markers against the theoretical end-user Python environment, thus providing a dependency graph traversal that is correct for the given parameters.
+			"""
+			pydep_marker = self.pydeps_graph[node_upstream][node_downstream]['marker']  # pyright: ignore[reportAny, reportUnknownMemberType]
+
+			return pydep_marker is None or pydep_marker.is_valid_for(  # pyright: ignore[reportAny]
 				pkg_name=pkg_name,
 				bl_version=bl_version,
 				bl_platform=bl_platform,
 			)
 
-		if bl_platform in bl_version.valid_bl_platforms:
-			# Deduce which pydep_name the user asked for.
-			## **If** the user specified markers, then we check and respect them.
-			## **Don't** include targets that are vendored by Blender.
-			valid_pydep_target_names = {
-				pydep_target_name
-				for pydep_target_name, pydep_marker in self.target_pydeps.items()
-				if (
-					pydep_target_name not in bl_version.vendored_site_packages
-					and (
-						pydep_marker is None
-						or pydep_marker.is_valid_for(
-							pkg_name=pkg_name,
-							bl_version=bl_version,
-							bl_platform=bl_platform,
-						)
+		# Now, let's deduce which 'pydep_name's the user actually asked for.
+		## **If** the user specified markers, then we check and respect them.
+		## **Don't** include targets that are vendored by Blender.
+		pydep_target_names = {
+			pydep_target_name
+			for pydep_target_name, pydep_marker in self.target_pydeps.items()
+			if (
+				# The `pydep_name` may not be one of the BLVersion's vendored site-packages.
+				## If it is, we don't error - we just do nothing; let Blender provide it.
+				pydep_target_name not in bl_version.vendored_site_packages
+				# Should there be a (user-defined) marker, we naturally make sure it's valid.
+				## This is the one case not covered by `filter_edge`.
+				and (
+					pydep_marker is None
+					or pydep_marker.is_valid_for(
+						pkg_name=pkg_name,
+						bl_version=bl_version,
+						bl_platform=bl_platform,
 					)
 				)
-			}
-			## NOTE: This allow Blender-vendored pydeps to have only sdist.
-			## - Blender does a lot of its own building of dependencies.
-			## - This is sensible. Look what we have to do to play with pydeps.
-			## - But, not all of Blender's site-package have wheels.
-			## - In fact, not all of them are on PyPi at all.
-			## - This makes it difficult to duplicate Blender Python environment.
-			## - (Need it be so?)
-			## - We deal with this by never letting them progress to "finding wheels"...
-			## - ...since no wheels would be able to be found.
-			## - This works. Kind of. Egh.
-			##
-			## Dear Blender Devs: I beg you to run a PyPi repo for your homebrew builds.
-			## - That way we can all just pin your repo...
-			## - ...and easily duplicate Blender's Python environment...
-			## - ...without destructive `sys.path` flooding.
-			## - How-To for Gitea: https://docs.gitea.com/1.18/packages/packages/pypi
-			## - I love you all <3. And thank you for coming to my TED Talk.
+			)
+		}
+		## NOTE: Blender-vendored pydeps are allowed to only have an sdist.
+		## - Blender does a lot of its own building of dependencies.
+		## - This is sensible. Look what we have to do to play with pydeps.
+		## - But, not all of Blender's site-package have wheels.
+		## - In fact, not all of them are on PyPi at all.
+		## - This makes it difficult to duplicate Blender Python environment.
+		## - (Need it be so?)
+		## - We deal with this by never letting them progress to "finding wheels"...
+		## - ...since no wheels would be able to be found.
+		## - This works. Kind of. Egh.
+		##
+		## Dear Blender Devs: I beg you to run a PyPi repo for your homebrew builds.
+		## - That way we can all just pin your repo...
+		## - ...and easily duplicate Blender's Python environment.
+		## - How-To for Gitea: https://docs.gitea.com/1.18/packages/packages/pypi
+		## - I love you all <3. And thank you for coming to my TED Talk.
 
-			# Compute (pydep_name, pydep_version) from each target pydep_name.
-			## There should be exactly one of these, otherwise something is very wrong.
-			## That's why you're here, isn't it? *Sigh*.
-			valid_pydep_targets: set[tuple[str, str]] = {
-				next(
-					iter(
-						(pydep_target_name, pydep_version)
-						for pydep_name, pydep_version in self.pydeps
-						if pydep_target_name == pydep_name
-					)
-				)
-				for pydep_target_name in valid_pydep_target_names
-			}
+		# We need a fuller story than just `pydep_name` - we need (pydep_name, pydep_version)!
+		## There should be exactly one of these, otherwise something is very wrong.
+		## That's why you're here, isn't it? *Sigh*.
+		pydep_targets: set[tuple[str, str]] = set()
+		for pydep_target_name in pydep_target_names:
+			all_targets_for_name = [
+				(pydep_target_name, pydep_version)
+				for pydep_name, pydep_version in self.pydeps
+				if pydep_target_name == pydep_name
+			]
 
-			# Compute non-vendored ancestors of all target (pydep_name, pydep_version).
-			## No need to refer to Knuth. Just `nx.ancestors` and `nx.subgraph_view`.
-			valid_pydep_ancestors: set[tuple[str, str]] = {
-				(pydep_ancestor_name, pydep_ancestor_version)
-				for pydep_target_name, pydep_target_version in sorted(
-					valid_pydep_targets
-				)
-				for pydep_ancestor_name, pydep_ancestor_version in nx.ancestors(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-					nx.subgraph_view(
-						self.pydeps_graph,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-						filter_edge=filter_edge,
-					),
-					(pydep_target_name, pydep_target_version),
-				)
-				if pydep_ancestor_name not in bl_version.vendored_site_packages
-			}
-			# Assemble a mapping from name to PyDep, indexed by by name and version
-			pydeps: frozendict[str, PyDep] = frozendict({
-				pydep_name: self.pydeps[(pydep_name, pydep_version)]
-				for pydep_name, pydep_version in sorted(
-					valid_pydep_targets | valid_pydep_ancestors,
-				)
-			})
+			if len(all_targets_for_name) == 1:
+				pydep_targets.add(all_targets_for_name[0])
 
-			# PyDeps that overlap with vendored site-packages must be identical.
-			for pydep_name, pydep in pydeps.items():
-				if (
-					pydep_name in bl_version.vendored_site_packages
-					and pydep.version != bl_version.vendored_site_packages[pydep_name]
-				):
-					err_msgs[bl_platform].extend([
-						f'**Conflict** [{bl_platform}]: Requested version of **{pydep_name}** conflicts with vendored `site-packages` of Blender `{bl_version.version}`.',
-						f'> **Provided by Blender `{bl_version.version}`**: `{pydep_name}=={bl_version.vendored_site_packages[pydep_name]}`',
-						'>',
-						f'> **Requested**: `{pydep_name}=={pydep.version}`',
-						'',
-					])
+			else:
+				amount_str = 'More than one' if len(all_targets_for_name) > 1 else 'No'
+				msgs = [
+					f'{amount_str} version of a user-provided target dependency `{pydep_target_name}` was found. **This is a bug in `blext`**.',
+					f'> - **Version**: `{bl_version}`',
+					f'> - **Platform**: `{bl_platform}`',
+					f'> - **Target Name**: `{pydep_target_name}`',
+					'> - **Found Targets**:',
+					*[
+						f'>     {i}. `{pydep_target}`'
+						for i, pydep_target in enumerate(all_targets_for_name)
+					],
+				]
+				raise ValueError(*msgs)
 
-			# After a long journey, you've found a return statement.
-			## But will you ever be the same?
-			## The elves have offered to let you sail West with them.
-			## For now, have a cookie.
-			return frozendict({
-				pydep_name: pydep
-				for pydep_name, pydep in pydeps.items()
-				if pydep_name not in bl_version.vendored_site_packages
-			})
+			## TODO: Test this!
 
-		msg = f'The given `bl_platform` in `{bl_platform}` is not supported by the given Blender version (`{bl_version.version}`).'
-		raise ValueError(msg)
+		# Compute non-vendored ancestors of all target (pydep_name, pydep_version).
+		## Now that we have the targets, we need to recursively find all their dependencies.
+		## This includes checking each edge for marker validity.
+		## No need to refer to Knuth. Just `nx.ancestors` and `nx.subgraph_view`.
+		## `networkx` is really nice, did I mention that?
+		valid_pydep_ancestors: set[tuple[str, str]] = {
+			(pydep_ancestor_name, pydep_ancestor_version)
+			for pydep_target_name, pydep_target_version in pydep_targets
+			for pydep_ancestor_name, pydep_ancestor_version in nx.ancestors(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+				nx.subgraph_view(
+					self.pydeps_graph,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+					filter_edge=filter_edge,
+				),
+				(pydep_target_name, pydep_target_version),
+			)
+			if pydep_ancestor_name not in bl_version.vendored_site_packages
+		}
+
+		# You've found a return statement.
+		## But will you ever be the same?
+		## For now, have a cookie.
+		return frozendict({
+			pydep_name: self.pydeps[(pydep_name, pydep_version)]
+			for pydep_name, pydep_version in sorted(
+				pydep_targets | valid_pydep_ancestors,
+				## NOTE: Neither has elements from bl_version.vendored_site_packages.
+			)
+		})
 
 	####################
 	# - Pydeps to PyDepWheels
@@ -227,7 +237,11 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		*,
 		pkg_name: str,
 		bl_version: extyp.BLVersion,
-		bl_platforms: frozenset[extyp.BLPlatform],
+		bl_platform: extyp.BLPlatform,
+		err_msgs: dict[extyp.BLVersion, dict[extyp.BLPlatform, list[str]]]
+		| None = None,
+		err_num_missing_wheels: dict[extyp.BLVersion, dict[extyp.BLPlatform, int]]
+		| None = None,
 	) -> frozenset[PyDepWheel]:
 		"""All wheels needed for a Blender extension.
 
@@ -237,79 +251,63 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		# I know it looks like a monster, but give it a chance, eh?
 		## Even monsters deserve love. [1]
 		## [1]: Shrek (2001)
-		err_msgs: dict[extyp.BLPlatform, list[str]] = {
-			bl_platform: [] for bl_platform in sorted(bl_platforms)
-		}
 		wheels = {
-			bl_platform: {
-				pydep: pydep.select_wheel(
-					bl_platform=bl_platform,
-					min_glibc_version=(
-						bl_version.min_glibc_version
-						if self.min_glibc_version is None
-						else self.min_glibc_version
-					),
-					min_macos_version=(
-						bl_version.min_macos_version
-						if self.min_macos_version is None
-						else self.min_macos_version
-					),
-					valid_python_tags=(
-						bl_version.valid_python_tags
-						if self.valid_python_tags is None
-						else self.valid_python_tags
-					),
-					valid_abi_tags=(
-						bl_version.valid_abi_tags
-						if self.valid_abi_tags is None
-						else self.valid_abi_tags
-					),
-					target_descendants=frozenset({  # pyright: ignore[reportUnknownArgumentType]
-						node
-						for node in nx.descendants(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
-							self.pydeps_graph,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
-							(pydep.name, pydep.version),
-						)
-						if self.pydeps_graph.out_degree(node) == 0  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-					}),
-					err_msgs=err_msgs,
-				)
-				for pydep in self.pydeps_by(
-					pkg_name=pkg_name,
-					bl_version=bl_version,
-					bl_platform=bl_platform,
-					err_msgs=err_msgs,
-				).values()
-			}
-			for bl_platform in sorted(bl_platforms)
+			pydep: pydep.select_wheel(
+				bl_platform=bl_platform,
+				min_glibc_version=(
+					bl_version.min_glibc_version
+					if self.min_glibc_version is None
+					else self.min_glibc_version
+				),
+				min_macos_version=(
+					bl_version.min_macos_version
+					if self.min_macos_version is None
+					else self.min_macos_version
+				),
+				valid_python_tags=(
+					bl_version.valid_python_tags
+					if self.valid_python_tags is None
+					else self.valid_python_tags
+				),
+				valid_abi_tags=(
+					bl_version.valid_abi_tags
+					if self.valid_abi_tags is None
+					else self.valid_abi_tags
+				),
+				target_descendants=frozenset({  # pyright: ignore[reportUnknownArgumentType]
+					node
+					for node in nx.descendants(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+						self.pydeps_graph,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
+						(pydep.name, pydep.version),
+					)
+					if self.pydeps_graph.out_degree(node) == 0  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+				}),
+				err_msgs=err_msgs[bl_version] if err_msgs is not None else None,
+			)
+			for pydep in self.pydeps_by(
+				pkg_name=pkg_name,
+				bl_version=bl_version,
+				bl_platform=bl_platform,
+			).values()
 		}
 
 		# Return the monster if every pydep/platform has a wheel.
-		## Otherwise, say what's missing, why, and what can be done about it.
-		num_missing_wheels = sum(
-			1 if wheel is None else 0
-			for _, pydeps_wheels in wheels.items()
-			for _, wheel in pydeps_wheels.items()
-		)
-		if (
-			not any(err_msgs_by_platform for err_msgs_by_platform in err_msgs.values())
-			and num_missing_wheels == 0
-		):
-			return frozenset(
-				wheel
-				for _, pydeps_wheels in wheels.items()
-				for _, wheel in pydeps_wheels.items()
-				if wheel is not None
+		num_missing_wheels = sum(1 if wheel is None else 0 for wheel in wheels.values())
+		if num_missing_wheels == 0:
+			return frozenset(wheels.values())  # pyright: ignore[reportReturnType]
+
+		# Otherwise, if error-passthrough is enabled, trust the caller to make good decisions.
+		if err_msgs is not None and err_num_missing_wheels is not None:
+			err_num_missing_wheels[bl_version][bl_platform] = num_missing_wheels
+			return frozenset[PyDepWheel](
+				filter(  # pyright: ignore[reportArgumentType]
+					lambda el: el is not None,
+					wheels.values(),
+				)
 			)
 
-		raise ValueError(
-			*[
-				err_msg
-				for bl_platform_err_msgs in err_msgs.values()
-				for err_msg in bl_platform_err_msgs
-			],
-			f'**Missing Wheels** for `{bl_version.version}`: {num_missing_wheels}',
-		)
+		msg = f'While running `deps.wheels_by`, `{num_missing_wheels}` wheels were missing from `{bl_version}:{bl_platform}`.'
+		raise ValueError(msg)
 
 	####################
 	# - Creation

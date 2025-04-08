@@ -51,14 +51,40 @@ def show_blender_manifest(
 	blext_spec = blext_info.blext_spec(global_config)
 
 	bl_versions = blext_info.bl_versions(global_config)
+	bl_platforms = blext_info.bl_platforms(global_config)
 	if len(bl_versions) == 1:
 		bl_version = next(iter(bl_versions))
-		CONSOLE.print(
-			blext_spec.export_blender_manifest(
-				bl_version.max_manifest_version,
-				bl_version=bl_version,
-				fmt=format,
-			),
-			markup=False,
-			end='',
-		)
+		if len(bl_platforms) == 1:
+			bl_platform = next(iter(bl_platforms))
+			CONSOLE.print(
+				blext_spec.bl_manifest_strs(
+					bl_version.max_manifest_version,
+					fmt=format,
+				)[bl_version][bl_platform],
+				markup=False,
+				end='',
+			)
+		else:
+			msgs = [
+				'Please select only one `BLPlatform`, to show its `blender_manifest.toml`.',
+				'> **Available Platforms**:',
+				*[
+					f'> - {granular_bl_platform}'
+					for granular_bl_platform in blext_spec.granular_bl_platforms
+				],
+				'>',
+				'> You can specify one (or more) using `--platform`.',
+			]
+			raise ValueError(*msgs)
+	else:
+		msgs = [
+			'Please select only one `BLVersion`, to show its `blender_manifest.toml`.',
+			'> **Available `BLVersion`s**:',
+			*[
+				f'> - {granular_bl_version.version}'
+				for granular_bl_version in blext_spec.granular_bl_versions
+			],
+			'>',
+			'> You can specify one (or more) using `--bl-version`.',
+		]
+		raise ValueError(*msgs)

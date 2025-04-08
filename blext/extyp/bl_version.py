@@ -321,6 +321,7 @@ class BLVersion(pyd.BaseModel, frozen=True):
 		ext_wheels_python_tags: frozenset[str] | None = None,
 		ext_wheels_abi_tags: frozenset[str] | None = None,
 		ext_tags: frozenset[str] | None = None,
+		excl_max_version: tuple[int, int, int] | None = None,
 	) -> typ.Self:
 		"""Chunk with another `BLVersion`, forming a new `BLVersion` encapsulating both."""
 		if self.is_smooshable_with(
@@ -344,7 +345,8 @@ class BLVersion(pyd.BaseModel, frozen=True):
 							if isinstance(other.source, BLVersionSourceSmooshed)
 							else frozenset({other.source})
 						)
-					)
+					),
+					excl_max_version=excl_max_version,
 				),
 				valid_manifest_versions=(
 					self.valid_manifest_versions & other.valid_manifest_versions

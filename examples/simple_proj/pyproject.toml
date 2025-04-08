@@ -23,9 +23,23 @@ blender4_4 = [
     "autopep8==2.3.1", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
     "certifi==2021.10.8",
     "charset_normalizer==2.0.10",
-    "cython==3.0.11",
+    "cython==0.29.30",
     "idna==3.3",
-    "numpy==1.26.4",
+    "numpy==1.24.3",
+    "pip==24.0",
+    "pycodestyle==2.12.1",
+    "requests==2.27.1",
+    "setuptools==63.2.0",
+    "urllib3==1.26.8",
+    "zstandard==0.16.0", # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
+]
+blender4_3 = [
+    "autopep8==2.3.1", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
+    "certifi==2021.10.8",
+    "charset_normalizer==2.0.10",
+    "cython==0.29.30",
+    "idna==3.3",
+    "numpy==1.24.3",
     "pip==24.0",
     "pycodestyle==2.12.1",
     "requests==2.27.1",
@@ -42,11 +56,16 @@ dev-dependencies = [
     "pytest>=8.3.5",
     "ruff>=0.11.2",
 ]
-conflicts = []
+conflicts = [
+    [
+        {extra = "blender4_3"}, # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
+        {extra = "blender4_4"}, # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
+    ],
+]
 
 [tool.blext]
 pretty_name = "BLExt Simple Example"
-blender_version_min = '4.4.0'
+blender_version_min = '4.3.0'
 blender_version_max = '4.5.0'
 bl_tags = ["Development"]
 copyright = ["2024 blext Contributors"]

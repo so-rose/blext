@@ -224,12 +224,26 @@ class BLExtLocation(pyd.BaseModel, frozen=True):
 		Notes:
 			When pre-packing extension zips, the pre-packed result is written to this folder.
 		"""
+		# Always build in the project cache.
+		## This is guaranteed writable.
+		path_build_cache = self.path_project_cache / 'build_cache'
+		path_build_cache.mkdir(exist_ok=True)
+		return path_build_cache
+
+	@functools.cached_property
+	def path_build(self) -> Path:
+		"""Default folder to move built extensions to."""
 		# Script Parent Writable: Use as Build Cache
-		if self.is_script_extension and os.access(self.path_spec.parent, os.W_OK):
-			return self.path_spec.parent
+		if os.access(self.path_spec.parent, os.W_OK):
+			if self.is_script_extension:
+				return self.path_spec.parent
 
-		## When the script parent is not writable, fallback to building in the global cache.
+			if self.is_project_extension:
+				path_build = self.path_spec.parent / 'build'
+				path_build.mkdir(exist_ok=True)
+				return path_build
 
-		path_prepack_cache = self.path_project_cache / 'build_cache'
-		path_prepack_cache.mkdir(exist_ok=True)
-		return path_prepack_cache
+		# Fallback: Stay in Build Cache
+		## It's guaranteed to be writable.
+		## This might happen if the project is accessed via ex. a read-only filesystem.
+		return self.path_build_cache

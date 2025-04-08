@@ -46,8 +46,8 @@ class PyDep(pyd.BaseModel, frozen=True):
 		min_macos_version: tuple[int, int],
 		valid_python_tags: frozenset[str],
 		valid_abi_tags: frozenset[str],
-		err_msgs: dict[extyp.BLPlatform, list[str]],
 		target_descendants: frozenset[str],
+		err_msgs: dict[extyp.BLPlatform, list[str]] | None = None,
 	) -> PyDepWheel | None:
 		"""Select the best wheel to satisfy this dependency."""
 		####################
@@ -127,11 +127,7 @@ class PyDep(pyd.BaseModel, frozen=True):
 						key=lambda wheel: wheel.sort_key_preferred_windows,
 					)[0]
 
-				# osver_str = ''
-				# min_osver_str = ''
-				# semivalid_wheel_osver_strs = {}
-
-		err_msgs[bl_platform].extend([
+		errors = [
 			f'**{self.name}** not found for `{bl_platform}`.',
 			f'> **Extension Supports**: `{osver_str} >= {min_osver_str}`'  # pyright: ignore[reportPossiblyUnboundVariable]
 			if not bl_platform.is_windows
@@ -160,5 +156,9 @@ class PyDep(pyd.BaseModel, frozen=True):
 			if semivalid_wheels and not bl_platform.is_windows
 			else '>',
 			'',
-		])
-		return None
+		]
+		if err_msgs is not None:
+			err_msgs[bl_platform].extend(errors)
+			return None
+
+		raise ValueError(*errors)

@@ -26,6 +26,7 @@ class BLVersionSourceSmooshed(BLVersionSource, frozen=True):
 	"""Several combined Blender version sources."""
 
 	sources: frozenset[BLVersionSource]
+	excl_max_version: tuple[int, int, int] | None = None
 
 	####################
 	# - Overrides
@@ -34,15 +35,42 @@ class BLVersionSourceSmooshed(BLVersionSource, frozen=True):
 	def version(self) -> str:
 		"""Deduce the range of Blender version sources."""
 		if self.are_official_sources_consecutive:
-			if len(self.official_sources) == 1:
-				return next(iter(self.official_sources)).version
-			if len(self.official_sources) > 1:
-				return f'v{self.blender_version_min}-v{self.blender_version_max}'
+			v0 = self.official_sources[0]
+			v1 = self.official_sources[-1]
 
-			return ','.join([
-				bl_version_location.version
-				for bl_version_location in self.unofficial_sources
-			])
+			# Detect "Compatible with Latest"
+			if (
+				self.excl_max_version is not None
+				and self.excl_max_version[0] == v1.official_version[0]
+				and self.excl_max_version[1] == v1.official_version[1] + 1
+				and self.excl_max_version[2] == 0
+			):
+				if (
+					v0.official_version[0] == v1.official_version[0]
+					and v0.official_version[1] == v1.official_version[1]
+					and v0.official_version[2] == 0
+				):
+					min_version_str = v0.version_major_minor
+					max_version_str = None
+
+				elif (
+					v0.official_version[0] == v1.official_version[0]
+					and v0.official_version[1] < v1.official_version[1]
+					and v0.official_version[2] == 0
+				):
+					min_version_str = v0.version_major_minor
+					max_version_str = v1.version_major_minor
+				else:
+					min_version_str = v0.version_major_minor_patch
+					max_version_str = v1.version_major_minor_patch
+			else:
+				min_version_str = v0.version_major_minor_patch
+				max_version_str = v1.version_major_minor_patch
+
+			if max_version_str is None:
+				return f'v{min_version_str}'
+			return f'v{min_version_str}-v{max_version_str}'
+
 		msg = f"'BLVersionSourceSmooshed' doesn't support non-consecutive 'BLVersionLocationOfficial' releases: {self.official_sources}"
 		raise ValueError(msg)
 
