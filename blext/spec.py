@@ -507,7 +507,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 		Parameters:
 			bl_manifest_version: The Blender manifest schema version to export to the appropriate filename.
-			bl_version: The Blender version to export a manifest schema for.
 
 		Returns:
 			String representing the Blender extension manifest.

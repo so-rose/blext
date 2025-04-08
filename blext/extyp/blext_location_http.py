@@ -41,7 +41,7 @@ class BLExtLocationHttp(BLExtLocation, frozen=True):
 		"""Path to a file from which the extension specification can be loaded.
 
 		Notes:
-			The specified `git` repository will be cloned, checked out, then searched for an extension spec.
+			The specified `self.url` will be downloaded, then searched for an extension spec.
 
 		See Also:
 			- See `blext.spec.BLExtSpec` for more on how a valid specification path is parsed.
