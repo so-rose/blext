@@ -17,27 +17,36 @@
 > **Please submit Issues to the [Codeberg repository](https://codeberg.org/so-rose/)** (_you can login with GitHub_)
 
 > [!WARNING]
-> `blext` should be considered **alpha software** aka. **unstable**.
+> `blext` is under heavy development, and should be considered **alpha software** aka. **unstable**.
 > 
-> - The UX may have unsolved frustrations or hiccups.
-> - Features may be incomplete, buggy, or misleadingly documented.
-> - The documentation may be incomplete or outdated.
-> - The test suite has no guarantees of coverage or passing.
+> - **Features may be missing, incomplete, buggy, or misleadingly documented**.
+> - `main` may break without warning, and the `PyPi` version may be extremely out of date.
+> - The UI/UX may have unsolved frustrations,  or be misleading.
+> - The documentation may be incomplete, outdated, or simply non-existant.
+> - Tests, if they exist, have no guarantees of coverage or passing.
 > 
-> With that said, we already personally find `blext` **quite useful**, and hope you will too.
+> We already personally find the `main` branch of `blext` **quite useful**, and we invite you to give it a try!
+> _Above all else, please be patient with us at this early stage._
 
 
 
 ## Highlights
-- 🛠 **Welcome to Modern Python**: `blext` extensions are _standard_ Python, managed by the cutting-edge [`uv` project manager](https://docs.astral.sh/uv/). _Welcome to the modern Python ecosystem!_
-- 🚀 **Snappy at Scale**: Create, download, build, analyze, and run _gigabyte_-sized extensions in moments, without hacks. _What you run is what the user runs._
-- 📦 **Fearless PyDeps**: "Just `uv add scipy`"! Never be scared of adding Python dependencies to your extension again - `blext` handles compatibility with the VFX reference platform, dependency resolution, and cross-platform wheel selection. _We also got tired of choosing wheel tags._
+- 🛠 **Welcome to Modern Python**: `blext` extensions are standard Python projects, powered by the cutting-edge [`uv` project manager](https://docs.astral.sh/uv/) and a standard `pyproject.toml`.
+- 🚀 **Snappy at Scale**: Create, download, build, analyze, and run large extensions in moments, without resorting to fragile mechanisms that fracture deployment from development.
+- 📦 **Fearless PyDeps**: "Just `uv add scipy`"! Never be scared of adding Python dependencies to your extension again - `blext` handles VFX reference platform compatibility, dependency resolution, and cross-platform wheel selection. _We also got tired of choosing wheel tags._
+- 🗂️ **Swiss-Army Knife of Extensions**: `blext` is more than a build system - it's a complete suite of tools for dealing with extensions.
+- 🛠 **Code Transforms**: `blext` can automatically perform certain "safe" code rewrites, such as AST-level rewrite of absolute imports to relative imports.
 - 🏢 **Robust by Design**: We believe that great tools comes from well-chosen, well-integrated abstractions, presented concisely.
-We keep ourselves honest with static typing, strict linting, and `pydantic`-powered data modelling.
-_`blext` strives to become your swiss-army knife of extension-making._
 - 🌐 **Respects your Freedoms**: `blext` preserves your freedom to use, modify, fork, redistribute, or even sell `blext`, **so long as you extend the same freedoms as you were granted** under the [AGPL](https://www.gnu.org/licenses/agpl-3.0.html) software license. _For more details, see our [License Policy](https://docs.sofus.io/blext/stable/reference/policies/licensing.html)._
 
 **Want to know more?** See [Features](https://docs.sofus.io/blext/stable/features.html).
+
+
+> [!WARNING]
+> While many features already work, some features may be **missing / work-in-progress**.
+> 
+> See [Features](https://docs.sofus.io/blext/stable/features.html) for a detailed overview of what does and doesn't work right now.
+
 
 
 
