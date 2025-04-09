@@ -86,7 +86,7 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 					'\n'.join([
 						f'Selected **all {len(blext_spec.bl_versions)} ext-supported Blender version** chunk(s):',
 						*[
-							f'- `{bl_version.version}`'
+							f'- `{bl_version.pretty_version}`'
 							for bl_version in blext_spec.sorted_bl_versions
 						],
 					])
@@ -97,7 +97,7 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 		case ('detect',):
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					f'Selected **detected local Blender version**: `{global_config.local_default_bl_version.version}`'
+					f'Selected **detected local Blender version**: `{global_config.local_default_bl_version.pretty_version}`'
 				)
 			)
 
@@ -108,9 +108,9 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 					'\n'.join([
 						f'Selected **{len(requested_bl_versions)} Blender versions**:',
 						*[
-							f'- `{bl_version.version}`'
+							f'- `{bl_version.pretty_version}`'
 							for bl_version in sorted(
-								requested_bl_versions, key=lambda el: el.version
+								requested_bl_versions, key=lambda el: el.pretty_version
 							)
 						],
 					])
@@ -230,7 +230,9 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 						.replace(
 							'%ext_version', str(blext_spec.version).replace('.', '-')
 						)
-						.replace('%bl_version', bl_version.version.replace('.', '-'))
+						.replace(
+							'%bl_version', bl_version.pretty_version.replace('.', '-')
+						)
 						.replace('%platform', bl_platform)
 						.replace('%default', bl_platform)
 					)
@@ -247,7 +249,6 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	# - Select Filesystem Resources
 	####################
 	# Select Files to Pre-Pack
-	## TODO: Use spec to query a cache-file tracker.
 	if vendor:
 		files_in_prepack = blext_spec.wheel_paths_to_prepack(
 			path_wheels=blext_location.path_wheel_cache
@@ -298,7 +299,7 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 			CONSOLE.print()
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					f'**Pre-Packing** for `{bl_version.version}'
+					f'**Pre-Packing** for `{bl_version.pretty_version}'
 					+ (f':{bl_platform_str}`' if len(bl_platforms) > 1 else '`')
 				)
 			)

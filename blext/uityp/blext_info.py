@@ -26,7 +26,7 @@ import tomlkit.items
 from frozendict import frozendict
 
 from blext import extyp, pydeps
-from blext.spec import BLExtSpec
+from blext.blext_spec import BLExtSpec
 from blext.utils.inline_script_metadata import (
 	parse_inline_script_metadata_str,
 	replace_inline_script_metadata_str,
@@ -178,23 +178,6 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 		cyclopts.Parameter(group=LOCATION_GROUP),
 	] = None
 
-	# TODO: --bl-version parameter, which can be specified once.
-	## --bl-version <default>: Specify every extension-supported BLVersion.
-	## --bl-version detect: Detect the BLVersion of the default Blender executable.
-	## --bl-version 4.4.0: Specify the 4.4.0 release.
-	## --bl-version 4.3: Specify every 4.3 release.
-	## --bl-version 4.[3:5]: Select every release from 4.3 to 4.5
-	## --bl-version 4.2.[1:]: Select all 4.2 releases except 4.2.0.
-	##
-	## **Several BLVersions may come out of this**. In practice, this is dealt with by:
-	## - show valid_bl_versions: Print out all valid BLVersions for the ext, after simplification.
-	## - run: Choose the highest BLVersion that we have an executable for.
-	## - build/check/etc.: Enforce that the user can only choose one (smooshed) BLVersion!
-	##     - The error should provide a suggestion for how to set --bl-version.
-	##     - Only show valid possibility of --bl-version for each possibility.
-	##     - Document how to use 'show valid_bl_versions' and a bash for loop to build many.
-	##
-	## TODO: For 'build', add an option to control many small zips vs. few large zips.
 	bl_version: typ.Annotated[
 		tuple[extyp.BLReleaseOfficial | typ.Literal['detect'], ...],
 		cyclopts.Parameter(
@@ -377,16 +360,16 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 				)
 			else:
 				msgs = [
-					f'Requested Blender version `{requested_bl_version.version}` is not supported by this extension.',
+					f'Requested Blender version `{requested_bl_version.pretty_version}` is not supported by this extension.',
 					'> **Supported Blender Versions**:',
 					*[
-						f'> - {bl_version.version}'
+						f'> - {bl_version.pretty_version}'
 						for bl_version in blext_spec.sorted_bl_versions
 					],
 					'>',
 					'> **Remedies**:',
 					'> 1. Select an extension-supported `BLVersion`.',
-					f'> 2. Alter the extension to support `{requested_bl_version.version}`.',
+					f'> 2. Alter the extension to support `{requested_bl_version.pretty_version}`.',
 				]
 				raise ValueError(*msgs)
 
@@ -647,12 +630,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 				),  ## '-'/'_' differ between uv.lock/pyproject.toml
 				bl_version.vendored_site_packages,
 			)
-			for bl_version in sorted(
-				blext_spec.bl_versions,
-				key=lambda el: tuple(
-					int(v) for v in el.source.blender_version_min.split('.')
-				),
-			)
+			for bl_version in sorted(blext_spec.bl_versions)
 			for pymarker_extra in bl_version.pymarker_extras
 		}
 		if len({extra[0] for extra in all_extras}) < len(all_extras):
@@ -699,7 +677,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			for extra in sorted(all_extras, key=lambda el: el[0]):
 				extra_name = extra[0]
 				vendored_site_packages = [
-					f'{pkg_name}=={pkg_version}'
+					f'{pkg_name}=={pkg_version!s}'
 					for pkg_name, pkg_version in extra[1].items()
 				]  ## Use explicit `==` to precisely match what Blender ships with
 
@@ -911,7 +889,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 			# All vendored site-packages are dumped to the TOML
 			## Why not error? If the user sets an incompatible version, they're wrong.
 			for i, pydep_str in enumerate([
-				f'{pkg_name}=={pkg_version}'
+				f'{pkg_name}=={pkg_version!s}'
 				for pkg_name, pkg_version in vendored_site_packages.items()
 			]):
 				if i == 0:

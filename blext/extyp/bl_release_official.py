@@ -16,16 +16,18 @@
 
 """Implements `BLReleaseOfficial`."""
 
+import datetime as dt
 import enum
 import functools
 import typing as typ
 
+import packaging.version
+import pydantic as pyd
 from frozendict import frozendict
 
 from .bl_manifest_version import BLManifestVersion
 from .bl_platform import BLPlatform
 from .bl_version import BLVersion
-from .bl_version_source_official import BLVersionSourceOfficial
 
 
 class BLReleaseOfficial(enum.StrEnum):
@@ -135,7 +137,7 @@ class BLReleaseOfficial(enum.StrEnum):
 	# - Properties
 	####################
 	@functools.cached_property
-	def official_version(self) -> tuple[int, int, int]:
+	def version(self) -> tuple[int, int, int]:
 		"""The official version tuple associated with this release."""
 		V = BLReleaseOfficial
 		return {
@@ -158,13 +160,46 @@ class BLReleaseOfficial(enum.StrEnum):
 		}[self]
 
 	@functools.cached_property
+	def released_on(self) -> dt.datetime:
+		"""Date and time that this release was published, as denoted by the `git` tag.
+
+		Notes:
+			To retrieve timezone-aware tag creation dates/times from the Blender `git` repository, use:
+
+			```bash
+			git for-each-ref --format="%(refname:short) | %(creatordate:iso)" "refs/tags/*"
+			```
+
+			Copy-paste each entry here.
+		"""
+		V = BLReleaseOfficial
+		return {
+			# Blender 4.2
+			V.BL4_2_0: dt.datetime.fromisoformat('2024-07-16 02:20:19 -0400'),
+			V.BL4_2_1: dt.datetime.fromisoformat('2024-08-19 13:21:12 +0200'),
+			V.BL4_2_2: dt.datetime.fromisoformat('2024-09-23 14:18:24 +0200'),
+			V.BL4_2_3: dt.datetime.fromisoformat('2024-10-14 17:20:17 +0200'),
+			V.BL4_2_4: dt.datetime.fromisoformat('2024-11-18 11:34:40 +0100'),
+			V.BL4_2_5: dt.datetime.fromisoformat('2024-12-16 20:54:56 +0100'),
+			V.BL4_2_6: dt.datetime.fromisoformat('2025-01-20 16:04:15 +0100'),
+			V.BL4_2_7: dt.datetime.fromisoformat('2025-02-17 13:50:33 +0100'),
+			V.BL4_2_8: dt.datetime.fromisoformat('2025-03-17 15:22:41 +0100'),
+			# Blender 4.3
+			V.BL4_3_0: dt.datetime.fromisoformat('2024-11-19 09:52:10 +0100'),
+			V.BL4_3_1: dt.datetime.fromisoformat('2024-12-10 08:46:11 +0100'),
+			V.BL4_3_2: dt.datetime.fromisoformat('2024-12-16 22:10:40 +0100'),
+			# Blender 4.4
+			V.BL4_4_0: dt.datetime.fromisoformat('2025-03-17 18:00:48 +0100'),
+		}[self]
+
+	@functools.cached_property
 	def official_git_tag(self) -> str:
 		"""Name of `git tag` corresponding to this Blender version.
 
 		Notes:
 			For all `self.supported_bl_platforms`, this tag is presumed to be valid also for the submodule repositories in `lib/lib-<bl_platform`.
 		"""
-		return 'v' + '.'.join(str(el) for el in self.official_version)
+		return 'v' + '.'.join(str(el) for el in self.version)
 
 	@functools.cached_property
 	def min_glibc_version(self) -> tuple[int, int]:
@@ -317,7 +352,7 @@ class BLReleaseOfficial(enum.StrEnum):
 				raise RuntimeError(msg)
 
 	@functools.cached_property
-	def vendored_site_packages(self) -> frozendict[str, str]:
+	def vendored_site_packages(self) -> frozendict[str, packaging.version.Version]:
 		"""Extension tags parseable by this Blender release."""
 		match self:
 			case v if v.is_4_2:
@@ -327,21 +362,21 @@ class BLReleaseOfficial(enum.StrEnum):
 					'charset_normalizer': '2.0.10',
 					'Cython': '0.29.30',
 					'idna': '3.3',
-					## TODO: MaterialX
+					## MaterialX
 					'numpy': '1.24.3',
-					## TODO: OpenImageIO
+					## OpenImageIO
 					'pip': '23.2.1',
-					## TODO: pkg_resources
-					## TODO: pxr
+					## pkg_resources
+					## pxr
 					'pycodestyle': '2.8.0',
-					## TODO: PyOpenColorIO
-					## TODO: pyximport
+					## PyOpenColorIO
+					## pyximport
 					'requests': '2.27.1',
 					'setuptools': '63.2.0',
 					'toml': '0.10.2',
 					'urllib3': '1.26.8',
 					'zstandard': '0.16.0',
-					## TODO: pyopenvdb
+					## pyopenvdb
 				}
 			case v if v.is_4_3:
 				vendored_site_packages = {
@@ -350,20 +385,20 @@ class BLReleaseOfficial(enum.StrEnum):
 					'charset_normalizer': '2.0.10',
 					'Cython': '0.29.30',
 					'idna': '3.3',
-					## TODO: MaterialX
+					## MaterialX
 					'numpy': '1.24.3',
-					## TODO: OpenImageIO
+					## OpenImageIO
 					'pip': '24.0',
-					## TODO: pkg_resources
-					## TODO: pxr
+					## pkg_resources
+					## pxr
 					'pycodestyle': '2.12.1',
-					## TODO: PyOpenColorIO
-					## TODO: pyximport
+					## PyOpenColorIO
+					## pyximport
 					'requests': '2.27.1',
 					'setuptools': '63.2.0',
 					'urllib3': '1.26.8',
 					'zstandard': '0.16.0',
-					## TODO: pyopenvdb
+					## pyopenvdb
 				}
 			case v if v.is_4_4:
 				vendored_site_packages = {
@@ -372,21 +407,21 @@ class BLReleaseOfficial(enum.StrEnum):
 					'charset_normalizer': '2.0.10',
 					'Cython': '3.0.11',
 					'idna': '3.3',
-					## TODO: MaterialX
+					## MaterialX
 					'numpy': '1.26.4',
-					## TODO: OpenImageIO
-					## TODO: oslquery
+					## OpenImageIO
+					## oslquery
 					'pip': '24.0',
-					## TODO: pkg_resources
-					## TODO: pxr
+					## pkg_resources
+					## pxr
 					'pycodestyle': '2.12.1',
-					## TODO: PyOpenColorIO
-					## TODO: pyximport
+					## PyOpenColorIO
+					## pyximport
 					'requests': '2.27.1',
 					'setuptools': '63.2.0',
 					'urllib3': '1.26.8',
 					'zstandard': '0.16.0',
-					## TODO: pyopenvdb
+					## pyopenvdb
 				}
 			case _:
 				msg = f'Released Blender version `{self}` was not accounted for in `BLReleaseOfficial.valid_extension_tags`. Please report this bug.'
@@ -395,7 +430,7 @@ class BLReleaseOfficial(enum.StrEnum):
 		# Coerce names to normalized PyPi naming conventions.
 		## NOTE: If we don't do this, then conflict detection may spontaneously break.
 		return frozendict({
-			pkg_name.replace('-', '_').lower(): pkg_version
+			pkg_name.replace('-', '_').lower(): packaging.version.Version(pkg_version)
 			for pkg_name, pkg_version in vendored_site_packages.items()
 		})
 
@@ -549,30 +584,55 @@ class BLReleaseOfficial(enum.StrEnum):
 				for released_bl_version in BLReleaseOfficial
 				if (
 					(
-						released_bl_version.official_version[0] == bl_version_min[0]
-						and released_bl_version.official_version[1] == bl_version_min[1]
-						and released_bl_version.official_version[2] >= bl_version_min[2]
+						released_bl_version.version[0] == bl_version_min[0]
+						and released_bl_version.version[1] == bl_version_min[1]
+						and released_bl_version.version[2] >= bl_version_min[2]
 					)
 					or (
-						released_bl_version.official_version[0] == bl_version_min[0]
-						and released_bl_version.official_version[1] > bl_version_min[1]
+						released_bl_version.version[0] == bl_version_min[0]
+						and released_bl_version.version[1] > bl_version_min[1]
 					)
-					or released_bl_version.official_version[0] > bl_version_min[0]
+					or released_bl_version.version[0] > bl_version_min[0]
 				)
 				and (
 					bl_version_max is None
 					or (
-						released_bl_version.official_version[0] == bl_version_max[0]
-						and released_bl_version.official_version[1] == bl_version_max[1]
-						and released_bl_version.official_version[2] < bl_version_max[2]
+						released_bl_version.version[0] == bl_version_max[0]
+						and released_bl_version.version[1] == bl_version_max[1]
+						and released_bl_version.version[2] < bl_version_max[2]
 					)
 					or (
-						released_bl_version.official_version[0] == bl_version_max[0]
-						and released_bl_version.official_version[1] < bl_version_max[1]
+						released_bl_version.version[0] == bl_version_max[0]
+						and released_bl_version.version[1] < bl_version_max[1]
 					)
-					or released_bl_version.official_version[0] < bl_version_max[0]
+					or released_bl_version.version[0] < bl_version_max[0]
 				)
 			}
+		)
+
+	####################
+	# - Acquisition
+	####################
+	@functools.cached_property
+	def base_download_url(self) -> pyd.HttpUrl:
+		"""Base URL from which to search for download URLs for this Blender release."""
+		return pyd.HttpUrl('https://download.blender.org/release')
+
+	def download_url_portable(self, bl_platform: BLPlatform) -> pyd.HttpUrl:
+		"""URL to a portable variant of this Blender release.
+
+		Notes:
+			Availability: Currently, it is not checked whether `bl_platform` has an official Blender download available.
+
+			Always check that this URL exists and looks reasonable before downloading anything.
+		"""
+		version_major_minor = '.'.join(str(v) for v in self.version[:2])
+		return pyd.HttpUrl(
+			'/'.join([
+				str(self.base_download_url),
+				f'Blender{version_major_minor}',
+				f'blender-{version_major_minor}-{bl_platform}.{bl_platform.official_archive_file_ext}',
+			])
 		)
 
 	####################
@@ -582,7 +642,9 @@ class BLReleaseOfficial(enum.StrEnum):
 	def bl_version(self) -> BLVersion:
 		"""The Blender version corresponding to this release."""
 		return BLVersion(
-			source=BLVersionSourceOfficial(official_version=self.official_version),
+			released_on=self.released_on,
+			blender_version_min=self.version,
+			blender_version_max=self.version[:2] + (self.version[2] + 1,),
 			valid_manifest_versions=self.valid_manifest_versions,
 			valid_extension_tags=self.valid_extension_tags,
 			valid_bl_platforms=self.valid_bl_platforms,
@@ -594,5 +656,8 @@ class BLReleaseOfficial(enum.StrEnum):
 			pymarker_extras=frozenset({self.pymarker_extra}),
 			pymarker_implementation_name=self.pymarker_implementation_name,
 			pymarker_platform_python_implementation=self.pymarker_platform_python_implementation,
-			vendored_site_packages=self.vendored_site_packages,
+			vendored_site_package_strs=frozendict({
+				pkg_name: str(pkg_version)
+				for pkg_name, pkg_version in self.vendored_site_packages.items()
+			}),
 		)

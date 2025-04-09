@@ -14,32 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements `BLVersionSourceOfficial`."""
+"""Implements `BLReleaseDiscovered`."""
 
-import functools
+import typing as typ
 
-import pydantic as pyd
-
-from .bl_version_source import BLVersionSource
+from .bl_version import BLVersion
 
 
-class BLVersionSourceGit(BLVersionSource, frozen=True):
-	"""A version of Blender located at a `git` repository."""
+class BLRelease(typ.Protocol):
+	"""Particular known release of Blender."""
 
-	rev: str | None = None
-	tag: str | None = None
-
-	url: pyd.HttpUrl = pyd.HttpUrl('https://projects.blender.org/blender/blender.git')
-
-	@functools.cached_property
-	def version(self) -> str:
-		"""Tag or commit ID of this Blender version."""
-		if self.tag is not None:
-			return self.tag
-
-		raise NotImplementedError
-
-	@functools.cached_property
-	def blender_version_min(self) -> str:
-		"""Not yet implemented."""
+	@property
+	def bl_version(self) -> BLVersion:
+		"""The Blender version corresponding to this release."""
 		raise NotImplementedError

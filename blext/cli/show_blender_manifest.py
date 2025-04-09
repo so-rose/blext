@@ -81,7 +81,7 @@ def show_blender_manifest(
 			'Please select only one `BLVersion`, to show its `blender_manifest.toml`.',
 			'> **Available `BLVersion`s**:',
 			*[
-				f'> - {granular_bl_version.version}'
+				f'> - {granular_bl_version.pretty_version}'
 				for granular_bl_version in blext_spec.granular_bl_versions
 			],
 			'>',

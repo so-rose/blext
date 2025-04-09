@@ -24,7 +24,7 @@ from pathlib import Path
 from frozendict import frozendict
 
 from . import extyp
-from .spec import BLExtSpec
+from .blext_spec import BLExtSpec
 
 
 def existing_prepacked_files(

@@ -12,6 +12,10 @@
 
 ---
 
+::: blext.extyp.bl_release
+
+---
+
 ::: blext.extyp.bl_release_discovered
 
 ---
@@ -21,22 +25,6 @@
 ---
 
 ::: blext.extyp.bl_version
-
----
-
-::: blext.extyp.bl_version_source
-
----
-
-::: blext.extyp.bl_version_source_git
-
----
-
-::: blext.extyp.bl_version_source_official
-
----
-
-::: blext.extyp.bl_version_source_smooshed
 
 ---
 

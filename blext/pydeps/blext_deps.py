@@ -102,7 +102,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		## I confused myself repeatedly, so I wrote some comments to help myself.
 		## The journey begins with a quick little check.
 		if bl_platform not in bl_version.valid_bl_platforms:
-			msg = f'The given `bl_platform` in `{bl_platform}` is not supported by the given Blender version (`{bl_version.version}`).'
+			msg = f'The given `bl_platform` in `{bl_platform}` is not supported by the given Blender version (`{bl_version.pretty_version}`).'
 			raise ValueError(msg)
 
 		# Now a function. Getting spicier!
@@ -197,8 +197,6 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					],
 				]
 				raise ValueError(*msgs)
-
-			## TODO: Test this!
 
 		# Compute non-vendored ancestors of all target (pydep_name, pydep_version).
 		## Now that we have the targets, we need to recursively find all their dependencies.
@@ -347,7 +345,6 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			pydeps: dict[tuple[str, str], PyDep] = {}  ## No PyDeps
 		else:
 			pydeps = {
-				# TODO: Index by a tuple (name, version) to deal with deps that have differing versions across Blender versions
 				(nrm_name(package['name']), package['version']): PyDep(  # pyright: ignore[reportAny]
 					name=nrm_name(package['name']),  # pyright: ignore[reportAny]
 					version=package['version'],  # pyright: ignore[reportAny]

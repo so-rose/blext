@@ -28,7 +28,6 @@ class PyDepMarker(pyd.BaseModel, frozen=True):
 	"""A platform-specific criteria for installing a particular wheel."""
 
 	marker_str: str
-	## TODO: Validate against formal grammer?
 
 	####################
 	# - Properties

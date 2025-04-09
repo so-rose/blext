@@ -182,15 +182,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 			Intuitively, though not formally, this should ensure a consistent, sensible ordering for any constellation of `BLVersion`s.
 		"""
-		return tuple(
-			sorted(
-				self.granular_bl_versions,
-				key=lambda el: el.source.blender_version_min,  ## Sort by theoretical BLVersion
-				## TODO: Use a tuple w/release datetime to distinguish identical bl_version_min.
-				## - This is mainly important to get sequential git commits.
-				## - This also presumes that nobody messses with the version in said git commits.
-			)
-		)
+		return tuple(sorted(self.granular_bl_versions))
 
 	@functools.cached_property
 	def bl_versions_by_granular(self) -> frozendict[extyp.BLVersion, extyp.BLVersion]:
@@ -230,10 +222,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					idx_smoosh
 				].smoosh_with(
 					granular_bl_version,
-					ext_bl_platforms=self.granular_bl_platforms,
-					ext_wheels_python_tags=self.deps.valid_python_tags,
-					ext_wheels_abi_tags=self.deps.valid_abi_tags,
-					ext_tags=self.tags,
 					excl_max_version=tuple(  # pyright: ignore[reportArgumentType]
 						int(v) for v in self.blender_version_max.split('.')
 					)
@@ -419,7 +407,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			for bl_platform_err_msgs in err_msgs.values()
 			for err_msg in bl_platform_err_msgs
 		] + [
-			f'**Missing Wheels** for `{bl_version.version}`:\n'
+			f'**Missing Wheels** for `{bl_version.pretty_version}`:\n'
 			+ '\n'.join([
 				f'> `{bl_platform}`: {err_num_missing_wheels[bl_version][bl_platform]}'
 				for bl_platform in self.sorted_granular_bl_platforms
@@ -524,8 +512,12 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 							version=str(self.version),
 							tagline=self.tagline,
 							maintainer=self.maintainer,
-							blender_version_min=bl_version.source.blender_version_min,
-							blender_version_max=bl_version.source.blender_version_max,
+							blender_version_min='.'.join(
+								str(v) for v in bl_version.blender_version_min
+							),
+							blender_version_max='.'.join(
+								str(v) for v in bl_version.blender_version_max
+							),
 							permissions=self.permissions,
 							platforms=bl_platform.sorted_bl_platforms,  # pyright: ignore[reportArgumentType]
 							tags=self.sorted_tags,
@@ -592,9 +584,9 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		return frozendict({
 			bl_version: frozendict[extyp.BLPlatforms, str]({
 				bl_platform: (
-					f'{self.id}_{str(self.version).replace(".", "-")}__{bl_version.version.replace(".", "-")}__{bl_platform}'
+					f'{self.id}-{str(self.version).replace(".", "_")}__{bl_version.pretty_version.replace(".", "_")}__{bl_platform}'
 					if not self.is_platform_universal
-					else f'{self.id}_{str(self.version).replace(".", "-")}__{bl_version.version.replace(".", "-")}'
+					else f'{self.id}_{str(self.version).replace(".", "_")}__{bl_version.pretty_version.replace(".", "_")}'
 				)
 				for bl_platform in self.sorted_bl_platforms
 			})
@@ -692,8 +684,6 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	####################
 	# - Queries: Prepack
 	####################
-	## TODO: Do the query thing for prepacking, too. This is the place!
-
 	@lru_method()
 	def wheel_paths_to_prepack(
 		self, *, path_wheels: Path
@@ -958,13 +948,13 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			'blender_version_min': blext_spec_dict['blender_version_min'],
 			'blender_version_max': blext_spec_dict['blender_version_max'],
 			'permissions': blext_spec_dict.get('permissions'),
-			'tags': blext_spec_dict.get('bl_tags'),
 			'copyright': blext_spec_dict['copyright'],
 			'maintainer': (
 				f'{first_maintainer["name"]} <{first_maintainer["email"]}>'
 				if first_maintainer is not None
 				else None
 			),
+			'tags': blext_spec_dict.get('bl_tags'),
 			'website': homepage,
 		}
 
@@ -1116,6 +1106,3 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 			]
 			raise ValueError(*msgs)
 		return self
-
-	## TODO: Check that all granular_bl_platforms is valid in at least one of `self.bl_versions`.
-	## - It's a niche thing, but might as well get it right.

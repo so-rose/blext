@@ -4,8 +4,8 @@
 
 ---
 
-::: blext.pack
+::: blext.blext_spec
 
 ---
 
-::: blext.spec
+::: blext.pack

@@ -68,7 +68,7 @@ def show_deps(
 	if format == 'table':
 		bl_version_strs = {
 			wheel: ', '.join([
-				bl_version.version
+				bl_version.pretty_version
 				for bl_version in blext_spec.bl_versions_by_wheel[wheel]
 			])
 			for wheel in blext_wheels
@@ -102,7 +102,8 @@ def show_deps(
 			*(
 				[
 					', '.join([
-						bl_version.version for bl_version in blext_spec.bl_versions
+						bl_version.pretty_version
+						for bl_version in blext_spec.bl_versions
 					])
 				]
 				if not all_the_same

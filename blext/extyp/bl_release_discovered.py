@@ -26,8 +26,11 @@ from .bl_release_official import BLReleaseOfficial
 from .bl_version import BLVersion
 
 
-class BLReleaseDiscovered(pyd.BaseModel):
+class BLReleaseDiscovered(pyd.BaseModel, frozen=True):
 	"""Identifier for a supported version of Blender.
+
+	Notes:
+		Conforms to the `blext.extyp.bl_release.BLRelease` protocol.
 
 	References:
 		- Version Compatibility: <https://developer.blender.org/docs/release_notes/compatibility/>
