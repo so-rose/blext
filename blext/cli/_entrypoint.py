@@ -61,13 +61,19 @@ def entrypoint():
 		# Check if current 'blext' executable is a subdirectory of the project's `.venv`.
 		## If so, then the project-local 'blext' is in use, and no proxying should occur.
 		## If not, we should check whether `blext` is available, and if so, proxy to it.
-		if current_blext_exe != path_pyproject_toml.parent / '.venv' / 'bin' / 'blext':
+		project_local_blext_path = (
+			path_pyproject_toml.parent / '.venv' / 'bin' / 'blext'
+		)
+		if (
+			current_blext_exe != project_local_blext_path
+			and project_local_blext_path.is_file()
+		):
 			rich.print('Using [bold]project-local[/bold] [italic]blext[/italic]')
 			rich.print()
 
 			blext_proxy_process = subprocess.Popen(
 				[
-					str(path_pyproject_toml.parent / '.venv' / 'bin' / 'blext'),
+					str(project_local_blext_path),
 					*sys.argv[1:],
 				],
 				bufsize=0,

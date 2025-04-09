@@ -19,20 +19,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-blender4_4 = [
-    "autopep8==2.3.1", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
-    "certifi==2021.10.8",
-    "charset_normalizer==2.0.10",
-    "cython==0.29.30",
-    "idna==3.3",
-    "numpy==1.24.3",
-    "pip==24.0",
-    "pycodestyle==2.12.1",
-    "requests==2.27.1",
-    "setuptools==63.2.0",
-    "urllib3==1.26.8",
-    "zstandard==0.16.0", # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
-]
 blender4_3 = [
     "autopep8==2.3.1", # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
     "certifi==2021.10.8",
@@ -52,16 +38,14 @@ blender4_3 = [
 package = false
 dev-dependencies = [
     "basedpyright>=1.28.3",
-    "commitizen>=2.29.3",
+    "blext",
     "pytest>=8.3.5",
     "ruff>=0.11.2",
 ]
-conflicts = [
-    [
-        {extra = "blender4_3"}, # # ⭳⭳⭳ MANAGED BY BLEXT ⭳⭳⭳
-        {extra = "blender4_4"}, # # ⭱⭱⭱ MANAGED BY BLEXT ⭱⭱⭱
-    ],
-]
+conflicts = []
+
+[tool.uv.sources]
+blext = { path = "../../", editable = true }
 
 [tool.blext]
 pretty_name = "BLExt Simple Example"
