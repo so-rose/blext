@@ -855,15 +855,12 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 		# project.license
 		extension_license: str | None = None
-		if (
-			project.get('license') is not None
-			and isinstance(project['license'], dict)
-			and project['license'].get('text') is not None  # pyright: ignore[reportUnknownMemberType]
-			and isinstance(project['license']['text'], str)
-		):
-			extension_license = project['license']['text']
+		if project.get('license') is not None and isinstance(project['license'], str):
+			extension_license = project['license']
 		else:
-			field_parse_errs.append('- `project.license.text` is not defined.')
+			field_parse_errs.append(
+				'- `project.license` is not defined, or is not a string.'
+			)
 			field_parse_errs.append(
 				'- Please note that all Blender addons MUST declare a GPL-compatible license: <https://docs.blender.org/manual/en/latest/advanced/extensions/licenses.html>'
 			)

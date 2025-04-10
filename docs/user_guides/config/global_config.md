@@ -1,4 +1,4 @@
-# Options: Global Config
+# Global Config
 `blext`'s operation may be altered using a number of "global" configuration fields:
 
 
@@ -39,7 +39,8 @@ The global configuration file is placed in an appropriate location, depending on
 |          Config         	|  Type  	|               Description               	|
 |:-----------------------:	|:------:	|:---------------------------------------:	|
 | `cfg.path_global_cache` 	| `Path` 	| Global cache directory of  `blext`.     	|
-| `cfg.path_blender_exe`  	| `Path` 	| Path to  `blender` executable. 	|
+| `cfg.local_bl_platform`  	| `BLPlatform` 	| Blender platform of the local machine. 	|
+| `cfg.path_default_blender_exe`  	| `Path` 	| Path to  `blender` executable. 	|
 | `cfg.path_uv_exe`       	| `Path` 	| Path to `uv` executable.       	|
 
 !!! tip
@@ -54,11 +55,12 @@ The global configuration file is placed in an appropriate location, depending on
 	```
 
 !!! example
-	For a user `user` on Linux, using the `uv tool` installation method, the default `config.toml` might look like:
+	For a user `user` on Linux, who used the `uv tool` installation method, the default `config.toml` might look like:
 	```toml
 	[cfg]
 	path_global_cache = "/home/user/.cache/blext"
-	path_blender_exe = "/home/user/.local/bin/blender"
+	local_bl_platform = "linux-x64"
+	path_default_blender_exe = "/home/user/.local/bin/blender"
 	path_uv_exe = "/home/user/.local/share/uv/tools/blext/bin/uv"
 	```
 
@@ -68,14 +70,19 @@ It is possible to _temporarily_ override global config entries using env vars an
 |          Config         	|            Env            	|            CLI            	|
 |:-----------------------:	|:-------------------------:	|:-------------------------:	|
 | `cfg.path_global_cache` 	| `BLEXT_PATH_GLOBAL_CACHE` 	| `--cfg.path_global_cache` 	|
-| `cfg.path_blender_exe`  	| `BLEXT_PATH_BLENDER_EXE`  	| `--cfg.path_blender_exe`  	|
+| `cfg.local_bl_platform`  	| `BLEXT_LOCAL_BL_PLATFORM`  	| `--cfg.local_bl_platform`  	|
+| `cfg.path_default_blender_exe`  	| `BLEXT_PATH_DEFAULT_BLENDER_EXE`  	| `--cfg.path_default_blender_exe`  	|
 | `cfg.path_uv_exe`       	| `BLEXT_PATH_UV_EXE`       	| `--cfg.path_uv_exe`       	|
 
 !!! example "Build Script Extension w/Temporary Global Cache Path"
-	Since script extensions always use the global path, you might want to alter that path temporarily:
+	Usually, script extensions use the global cache path.
+
+	However, you could alter the global cache path temporarily:
 	```
 	$ blext build script-extension.py --cfg.path_global_cache /home/user/special-blext-cache
 	```
+
+	_This might be useful for ex. CI/CD caching._
 
 !!! example "Generate Global Config from Env Vars"
 	For a user `user` on Linux, using the `uv tool` installation method, a `config.toml` generated with the help of an environment variable might look like:
@@ -83,6 +90,7 @@ It is possible to _temporarily_ override global config entries using env vars an
 	$ BLEXT_PATH_GLOBAL_CACHE=/home/user/special-blext-cache blext show global_config
 	[cfg]
 	path_global_cache = "/home/user/special-blext-cache"
-	path_blender_exe = "/home/user/.local/bin/blender"
+	local_bl_platform = "linux-x64"
+	path_default_blender_exe = "/home/user/.local/bin/blender"
 	path_uv_exe = "/home/user/.local/share/uv/tools/blext/bin/uv"
 	```

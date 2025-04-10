@@ -10,9 +10,10 @@ nav:
     - user_guides/script_extensions.md
     - CLI:
       - user_guides/cli/commands.md
-      - user_guides/cli/locating.md
-      - user_guides/cli/conforming.md
-      - user_guides/cli/global_config.md
+      - user_guides/cli/options.md
+    - Config:
+      - user_guides/config/extension_config.md
+      - user_guides/config/global_config.md
     - Integrations:
       - user_guides/integrations/ci_cd.md
       - user_guides/integrations/linting.md
@@ -48,6 +49,9 @@ markdown_extensions:
   - footnotes
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 theme:
   language: en

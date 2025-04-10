@@ -1,0 +1,335 @@
+# Extension Config
+The heart of `blext` lies in the extension configuration.
+
+With `blext`, **you do not write `blender_manifest.toml`**.
+Instead, you must define fields in either:
+
+- `pyproject.toml`: The single source of truth for all Python projects, including `blext` extensions.
+- Inline Script Metadata: A syntactic subset of `pyproject.toml`, for single-file scripts. Please see [User Guides / Script Extensions](../script_extensions.md) for more.
+
+
+!!! danger
+	**Not to be confused** with global configuration.
+
+	- **Global Configuration** _changes how `blext` itself works_, in a global `config.toml`.
+	- **Extension Configuration** _changes how a `blext` project_ works, in a project `pyproject.toml`.
+
+!!! note
+	In this section, we presume the use of `pyproject.toml` to configure a "project extension".
+
+	However, the configuration of "script extensions" is nearly identical.
+
+	Please see [User Guides / Script Extensions](../script_extensions.md) for more details.
+
+
+## Overview
+| Req?             	| `pyproject.toml`                   	| `blender_manifest.toml` (`1.0.0`) 	|
+|------------------	|------------------------------------	|--------------------------------	|
+| :material-check: 	| `project.name`                     	| `id`                           	|
+| :material-check: 	| `project.version`                  	| `version`                      	|
+| :material-check: 	| `project.description`              	| `tagline`                      	|
+| :material-close: 	| `project.maintainers[0]`           	| `maintainer`                   	|
+| :material-check: 	| `project.license`                  	| `license[0]`                   	|
+| :material-check: 	| \*`project.dependencies`           	| `wheels`                       	|
+| :material-close: 	| `project.urls.Homepage`            	| `website`                      	|
+| :material-check: 	| `tool.uv.package = false`          	| -                              	|
+| :material-check: 	| `tool.blext.pretty_name`           	| `name`                         	|
+| :material-check: 	| `tool.blext.blender_version_min`   	| `blender_version_min`          	|
+| :material-close: 	| `tool.blext.blender_version_max`   	| `blender_version_max`          	|
+| :material-close: 	| `tool.blext.bl_tags`               	| `tags`                         	|
+| :material-close: 	| `tool.blext.copyright`             	| `copyright`                    	|
+| :material-close: 	| `tool.blext.supported_platforms`   	| `supported_platforms`          	|
+| :material-close: 	| `tool.blext.permissions`           	| `permissions`                  	|
+| :material-close: 	| `tool.blext.min_glibc_version`     	| -                              	|
+| :material-close: 	| `tool.blext.min_macos_version`     	| -                              	|
+| :material-close: 	| `tool.blext.supported_python_tags` 	| -                              	|
+| :material-close: 	| `tool.blext.supported_abi_tags`    	| -                              	|
+| :material-close: 	| `tool.blext.profiles`              	| -                              	|
+
+_\* For script extensions, use top-level `dependencies` instead._
+
+_\*\* `tool.uv.package` **must** be set to `false`._
+
+
+!!! example
+	Here's a commented example of a `pyproject.toml`, which utilizes all fields:
+	```toml
+	[project]
+	name = "example_extension"  ## Maps to 'id'
+	version = "0.1.0"
+	description = "An example of a Blender extension"  ## Maps to 'tagline'
+	authors = [
+		{ name = "Alice Bobby", email = "alice.bobby@example.com" },  ## Not used by blext
+	]
+	maintainers = [
+		{ name = "Alice Bobby", email = "alice.bobby@example.com" }, ## Maps to 'maintainer'
+		{ name = "Bob Alison", email = "bob.alison@example.com" },  ## Not used by blext
+	]
+	readme = "README.md"  ## Not used by blext
+	requires-python = ">=3.11, <3.12"  ## blext will auto-generate a reasonable entry.
+	license = { text = "AGPL-3.0-or-later" }
+	dependencies = [
+		"scipy>=1.15.1",
+	]
+
+	classifiers = [] ## Not used by blext; only relevant for PyPi
+
+	[project.urls]
+	Homepage = "https://example.com/extension/home"  ## Extension 'website'
+
+	## [project.scripts]: May be used to make extensions that are also normal Python CLIs.
+
+	## [project.optional-dependencies]: blext will add auto-generated entries.
+	## - Each entry is an "extra" named after a supported Blender M.m version ex. `blender4_3`.
+	## - Each extra lists the vendored site-packages of that Blender version.
+	## - Supported Blender versions are deduced from tool.blext.blender_version_(min|max).
+
+	[tool.uv]
+	package = false  ## MUST be set, and MUST be set to `false`
+	dev-dependencies = [
+		"ruff>=0.11.2",
+	]
+
+	## tool.uv.conflicts: blext will add zero to one auto-generated entries.
+	## - `uv` needs to know that ex. `blender4_3` and `blender4_4` cannot be used simultaneously.
+	## - `uv` can then make sure that all other pydeps work with each supported Blender version.
+
+	[tool.blext]
+	pretty_name = "Example Extension"  ## Maps to 'name'
+	blender_version_min = '4.3.0'  ## Inclusive
+	blender_version_max = '4.4.0'  ## Exclusive
+	bl_tags = ["Development"]
+	copyright = ["2025 John Doe"]
+
+	supported_platforms = [
+		'windows-x64',
+		'macos-arm64',
+		'linux-x64',
+	]
+	min_glibc_version = [2, 28]
+	min_macos_version = [11, 0]
+	supported_python_tags = [
+		"py3",
+		"cp36",
+		"cp37",
+		"cp38",
+		"cp39",
+		"cp310",
+
+	]
+	supported_abi_tags = [
+	    "none",
+	    "abi3",
+	    "cp311",
+	]
+
+	[tool.blext.permissions]
+	files = "Needs files to work"
+	network = "Needs the internet to work"
+	clipboard = "Needs the clipboard to work"
+	camera = "Needs the system camera to work"
+	microphone = "Needs the system microphone to work"
+
+	[tool.blext.profiles.custom]
+	use_log_file = true
+	log_file_name = "my-addon.log"
+	log_file_level = "debug"
+	use_log_console = true
+	log_console_level = "info"
+	overrides = { pretty_name = "Example Extension with Logs" }
+	```
+
+## Description
+### `project.name`
+Name of the Python package / script that uniquely identifies the extension.
+
+**Required?** Yes.
+
+**Blender Manifest**: Maps to `id`.
+
+!!! note
+	The choice of `project.name` incurs some naming requirements.
+
+	- Project Extension: There **must** be a directory named `{project.name}`, which is a Python package.
+	- Script Extension: The script **must** be named `{project.name}.py`.
+
+!!! example
+	```toml
+	[project]
+	name = "example_extension"
+	```
+
+
+
+### `project.version`
+The latest published version of the extension.
+
+This **must** be compatible with both [PEP 440](https://peps.python.org/pep-0440/) and [SemVer V2](https://semver.org/).
+
+**Required?** Yes.
+
+**Blender Manifest**: Maps to `version`.
+
+!!! note
+	Contrary to one's intuition, not all SemVer strings are compatible with PEP 440.
+
+	See [PEP 440 / Semver Compatibility](https://peps.python.org/pep-0440/#semantic-versioning).
+
+!!! tip
+	Always be careful when altering this string!
+
+	By using a tool like [`commitizen`](https://commitizen-tools.github.io/commitizen/), version bumps can be fully automated incl. auto-generated changelogs from your `git` commit history.
+
+!!! example
+	```toml
+	[project]
+	version = "0.1.0"
+	```
+
+### `project.description`
+Short description of the extension.
+
+In general, this must be under 64 characters, and **may not** end with punctuation.
+
+**Required?** Yes.
+
+**Blender Manifest**: Maps to `tagline`.
+
+!!! example
+	```toml
+	[project]
+	description = "An example of a Blender extension"
+	```
+
+!!! references
+	For more on this field, see the [PyPa entry for `description`](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#description).
+
+
+### `project.maintainers[0]`
+Name and email of the primary extension maintainer for users to contact.
+
+If `project.maintainers[0]` is given, then **both** `name` and `email` must be defined
+
+Only the first maintainer in `project.maintainers` is considered by `blext`.
+This limitation is baked into the Blender Manifest format, which only accepts one string.
+
+**Required?** Yes.
+
+**Blender Manifest**: Maps to `maintainer`.
+
+!!! example
+	```toml
+	[project]
+	maintainers = [
+		{ name = "Alice Bobby", email = "alice.bobby@example.com" }, ## Maps to 'maintainer'
+		{ name = "Bob Alison", email = "bob.alison@example.com" },  ## Not used by blext
+	]
+	```
+
+!!! references
+	For more on this field, see the [PyPa entry for `authors`/`maintainers`](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#authors-maintainers).
+
+### `project.license`
+The software license under which the extension is (to be) distributed.
+
+The field must be defined using the "new format" defined in [PEP 639](https://peps.python.org/pep-0639/), with a few caveats:
+
+- This license must be specified using its `SPDX` identifier, ex. `GPL-3.0-only`.
+- This license must be compatible with Blender's `GPL` license.
+
+The following ways of specifying a license are **not supported**:
+
+- Legacy `license = { text = '...' }`
+- `LicenceRef` license specifiers.
+- [License expressions](https://packaging.python.org/en/latest/specifications/license-expression/) defined in [PEP 639](https://peps.python.org/pep-0639/).
+
+**Required?** Yes.
+
+**Blender Manifest**: Maps to `license[0]`.
+
+!!! example
+	```toml
+	[project]
+	license = "AGPL-3.0-or-later"
+	```
+
+!!! question "Why does `blext` only build `GPL`-compatible extensions?"
+	_We are not lawyers, and a such, everything written here might be hogwash._
+	_If in doubt, please refer to the LICENSE file in the repository root and/or your own legal council._
+
+	Blender itself is GPL software. Therefore, [all extensions must be GPL compatible](https://www.blender.org/about/license/).
+
+	**What does that mean?** _There is no valid `GPL`-incompatible Blender extension_.
+
+	`blext` aims to build only valid extensions, when possible.
+	Ergo, `blext` cannot build `GPL`-incompatible extensions.
+
+	See our [License Policy](../../reference/policies/licensing.md) for more on this.
+
+!!! note
+	While [license expressions](https://packaging.python.org/en/latest/specifications/license-expression/) are not supported, they could theoretically be partially supported.
+
+	`blender_manifest.toml` supports specifying multiple licenses, so it might be theoretically possible to support a subset of PEP639 license expressions.
+
+	If this is something you need, please open an Issue.
+
+
+
+### `project.dependencies`
+!!! example
+	In **project extensions** aka. `pyproject.toml`, you must specify `dependencies` in the `[project]` table:
+	```toml
+	[project]
+	dependencies = [
+		"scipy>=1.15.1",
+	]
+	```
+
+	In **script extensions** aka. the header of `*.py`, you must specify `dependencies` as a top-level field:
+	```python
+	# /// script
+	# dependencies = [
+	# 	"scipy>=1.15.1",
+	# ]
+	# ...
+	# ///
+	...
+	```
+
+### `project.urls.Homepage`
+The internet homepage of your extension.
+
+While it is completely valid, and even suggested, to add more entries to `[project.urls]`, only `project.urls.Homepage` will be included in the Blender manifest.
+
+**Required?** No.
+
+**Blender Manifest**: Maps to `website`.
+
+!!! example
+	```toml
+	[project.urls]
+	Homepage = "https://example.com/extension/home"  ## Extension 'website'
+	```
+
+### `tool.uv.package`
+### `tool.blext.pretty_name`
+### `tool.blext.blender_version_min`
+### `tool.blext.blender_version_max`
+### `tool.blext.bl_tags`
+### `tool.blext.copyright`
+!!! question "Why does `blext` require `tool.blext.copyright`?"
+	Depending on the choice of license, defining `tool.blext.copyright` may be a legal requirement for that license to be valid.
+
+	Thus, while it may _sometimes_ be valid not to include a copyright statement, that always comes with a certain kind of risk.
+	In any case, including a copyright statement is almost always a good idea.
+
+	After weighing the pros and cons, we decided to have `blext` enforce the presence of `tool.blext.copyright`.
+
+
+### `tool.blext.supported_platforms`
+### `tool.blext.permissions`
+### `tool.blext.min_glibc_version`
+### `tool.blext.min_macos_version`
+### `tool.blext.supported_python_tags`
+### `tool.blext.supported_abi_tags`
+### `tool.blext.profiles`

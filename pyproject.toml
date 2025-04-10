@@ -11,7 +11,7 @@ maintainers = [
 
 readme = "README.md"
 requires-python = "~=3.11"
-license = { text = "AGPL-3.0-or-later" }
+license = "AGPL-3.0-or-later"
 dependencies = [
 	"annotated-types>=0.7.0",
 	"cyclopts>=3.1.5",

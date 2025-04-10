@@ -10,7 +10,7 @@ maintainers = [
 ]
 readme = "README.md"
 requires-python = ">=3.11, !=3.12, <=3.13"
-license = { text = "AGPL-3.0-or-later" }
+license = "AGPL-3.0-or-later"
 dependencies = [
     "polars[async]>=1.26.0",
     "pydantic>=2.10.5",

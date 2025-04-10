@@ -224,15 +224,6 @@ wheels = [
 ]
 
 [[package]]
-name = "fake-bpy-module-4-3"
-version = "20250130"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b3/a2/218e6b069500cc4c19c457f36af9d85bc20670e0583cc339e4fd05081658/fake_bpy_module_4_3-20250130.tar.gz", hash = "sha256:47aae269047351e9734ec1cc7fbb37d436bc8739d4aac21605b7ad99dcf0587b", size = 932451 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/52/d6934f234cd372b5c67e2c814115af723235afcc32ecda2804aec852ece5/fake_bpy_module_4.3-20250130-py3-none-any.whl", hash = "sha256:fd55093def85702bb324b67a86a43b705c8789c5965c3eaadc4d8cb48f9437ea", size = 1053556 },
-]
-
-[[package]]
 name = "frozendict"
 version = "2.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -758,7 +749,6 @@ blender4-3 = [
 dev = [
     { name = "basedpyright" },
     { name = "blext" },
-    { name = "fake-bpy-module-4-3" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -788,7 +778,6 @@ provides-extras = ["blender4-3"]
 dev = [
     { name = "basedpyright", specifier = ">=1.28.3" },
     { name = "blext", editable = "../../" },
-    { name = "fake-bpy-module-4-3", specifier = ">=20250130" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "ruff", specifier = ">=0.11.2" },
 ]

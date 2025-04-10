@@ -77,15 +77,18 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 	)
 
 	# Local Information
-	local_bl_platform: extyp.BLPlatform = pyd.Field(
-		default_factory=detectors.detect_local_bl_platform
-	)
+	local_bl_platform: typ.Annotated[
+		extyp.BLPlatform,
+		cyclopts.Parameter(
+			env_var='BLEXT_LOCAL_BL_PLATFORM',
+		),
+	] = pyd.Field(default_factory=detectors.detect_local_bl_platform)
 
 	# External Binaries
 	path_default_blender_exe: typ.Annotated[
 		Path,
 		cyclopts.Parameter(
-			env_var='BLEXT_PATH_BLENDER_EXE',
+			env_var='BLEXT_PATH_DEFAULT_BLENDER_EXE',
 		),
 	] = pyd.Field(
 		default_factory=lambda data: detectors.find_blender_exe(
