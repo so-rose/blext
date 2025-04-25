@@ -28,6 +28,7 @@ Attributes:
 """
 
 import enum
+import functools
 import logging
 
 
@@ -43,7 +44,7 @@ class BLExtLogLevel(enum.StrEnum):
 	Error = 'error'
 	Critical = 'critical'
 
-	@property
+	@functools.cached_property
 	def log_level(self) -> int:
 		"""The integer corresponding to each string log-level.
 

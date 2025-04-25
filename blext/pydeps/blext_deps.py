@@ -34,8 +34,8 @@ from .pydep_wheel import PyDepWheel
 class BLExtDeps(pyd.BaseModel, frozen=True):
 	"""All Python dependencies needed by a Blender extension."""
 
-	pydeps: FrozenDict[tuple[str, str], PyDep]
-	target_pydeps: FrozenDict[str, PyDepMarker | None]
+	pydeps: FrozenDict[tuple[str, str], PyDep] = frozendict()
+	target_pydeps: FrozenDict[str, PyDepMarker | None] = frozendict()
 
 	# PyDepWheel Constraint Overrides
 	## - 'None' will use the property from `bl_version`.

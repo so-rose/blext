@@ -14,86 +14,60 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""A visual DSL for electromagnetic simulation design and analysis implemented as a Blender node editor."""
+"""Simple example of a Blender extension project that uses a few dependencies."""
 
-from functools import reduce
+import bpy
+import numpy as np
+import scipy as sc
 
-from . import contracts as ct
-from . import operators, panels, preferences, registration
-from .utils import logger
-
-log = logger.get(__name__)
+ADDON_NAME = 'simple_proj'
 
 
 ####################
-# - Load and Register Addon
+# - Simple Operator
 ####################
-BL_REGISTER: list[ct.BLClass] = [
-	*operators.BL_REGISTER,
-	*panels.BL_REGISTER,
-]
+class SimpleOperator(bpy.types.Operator):
+	"""Operator that shows a message."""
 
-BL_HANDLERS: ct.BLHandlers = reduce(
-	lambda a, b: a + b,
-	[
-		operators.BL_HANDLERS,
-		panels.BL_HANDLERS,
-	],
-	ct.BLHandlers(),
-)
+	bl_idname = f'{ADDON_NAME}.simple_operator'
+	bl_label = 'Simple Operator'
 
-BL_KEYMAP_ITEMS: list[ct.BLKeymapItem] = [
-	*operators.BL_KEYMAP_ITEMS,
-	*panels.BL_KEYMAP_ITEMS,
-]
+	@classmethod
+	def poll(cls, _: bpy.types.Context) -> bool:
+		"""Always allow operator to run."""
+		return True
+
+	def execute(self, _: bpy.types.Context) -> set[str]:
+		"""Display a simple message on execution."""
+		self.report(
+			{'INFO'},
+			(
+				f'sc.constants.speed_of_light={sc.constants.speed_of_light}'
+				f'np.__version__={np.__version__}'
+			),
+		)
+
+		return {'FINISHED'}
+
+
+####################
+# - Menus
+####################
+def show_menu(menu: bpy.types.Menu, _: bpy.types.Context) -> None:
+	"""Draw `SimpleOperator` within a menu."""
+	menu.layout.operator(SimpleOperator.bl_idname, text=SimpleOperator.bl_label)
 
 
 ####################
 # - Registration
 ####################
 def register() -> None:
-	"""Implements addon registration in a way that respects the availability of addon preferences and loggers.
-
-	Notes:
-		Called by Blender when enabling the addon.
-
-	Raises:
-		RuntimeError: If addon preferences fail to register.
-	"""
-	log.info('Registering Addon Preferences: %s', ct.addon.NAME)
-	registration.register_classes(preferences.BL_REGISTER)
-
-	addon_prefs = ct.addon.prefs()
-	if addon_prefs is not None:
-		# Update Loggers
-		# - This updates existing loggers to use settings defined by preferences.
-		addon_prefs.on_addon_logging_changed()
-
-		log.info('Registering Addon: %s', ct.addon.NAME)
-
-		registration.register_classes(BL_REGISTER)
-		registration.register_handlers(BL_HANDLERS)
-		registration.register_keymaps(BL_KEYMAP_ITEMS)
-
-		log.info('Finished Registration of Addon: %s', ct.addon.NAME)
-	else:
-		msg = f"Addon preferences did not register for addon '{ct.addon.NAME}' - something is very wrong!"
-		raise RuntimeError(msg)
+	"""Register this extension."""
+	bpy.utils.register_class(SimpleOperator)
+	bpy.types.VIEW3D_MT_object.append(show_menu)
 
 
 def unregister() -> None:
-	"""Unregisters anything that was registered by the addon.
-
-	Notes:
-		Run by Blender when disabling and/or uninstalling the addon.
-
-		This doesn't clean `sys.modules`.
-		We rely on the hope that Blender has extension-extension module isolation.
-	"""
-	log.info('Starting %s Unregister', ct.addon.NAME)
-
-	registration.unregister_keymaps()
-	registration.unregister_handlers()
-	registration.unregister_classes()
-
-	log.info('Finished %s Unregister', ct.addon.NAME)
+	"""Unregister this extension."""
+	bpy.utils.unregister_class(SimpleOperator)
+	bpy.types.VIEW3D_MT_object.remove(show_menu)

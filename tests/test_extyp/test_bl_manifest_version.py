@@ -14,29 +14,36 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Tests `blext.extyp.bl_manifest_version`."""
+
 import hypothesis as hyp
 from hypothesis import strategies as st
+from semver.version import Version
 
 from blext import extyp
 
 
 ####################
-# - Constant / Helpers
-####################
-####################
 # - Tests
 ####################
 @hyp.given(
-	st.sampled_from(
-		[
-			'linux-x64',
-			'linux-arm64',
-			'macos-x64',
-			'macos-arm64',
-			'windows-x64',
-			'windows-arm64',
-		]
-	)
+	st.sampled_from(extyp.BLManifestVersion),
 )
-def test_create_bl_platform(bl_platform_str: str):
-	extyp.BLPlatform(bl_platform_str)
+def test_manifest_type_is_BLManifest_type(  # noqa: N802
+	bl_manifest_version: extyp.BLManifestVersion,
+) -> None:
+	"""Test that `.manifest_type` produces one of the `BLManifest`-implementing types."""
+	assert any(
+		bl_manifest_version.manifest_type is ManifestType
+		for ManifestType in [extyp.BLManifest_1_0_0]
+	)
+
+
+@hyp.given(
+	st.sampled_from(extyp.BLManifestVersion),
+)
+def test_manifest_version_is_semantic_version(
+	bl_manifest_version: extyp.BLManifestVersion,
+) -> None:
+	"""Whether the `.log_level` property produces an integer that is usable for logging, aka. a positive integer."""
+	assert Version.parse(bl_manifest_version)

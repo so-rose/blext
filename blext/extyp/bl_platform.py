@@ -14,18 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Extension types serving as meaningful abstractions for managing Blender extensions.
-
-Attributes:
-	ValidBLExtPerms: Hardcoded list of valid extension permissions.
-		- `files`: Access to any filesystem operations.
-		- `network`: Access to the internet.
-		- `clipboard`: Permission to read and/or write the system clipboard.
-		- `camera`: Permission to capture photos or videos from system sources.
-		- `microphone`: Permission to capture audio from system sources.
-
-	ValidBLTags: Hardcoded list of valid extension tags.
-"""
+"""Implements `BLPlatform`."""
 
 import enum
 import functools
@@ -33,7 +22,7 @@ import typing as typ
 
 
 class BLPlatform(enum.StrEnum):
-	"""Identifier for a particular kind of OS/Architecture supported by Blender.
+	"""Identifies a particular OS+arch supported by Blender.
 
 	Notes:
 		Values correspond perfectly to the platforms defined in the official Blender extension manifest specification.
@@ -64,7 +53,7 @@ class BLPlatform(enum.StrEnum):
 		return self is P.windows_x64 or self is P.windows_arm64
 
 	####################
-	# - Archive File Extension
+	# - Archive Information
 	####################
 	@functools.cached_property
 	def official_archive_file_ext(self) -> str:
@@ -198,7 +187,7 @@ class BLPlatform(enum.StrEnum):
 
 	@functools.cached_property
 	def pymarker_sys_platform(self) -> typ.Literal['linux', 'darwin', 'win32']:
-		"""Value of `os.name` on the given Blender platform.
+		"""Value of `sys.platform` on the given Blender platform.
 
 		Notes:
 			Does not consider `PEP600` references.

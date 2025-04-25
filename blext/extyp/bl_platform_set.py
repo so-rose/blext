@@ -26,6 +26,9 @@ from .bl_platform import BLPlatform
 from .bl_version import BLVersion
 
 
+####################
+# - Type Stubs
+####################
 @typ.runtime_checkable
 class IPyDepWheel(typ.Protocol):
 	"""Matches `blext.pydeps.PyDepWheel`."""
@@ -41,7 +44,10 @@ class IPyDepWheel(typ.Protocol):
 		...
 
 
-class BLPlatforms(str):
+####################
+# - Class
+####################
+class BLPlatformSet(str):
 	"""Several `BLPlatform`s represented with similar semantics."""
 
 	####################
@@ -70,7 +76,7 @@ class BLPlatforms(str):
 	####################
 	@functools.cached_property
 	def official_archive_file_exts(self) -> frozenset[str]:
-		"""Set of official archive file extensions, each used by one of these BLPlatforms."""
+		"""Set of official archive file extensions, each used by one of these BLPlatformSet."""
 		return frozenset({
 			bl_platform.wheel_platform_tag_prefix for bl_platform in self.bl_platforms
 		})
@@ -80,7 +86,7 @@ class BLPlatforms(str):
 	####################
 	@functools.cached_property
 	def pypi_arches(self) -> frozenset[str]:
-		"""Set of PyPi CPU-architecture tags supported by one of these BLPlatforms."""
+		"""Set of PyPi CPU-architecture tags supported by one of these BLPlatformSet."""
 		return functools.reduce(
 			lambda a, b: a | b,
 			(bl_platform.pypi_arches for bl_platform in self.bl_platforms),
@@ -88,7 +94,7 @@ class BLPlatforms(str):
 
 	@functools.cached_property
 	def wheel_platform_tag_prefixes(self) -> frozenset[str]:
-		"""Set of wheel platform tag prefixes, each used by one of these BLPlatforms."""
+		"""Set of wheel platform tag prefixes, each used by one of these BLPlatformSet."""
 		return frozenset({
 			bl_platform.wheel_platform_tag_prefix for bl_platform in self.bl_platforms
 		})
@@ -98,14 +104,14 @@ class BLPlatforms(str):
 	####################
 	@functools.cached_property
 	def pymarker_os_names(self) -> frozenset[typ.Literal['posix', 'nt']]:
-		"""Set of pymarker OS names, each used by one of these BLPlatforms."""
+		"""Set of pymarker OS names, each used by one of these BLPlatformSet."""
 		return frozenset({
 			bl_platform.pymarker_os_name for bl_platform in self.bl_platforms
 		})
 
 	@functools.cached_property
 	def pymarker_platform_machines(self) -> frozenset[str]:
-		"""Value of `platform.machine()`, each used by one of these BLPlatforms."""
+		"""Value of `platform.machine()`, each used by one of these BLPlatformSet."""
 		return functools.reduce(
 			lambda a, b: a | b,
 			(
@@ -115,10 +121,10 @@ class BLPlatforms(str):
 		)
 
 	@functools.cached_property
-	def pymarker_platform_system(
+	def pymarker_platform_systems(
 		self,
 	) -> frozenset[typ.Literal['Linux', 'Darwin', 'Windows']]:
-		"""Set of pymarker OS names, each used by one of these BLPlatforms."""
+		"""Set of pymarker OS names, each used by one of these BLPlatformSet."""
 		return frozenset({
 			bl_platform.pymarker_platform_system for bl_platform in self.bl_platforms
 		})
@@ -127,7 +133,7 @@ class BLPlatforms(str):
 	def pymarker_sys_platforms(
 		self,
 	) -> frozenset[typ.Literal['linux', 'darwin', 'win32']]:
-		"""Set of pymarker `sys.platform` values, each used by one of these BLPlatforms."""
+		"""Set of pymarker `sys.platform` values, each used by one of these BLPlatformSet."""
 		return frozenset({
 			bl_platform.pymarker_sys_platform for bl_platform in self.bl_platforms
 		})
@@ -145,7 +151,11 @@ class BLPlatforms(str):
 		cls, bl_platforms: collections.abc.Collection[BLPlatform]
 	) -> typ.Self:
 		"""Create from a sequence of `BLPlatform`s."""
-		return cls('_'.join(sorted(bl_platforms)))
+		if len(bl_platforms) > 0:
+			return cls('_'.join(sorted(bl_platforms)))
+
+		msg = '`from_bl_platforms` must be called with a collection of `bl_platforms` whose length is greater than `0`.'
+		raise ValueError(msg)
 
 	####################
 	# - Smooshing
@@ -161,7 +171,7 @@ class BLPlatforms(str):
 			BLVersion, frozendict[BLPlatform, frozenset[IPyDepWheel]]
 		],
 	) -> bool:
-		"""Check is this `BLPlatforms` can be safely combined with a `BLPlatform`."""
+		"""Check is this `BLPlatformSet` can be safely combined with a `BLPlatform`."""
 		# IF all wheels that work with me, also work with you, then smoosh is valid.
 		##
 		return all(
@@ -187,7 +197,7 @@ class BLPlatforms(str):
 		self,
 		bl_platform: BLPlatform,
 	) -> typ.Self:
-		"""Combine this `BLPlatforms` with a `BLPlatform`."""
+		"""Combine this `BLPlatformSet` with a `BLPlatform`."""
 		return self.__class__.from_bl_platforms(
 			sorted([*self.sorted_bl_platforms, bl_platform])
 		)

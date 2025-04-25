@@ -58,11 +58,13 @@
 # min_macos_version = [12, 0]
 # ///
 
+"""Simple example of a Blender extension that uses a few dependencies."""
+
 import bpy
 import numpy as np
 import scipy as sc
 
-ADDON_NAME = 'minimal_file_ext'
+ADDON_NAME = 'simple_script'
 
 
 ####################
@@ -95,18 +97,21 @@ class SimpleOperator(bpy.types.Operator):
 ####################
 # - Menus
 ####################
-def menu_func(self, context):
-	self.layout.operator(SimpleOperator.bl_idname, text=SimpleOperator.bl_label)
+def show_menu(menu: bpy.types.Menu, _: bpy.types.Context) -> None:
+	"""Draw `SimpleOperator` within a menu."""
+	menu.layout.operator(SimpleOperator.bl_idname, text=SimpleOperator.bl_label)
 
 
 ####################
 # - Registration
 ####################
 def register() -> None:
+	"""Register this extension."""
 	bpy.utils.register_class(SimpleOperator)
-	bpy.types.VIEW3D_MT_object.append(menu_func)
+	bpy.types.VIEW3D_MT_object.append(show_menu)
 
 
 def unregister() -> None:
+	"""Unregister this extension."""
 	bpy.utils.unregister_class(SimpleOperator)
-	bpy.types.VIEW3D_MT_object.remove(menu_func)
+	bpy.types.VIEW3D_MT_object.remove(show_menu)

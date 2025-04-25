@@ -14,16 +14,4 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Provides identifiers for Blender panels defined by this addon."""
-
-import enum
-
-from .addon import NAME as ADDON_NAME
-
-PREFIX = f'{ADDON_NAME.upper()}_PT_'
-
-
-class PanelType(enum.StrEnum):
-	"""Identifiers for addon-defined `bpy.types.Panel`."""
-
-	SimplePanel = f'{PREFIX}simple_panel'
+"""Tests `blext.extyp`."""

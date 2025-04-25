@@ -14,23 +14,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Blender operators that ship with `bpy_jupyter`."""
+"""Tests `blext.extyp.log_level`."""
 
-from functools import reduce
+import hypothesis as hyp
+from hypothesis import strategies as st
 
-from .. import contracts as ct
-from . import simple_operator
+from blext import extyp
 
-BL_REGISTER: list[ct.BLClass] = [
-	*simple_operator.BL_REGISTER,
-]
-BL_HANDLERS: ct.BLHandlers = reduce(
-	lambda a, b: a + b,
-	[
-		simple_operator.BL_HANDLERS,
-	],
-	ct.BLHandlers(),
+
+####################
+# - Tests: Parse Examples
+####################
+@hyp.given(
+	st.sampled_from(extyp.BLExtLogLevel),
 )
-BL_KEYMAP_ITEMS: list[ct.BLKeymapItem] = [
-	*simple_operator.BL_KEYMAP_ITEMS,
-]
+def test_int_log_level_is_valid(blext_log_level: extyp.BLExtLogLevel) -> None:
+	"""Whether the `.log_level` property produces an integer that is usable for logging, aka. a positive integer."""
+	assert isinstance(blext_log_level.log_level, int)
+	assert blext_log_level.log_level > 0

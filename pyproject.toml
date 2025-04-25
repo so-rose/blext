@@ -160,13 +160,6 @@ ignore = [
 	"E501",  # Let Formatter Worry about Line Length
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = [
-	"SLF001", # It's okay to not have module-level docstrings in test modules.
-	"D100", # It's okay to not have module-level docstrings in test modules.
-	"D104", # Same for packages.
-]
-
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = []
 

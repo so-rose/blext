@@ -17,6 +17,7 @@
 """Defines the Blender extension specification."""
 
 import functools
+import re
 import tomllib
 import typing as typ
 from pathlib import Path
@@ -31,6 +32,24 @@ from .pydeps import BLExtDeps, PyDepWheel, uv
 from .utils.inline_script_metadata import parse_inline_script_metadata
 from .utils.lru_method import lru_method
 from .utils.pydantic_frozendict import FrozenDict
+
+REGEX = frozendict[str, re.Pattern[str]]({
+	'id': re.compile(r'^[a-z][a-z0-9_\-]{0,30}[a-z0-9]$', re.UNICODE),
+	'name': re.compile(
+		r'^[a-z][a-z0-9_\-\!\@\#\$\%\^\&\*\(\)\,\.\/\[\]\{\}\'\"\:\;=\+\~]{0,60}[a-z0-9]$',
+		re.UNICODE,
+	),
+	'tagline': re.compile(
+		r'^[a-z][a-z0-9_\-\!\@\#\$\%\^\&\*\(\)\,\.\/\[\]\{\}\'\"\:\;=\+\~]{0,60}[a-z0-9]$',
+		re.UNICODE,
+	),
+	'blender_version_min': re.compile(r'^[0-9]*\.[0-9]+\.[0-9]+$'),
+	'blender_version_max': re.compile(r'^[0-9]*\.[0-9]+\.[0-9]+$'),
+	'permissions.get': re.compile(
+		r'^[a-z][a-z0-9_\-\!\@\#\$\%\^\&\*\(\)\,\.\/\[\]\{\}\'\"\:\;=\+\~]{0,60}[a-z0-9]$',
+		re.UNICODE,
+	),
+})
 
 
 ####################
@@ -293,14 +312,14 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	@functools.cached_property
 	def bl_platforms_by_granular(
 		self,
-	) -> frozendict[extyp.BLPlatform, extyp.BLPlatforms]:
+	) -> frozendict[extyp.BLPlatform, extyp.BLPlatformSet]:
 		"""Map from supported _granular_ `BLPlatform`s to supported _smooshed_ `BLPlatform`s."""
 		# Initialize Consecutive "Smooshing"
 		## Non-consecutive Blender versions are extremely unlikely to be "smooshable".
 		## We define "consecutive" using the ordering of 'self.sorted_granular_bl_versions'.
 		idx_smoosh = 0
-		smooshed_bl_platforms: list[extyp.BLPlatforms] = [
-			extyp.BLPlatforms.from_bl_platform(self.sorted_granular_bl_platforms[0])
+		smooshed_bl_platforms: list[extyp.BLPlatformSet] = [
+			extyp.BLPlatformSet.from_bl_platform(self.sorted_granular_bl_platforms[0])
 		]
 		granular_to_smooshed_idx: dict[extyp.BLPlatform, int] = {
 			self.sorted_granular_bl_platforms[0]: 0
@@ -324,7 +343,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 			else:
 				smooshed_bl_platforms.append(
-					extyp.BLPlatforms.from_bl_platform(granular_bl_platform)
+					extyp.BLPlatformSet.from_bl_platform(granular_bl_platform)
 				)
 				idx_smoosh += 1
 
@@ -339,7 +358,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		})
 
 	@functools.cached_property
-	def sorted_bl_platforms(self) -> tuple[extyp.BLPlatforms, ...]:
+	def sorted_bl_platforms(self) -> tuple[extyp.BLPlatformSet, ...]:
 		"""Sorted variant of `self.bl_platforms`."""
 		# NOTE: This is an order-preserving deduplication.
 		## `dict` performs insertion-order preserving deduplication of the `.values()`.
@@ -347,7 +366,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		return (*dict.fromkeys(self.bl_platforms_by_granular.values()),)
 
 	@functools.cached_property
-	def bl_platforms(self) -> frozenset[extyp.BLPlatforms]:
+	def bl_platforms(self) -> frozenset[extyp.BLPlatformSet]:
 		"""Sorted variant of `self.bl_platforms`."""
 		return frozenset(self.bl_platforms_by_granular.values())
 
@@ -421,11 +440,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	def wheels(
 		self,
 	) -> frozendict[
-		extyp.BLVersion, frozendict[extyp.BLPlatforms, frozenset[PyDepWheel]]
+		extyp.BLVersion, frozendict[extyp.BLPlatformSet, frozenset[PyDepWheel]]
 	]:
 		"""All Python wheels needed by the extension, by version and platform."""
 		return frozendict({
-			bl_version: frozendict[extyp.BLPlatforms, frozenset[PyDepWheel]]({
+			bl_version: frozendict[extyp.BLPlatformSet, frozenset[PyDepWheel]]({
 				bl_platform: functools.reduce(
 					lambda a, b: a | b,
 					(
@@ -484,7 +503,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	def bl_manifests(
 		self,
 		bl_manifest_version: extyp.BLManifestVersion,
-	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, extyp.BLManifest]]:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatformSet, extyp.BLManifest]]:
 		"""Export the Blender extension manifest.
 
 		Notes:
@@ -505,7 +524,9 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		match bl_manifest_version:
 			case extyp.BLManifestVersion.V1_0_0:
 				return frozendict({
-					bl_version: frozendict[extyp.BLPlatforms, extyp.BLManifest_1_0_0]({
+					bl_version: frozendict[
+						extyp.BLPlatformSet, extyp.BLManifest_1_0_0
+					]({
 						bl_platform: extyp.BLManifest_1_0_0(
 							id=self.id,
 							name=self.name,
@@ -545,8 +566,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		self,
 		bl_manifest_version: extyp.BLManifestVersion,
 		*,
-		fmt: typ.Literal['json', 'toml'],
-	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, str]]:
+		fmt: typ.Literal['json', 'toml'] = 'toml',
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatformSet, str]]:
 		"""Export the Blender extension manifest.
 
 		Notes:
@@ -566,7 +587,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		"""
 		bl_manifests = self.bl_manifests(bl_manifest_version)
 		return frozendict({
-			bl_version: frozendict[extyp.BLPlatforms, extyp.BLManifest]({
+			bl_version: frozendict[extyp.BLPlatformSet, extyp.BLManifest]({
 				bl_platform: bl_manifests[bl_version][bl_platform].export(fmt=fmt)
 				for bl_platform in self.sorted_bl_platforms
 			})
@@ -579,10 +600,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	@functools.cached_property
 	def extension_filenames(
 		self,
-	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, str]]:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatformSet, str]]:
 		"""Filename of each extension filename to build from this spec."""
 		return frozendict({
-			bl_version: frozendict[extyp.BLPlatforms, str]({
+			bl_version: frozendict[extyp.BLPlatformSet, str]({
 				bl_platform: (
 					f'{self.id}-{str(self.version).replace(".", "_")}__{bl_version.pretty_version.replace(".", "_")}__{bl_platform}'
 					if not self.is_platform_universal
@@ -595,10 +616,10 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 	def extension_zip_paths(
 		self, *, path_base: Path
-	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, Path]]:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatformSet, Path]]:
 		"""Paths to each extension to build from this spec, relative to `path_base`."""
 		return frozendict({
-			bl_version: frozendict[extyp.BLPlatforms, Path]({
+			bl_version: frozendict[extyp.BLPlatformSet, Path]({
 				bl_platform: (
 					path_base
 					/ (self.extension_filenames[bl_version][bl_platform] + '.zip')
@@ -616,7 +637,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		self,
 		*,
 		bl_versions: frozenset[extyp.BLVersion] | None = None,
-		bl_platforms: frozenset[extyp.BLPlatforms] | None = None,
+		bl_platforms: frozenset[extyp.BLPlatformSet] | None = None,
 	) -> frozenset[PyDepWheel]:
 		"""All wheels that are needed to build extensions for all `bl_versions`.
 
@@ -653,7 +674,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		*,
 		path_wheels: Path,
 		bl_versions: frozenset[extyp.BLVersion] | None = None,
-		bl_platforms: frozenset[extyp.BLPlatforms] | None = None,
+		bl_platforms: frozenset[extyp.BLPlatformSet] | None = None,
 	) -> frozenset[PyDepWheel]:
 		"""Wheels that have already been correctly downloaded."""
 		return frozenset({
@@ -670,7 +691,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		*,
 		path_wheels: Path,
 		bl_versions: frozenset[extyp.BLVersion] | None = None,
-		bl_platforms: frozenset[extyp.BLPlatforms] | None = None,
+		bl_platforms: frozenset[extyp.BLPlatformSet] | None = None,
 	) -> frozenset[PyDepWheel]:
 		"""Wheels that need to be downloaded, since they are not available / valid."""
 		return frozenset({
@@ -688,11 +709,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 	def wheel_paths_to_prepack(
 		self, *, path_wheels: Path
 	) -> frozendict[
-		extyp.BLVersion, frozendict[extyp.BLPlatforms, frozendict[Path, Path]]
+		extyp.BLVersion, frozendict[extyp.BLPlatformSet, frozendict[Path, Path]]
 	]:
 		"""Wheel file paths that should be pre-packed."""
 		return frozendict({
-			bl_version: frozendict[extyp.BLPlatforms, frozendict[Path, Path]]({
+			bl_version: frozendict[extyp.BLPlatformSet, frozendict[Path, Path]]({
 				bl_platform: frozendict[Path, Path]({
 					path_wheels / wheel.filename: Path('wheels') / wheel.filename
 					for wheel in self.wheels[bl_version][bl_platform]

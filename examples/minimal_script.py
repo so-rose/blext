@@ -48,6 +48,8 @@
 # copyright = ["2025 blext Contributors"]
 # ///
 
+"""Minimal example of a Blender extension that uses no dependencies."""
+
 import tomllib
 from pathlib import Path
 
@@ -85,6 +87,7 @@ class HelloWorldOperator(bpy.types.Operator):
 # - Menus
 ####################
 def show_menu(menu: bpy.types.Menu, _: bpy.types.Context) -> None:
+	"""Draw `HelloWorldOperator` to a menu."""
 	menu.layout.operator(HelloWorldOperator.bl_idname, text=HelloWorldOperator.bl_label)
 
 
@@ -92,10 +95,12 @@ def show_menu(menu: bpy.types.Menu, _: bpy.types.Context) -> None:
 # - Registration
 ####################
 def register() -> None:
+	"""Register this extension."""
 	bpy.utils.register_class(HelloWorldOperator)
-	bpy.types.VIEW3D_MT_object.append(menu_func)
+	bpy.types.VIEW3D_MT_object.append(show_menu)
 
 
 def unregister() -> None:
+	"""Unregister this extension."""
 	bpy.utils.unregister_class(HelloWorldOperator)
-	bpy.types.VIEW3D_MT_object.remove(menu_func)
+	bpy.types.VIEW3D_MT_object.remove(show_menu)

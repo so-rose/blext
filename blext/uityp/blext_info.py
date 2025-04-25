@@ -385,7 +385,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	@lru_method()
 	def bl_platforms(
 		self, global_config: GlobalConfig
-	) -> tuple[extyp.BLPlatforms, ...]:
+	) -> tuple[extyp.BLPlatformSet, ...]:
 		"""All selected Blender versions."""
 		blext_spec = self.blext_spec(global_config)
 
@@ -395,7 +395,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 
 		# Select Maximally Smooshed BLVersions
 		## We must also verify that the desired BLVersion works with the ext.
-		bl_platforms = set[extyp.BLPlatforms]()
+		bl_platforms = set[extyp.BLPlatformSet]()
 		for requested_bl_platform in requested_bl_platforms:
 			if requested_bl_platform in blext_spec.granular_bl_platforms:
 				bl_platforms.add(
@@ -428,7 +428,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	@lru_method()
 	def path_zip_prepacks(
 		self, global_config: GlobalConfig
-	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, Path]]:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatformSet, Path]]:
 		"""Paths of all extension pre-packed archives that should be prepared from `self.blext_spec`.
 
 		Parameters:
@@ -447,7 +447,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	@lru_method()
 	def path_zips(
 		self, global_config: GlobalConfig
-	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, Path]]:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatformSet, Path]]:
 		"""Paths of all extension `.zip`s that should be built from `self.blext_spec`.
 
 		Parameters:
@@ -464,7 +464,7 @@ class BLExtUI(pyd.BaseModel, frozen=True):
 	@lru_method()
 	def path_final_zips(
 		self, global_config: GlobalConfig
-	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatforms, Path]]:
+	) -> frozendict[extyp.BLVersion, frozendict[extyp.BLPlatformSet, Path]]:
 		"""Paths of all extension `.zip`s that should be built from `self.blext_spec`.
 
 		Parameters:

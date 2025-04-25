@@ -25,7 +25,6 @@ repos:
     hooks:
       # ruff lint
       - id: ruff
-        files: "blext/"
       # ruff fmt
       - id: ruff-format
 

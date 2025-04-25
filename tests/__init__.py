@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Test the `blext` package."""
+
 import sys
 
 sys.dont_write_bytecode = True

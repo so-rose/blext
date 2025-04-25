@@ -128,7 +128,7 @@ def pack_bl_extension(  # noqa: PLR0913
 	blext_spec: BLExtSpec,
 	*,
 	bl_version: extyp.BLVersion,
-	bl_platform: extyp.BLPlatforms,
+	bl_platform: extyp.BLPlatformSet,
 	overwrite: bool = True,
 	path_zip_prepack: Path,
 	path_zip: Path,

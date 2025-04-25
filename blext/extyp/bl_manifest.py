@@ -36,6 +36,7 @@ from .spdx_license import SPDXLicense
 ####################
 # - Manifest Protocol
 ####################
+@typ.runtime_checkable
 class BLManifest(typ.Protocol):
 	"""Protocol defining behavior that all Blender manifests must exhibit."""
 
