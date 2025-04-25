@@ -254,7 +254,7 @@ For more on how this works, see the [`uv` tools documentation](https://docs.astr
 
 
 
-## Troubleshooting
+## Tips and Tricks
 !!! info
 	Any **global** installation of `blext` ensures that you can run `blext` commands from anywhere, like this:
 

@@ -38,13 +38,13 @@
 # authors = [
 #     { name = "John Doe", email = "jdoe@example.com" },
 # ]
-# license = { text = "AGPL-3.0-or-later" }
+# license = "AGPL-3.0-or-later"
 #
 # [tool.blext]
 # pretty_name = "Single File Extension Example"
 # blender_version_min = '4.3.0'
 # blender_version_max = '4.4.0'
-# bl_tags = ["Development"]
+# bl_tags = ["User Interface"]
 # copyright = ["2025 blext Contributors"]
 # ///
 

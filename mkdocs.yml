@@ -8,12 +8,12 @@ nav:
     - user_guides/getting_started.md
     - user_guides/project_extensions.md
     - user_guides/script_extensions.md
+    - Config:
+      - Extension Config: user_guides/config/extension_config.md
+      - Global Config: user_guides/config/global_config.md
     - CLI:
       - user_guides/cli/commands.md
       - user_guides/cli/options.md
-    - Config:
-      - user_guides/config/extension_config.md
-      - user_guides/config/global_config.md
     - Integrations:
       - user_guides/integrations/ci_cd.md
       - user_guides/integrations/linting.md
