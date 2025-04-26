@@ -17,12 +17,12 @@
 """Abstractions relevant for Blender extensions."""
 
 from . import validators
-from .bl_manifest import BLManifest, BLManifest_1_0_0
+from .bl_manifest import BLManifest, BLManifest1_0_0
 from .bl_manifest_version import BLManifestVersion
 from .bl_platform import BLPlatform
 from .bl_platform_set import BLPlatformSet
 from .bl_release import BLRelease
-from .bl_release_discovered import BLReleaseDiscovered
+from .bl_release_detected import BLReleaseDetected
 from .bl_release_official import BLReleaseOfficial
 from .bl_version import BLVersion
 from .blext_location import BLExtLocation
@@ -40,12 +40,12 @@ __all__ = [
 	'BLExtLocationPath',
 	'BLExtLogLevel',
 	'BLManifest',
+	'BLManifest1_0_0',
 	'BLManifestVersion',
-	'BLManifest_1_0_0',
 	'BLPlatform',
 	'BLPlatformSet',
 	'BLRelease',
-	'BLReleaseDiscovered',
+	'BLReleaseDetected',
 	'BLReleaseOfficial',
 	'BLVersion',
 	'ReleaseProfile',

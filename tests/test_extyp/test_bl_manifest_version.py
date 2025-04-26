@@ -35,7 +35,7 @@ def test_manifest_type_is_BLManifest_type(  # noqa: N802
 	"""Test that `.manifest_type` produces one of the `BLManifest`-implementing types."""
 	assert any(
 		bl_manifest_version.manifest_type is ManifestType
-		for ManifestType in [extyp.BLManifest_1_0_0]
+		for ManifestType in [extyp.BLManifest1_0_0]
 	)
 
 

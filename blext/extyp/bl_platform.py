@@ -22,7 +22,7 @@ import typing as typ
 
 
 class BLPlatform(enum.StrEnum):
-	"""Identifies a particular OS+arch supported by Blender.
+	"""Identifies a particular operating system / architecture pair supported by Blender.
 
 	Notes:
 		Values correspond perfectly to the platforms defined in the official Blender extension manifest specification.

@@ -524,10 +524,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 		match bl_manifest_version:
 			case extyp.BLManifestVersion.V1_0_0:
 				return frozendict({
-					bl_version: frozendict[
-						extyp.BLPlatformSet, extyp.BLManifest_1_0_0
-					]({
-						bl_platform: extyp.BLManifest_1_0_0(
+					bl_version: frozendict[extyp.BLPlatformSet, extyp.BLManifest1_0_0]({
+						bl_platform: extyp.BLManifest1_0_0(
 							id=self.id,
 							name=self.name,
 							version=str(self.version),

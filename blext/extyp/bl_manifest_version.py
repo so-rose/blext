@@ -21,7 +21,7 @@ import functools
 
 from semver.version import Version
 
-from .bl_manifest import BLManifest, BLManifest_1_0_0
+from .bl_manifest import BLManifest, BLManifest1_0_0
 
 
 ####################
@@ -37,7 +37,7 @@ class BLManifestVersion(enum.StrEnum):
 		"""Class representing this Blender manifest schema."""
 		M = BLManifestVersion
 		return {
-			M.V1_0_0: BLManifest_1_0_0,
+			M.V1_0_0: BLManifest1_0_0,
 		}[self]
 
 	@functools.cached_property

@@ -58,7 +58,7 @@ class BLManifest(typ.Protocol):
 ####################
 # - Manifest 1.0.0
 ####################
-class BLManifest_1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
+class BLManifest1_0_0(pyd.BaseModel, frozen=True):  # noqa: N801
 	"""Strict representation of the `1.0.0` version of the Blender extension manifest.
 
 	Notes:

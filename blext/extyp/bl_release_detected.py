@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Implements `BLReleaseDiscovered`."""
+"""Implements `BLReleaseDetected`."""
 
 import datetime as dtime
 import functools
@@ -26,7 +26,7 @@ from .bl_release_official import BLReleaseOfficial
 from .bl_version import BLVersion
 
 
-class BLReleaseDiscovered(pyd.BaseModel, frozen=True):
+class BLReleaseDetected(pyd.BaseModel, frozen=True):
 	"""Identifier for a supported version of Blender.
 
 	Notes:
