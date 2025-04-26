@@ -20,6 +20,7 @@ import functools
 import typing as typ
 
 import networkx as nx
+import packaging.utils
 import pydantic as pyd
 from frozendict import frozendict
 
@@ -77,7 +78,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				pydep_downstream_name,
 				pydep_downstream_version,
 			), pydep_downstream in self.pydeps.items()
-			for pydep_upstream_name, dependency_marker in pydep_downstream.pydep_markers.items()
+			for pydep_upstream_name, dependency_marker in pydep_downstream.deps.items()
 			for pydep_upsteam_version in [
 				pydep_version
 				for pydep_name, pydep_version in self.pydeps
@@ -276,7 +277,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					node
 					for node in nx.descendants(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
 						self.pydeps_graph,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
-						(pydep.name, pydep.version),
+						(pydep.name, pydep.version_string),
 					)
 					if self.pydeps_graph.out_degree(node) == 0  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
 				}),
@@ -331,11 +332,6 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				- **Project Extensions**: The package folder name, such that `<module_name>/__init__.py` exists and has the extension's `register()` method.
 				- `BLExtSpec.id`: The
 		"""
-
-		@functools.cache
-		def nrm_name(pkg_name: str) -> str:
-			return pkg_name.replace('-', '_').lower()
-
 		####################
 		# - Stage 1: Parse [[package]]
 		####################
@@ -344,10 +340,10 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		if 'package' not in uv_lock:
 			pydeps: dict[tuple[str, str], PyDep] = {}  ## No PyDeps
 		else:
-			pydeps = {
-				(nrm_name(package['name']), package['version']): PyDep(  # pyright: ignore[reportAny]
-					name=nrm_name(package['name']),  # pyright: ignore[reportAny]
-					version=package['version'],  # pyright: ignore[reportAny]
+			pydeps_set = {
+				PyDep(
+					name=package['name'],  # pyright: ignore[reportAny]
+					version_string=package['version'],  # pyright: ignore[reportAny]
 					registry=package['source']['registry'],  # pyright: ignore[reportAny]
 					wheels=frozenset({
 						PyDepWheel(
@@ -359,8 +355,8 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 						for wheel_info in package.get('wheels', [])  # pyright: ignore[reportAny]
 						if 'url' in wheel_info
 					}),
-					pydep_markers=frozendict({
-						nrm_name(dependency['name']): (  # pyright: ignore[reportAny]
+					deps=frozendict({
+						dependency['name']: (
 							PyDepMarker(marker_str=dependency['marker'])  # pyright: ignore[reportAny]
 							if 'marker' in dependency
 							else None
@@ -394,9 +390,11 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					and 'registry' in package['source']
 					# Package must not be the "current" package.
 					## - We've made the decision not to consider the root (L0) package as a PyDep.
-					and module_name != nrm_name(package['name'])  # pyright: ignore[reportAny]
+					and packaging.utils.canonicalize_name(module_name)
+					!= packaging.utils.canonicalize_name(package['name'])  # pyright: ignore[reportAny]
 				)
 			}
+			pydeps = {(pydep.name, pydep.version_string): pydep for pydep in pydeps_set}
 
 		####################
 		# - Stage 2: Parse Target (L1) Dependencies
@@ -413,7 +411,9 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			## - Always found in 'manifest.requirements'.
 			if 'requirements' in uv_lock['manifest']:
 				target_pydeps = {
-					nrm_name(dependency['name']): None  ## pyright: ignore[reportAny]
+					packaging.utils.canonicalize_name(
+						dependency['name']  ## pyright: ignore[reportAny]
+					): None
 					for dependency in uv_lock['manifest']['requirements']  # pyright: ignore[reportAny]
 				}
 			else:
@@ -426,7 +426,8 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 			root_package: dict[str, typ.Any] = next(
 				package
 				for package in uv_lock['package']  # pyright: ignore[reportAny]
-				if 'name' in package and module_name == nrm_name(package['name'])  # pyright: ignore[reportAny]
+				if 'name' in package
+				and module_name == packaging.utils.canonicalize_name(package['name'])  # pyright: ignore[reportAny]
 			)
 
 			# Parse Target Dependencies
@@ -437,7 +438,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				and 'requires-dist' in root_package['metadata']
 			):
 				target_pydeps = {
-					nrm_name(dependency['name']): PyDepMarker(  # pyright: ignore[reportAny]
+					packaging.utils.canonicalize_name(dependency['name']): PyDepMarker(  # pyright: ignore[reportAny]
 						marker_str=dependency['marker']  # pyright: ignore[reportAny]
 					)
 					if 'marker' in dependency

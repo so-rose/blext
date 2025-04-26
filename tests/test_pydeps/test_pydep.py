@@ -18,6 +18,7 @@
 
 import hypothesis as hyp
 import packaging.utils
+import packaging.version
 from frozendict import frozendict
 from hypothesis import strategies as st
 
@@ -27,38 +28,66 @@ from blext.pydeps.pydep import RE_PYDEP_NAME, RE_PYDEP_VERSION
 ####################
 # - Constants
 ####################
+ST_PYDEP_NOWHEELS_NODEPS = st.builds(
+	pydeps.PyDep,
+	name=st.from_regex(RE_PYDEP_NAME),
+	version_string=st.from_regex(RE_PYDEP_VERSION),
+	registry=st.just('https://pypi.org/simple'),
+	wheels=st.just(frozenset[pydeps.PyDepWheel]()),
+	deps=st.just(frozendict[str, pydeps.PyDepMarker | None]()),
+)
+
 ST_PYDEP_NOWHEELS = st.builds(
 	pydeps.PyDep,
 	name=st.from_regex(RE_PYDEP_NAME),
-	version=st.from_regex(RE_PYDEP_VERSION),
+	version_string=st.from_regex(RE_PYDEP_VERSION),
 	registry=st.just('https://pypi.org/simple'),
 	wheels=st.just(frozenset[pydeps.PyDepWheel]()),
-	pydep_markers=st.just(frozendict[str, pydeps.PyDepMarker | None]()),
+	deps=st.dictionaries(
+		keys=st.from_regex(RE_PYDEP_NAME),
+		values=st.just(None),
+	),
 )
 
 ST_PYDEP = st.builds(
 	pydeps.PyDep,
 	name=st.from_regex(RE_PYDEP_NAME),
-	version=st.from_regex(RE_PYDEP_VERSION),
+	version_string=st.from_regex(RE_PYDEP_VERSION),
 	registry=st.just('https://pypi.org/simple'),
 	wheels=st.just(frozenset[pydeps.PyDepWheel]()),
-	pydep_markers=st.just(frozendict[str, pydeps.PyDepMarker | None]()),
+	deps=st.just(frozendict[str, pydeps.PyDepMarker | None]()),
 )
 
 
 ####################
 # - Tests
 ####################
-@hyp.given(ST_PYDEP_NOWHEELS)
+@hyp.given(ST_PYDEP_NOWHEELS_NODEPS)
 def test_pydep_name_normalized(pydep: pydeps.PyDep) -> None:
 	"""Test that `name` has been normalized."""
 	assert packaging.utils.is_normalized_name(pydep.name)
 
 
+@hyp.given(ST_PYDEP_NOWHEELS_NODEPS)
+def test_pydep_version_string_normalized(pydep: pydeps.PyDep) -> None:
+	"""Test that `version_string` has been normalized."""
+	assert (
+		packaging.utils.canonicalize_version(pydep.version_string)
+		== pydep.version_string
+	)
+
+
+@hyp.given(ST_PYDEP_NOWHEELS_NODEPS)
+def test_pydep_version_valid(pydep: pydeps.PyDep) -> None:
+	"""Test that `version` is predictable and valid."""
+	assert packaging.version.parse(pydep.version_string) == pydep.version
+	assert packaging.version.parse(pydep.version_string) == pydep.version
+
+
 @hyp.given(ST_PYDEP_NOWHEELS)
-def test_pydep_version_normalized(pydep: pydeps.PyDep) -> None:
+def test_pydep_dep_names_normalized(pydep: pydeps.PyDep) -> None:
 	"""Test that `name` has been normalized."""
-	assert packaging.utils.canonicalize_version(pydep.version) == pydep.version
+	assert all(packaging.utils.is_normalized_name(dep_name) for dep_name in pydep.deps)
 
 
 ## TODO: Test Wheel Selection

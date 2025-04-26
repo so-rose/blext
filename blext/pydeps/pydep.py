@@ -16,12 +16,15 @@
 
 """Implements `PyDep` and `PyDepMarker."""
 
+import functools
 import re
 import typing as typ
 
 import annotated_types as atyp
 import packaging.utils
+import packaging.version
 import pydantic as pyd
+from frozendict import frozendict
 
 from blext import extyp
 from blext.utils.lru_method import lru_method
@@ -33,6 +36,8 @@ from .pydep_wheel import PyDepWheel
 ####################
 # - Constants
 ####################
+_EMPTY_FROZENSET_STR = frozenset[str]()
+
 RE_PYDEP_NAME = re.compile(r'^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])$', re.IGNORECASE)
 RE_PYDEP_VERSION = re.compile(
 	r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$'
@@ -53,20 +58,43 @@ def match_pydep_version_regex(name: str) -> bool:
 # - Class
 ####################
 class PyDep(pyd.BaseModel, frozen=True):
-	"""A Python dependency."""
+	"""Representation of a valid Python dependency.
+
+	Attributes:
+		name: The name of the Python dependency.
+		version: The version string of the Python dependency.
+		registry: The registry URL where distributions of this Python dependency can be found.
+		wheels: All wheels associated with this Python dependency.
+		markers: All markers
+
+	"""
 
 	name: typ.Annotated[
 		str,
 		atyp.Predicate(match_pydep_name_regex),
 	]
-	version: typ.Annotated[
+	version_string: typ.Annotated[
 		str,
 		atyp.Predicate(match_pydep_version_regex),
 	]
 	registry: pyd.HttpUrl
 	wheels: frozenset[PyDepWheel]
 
-	pydep_markers: FrozenDict[str, PyDepMarker | None]
+	deps: FrozenDict[
+		typ.Annotated[
+			str,
+			atyp.Predicate(match_pydep_name_regex),
+		],
+		PyDepMarker | None,
+	]
+
+	####################
+	# - Properties
+	####################
+	@functools.cached_property
+	def version(self) -> packaging.version.Version:
+		"""Standardized `packging.version.Version`, derived from `self.version_string`."""
+		return packaging.version.Version(self.version_string)
 
 	####################
 	# - Wheel Selection
@@ -86,6 +114,11 @@ class PyDep(pyd.BaseModel, frozen=True):
 
 			However, when solving dependency problems, all wheels here are theoretically otherwise OK.
 			Therefore, it makes sense to consider this subset before further filtering.
+
+		Parameters:
+			bl_platform: The target environment's Blender platform.
+			valid_python_tags: The supported Python interpreter tags of the target environment.
+			valid_abi_tags: The supported Python ABI tags of the target environment.
 
 		Returns:
 			All wheels compatible with:
@@ -124,6 +157,14 @@ class PyDep(pyd.BaseModel, frozen=True):
 		Notes:
 			These wheels are considered "valid", since they **do** take the minimum `glibc` and/or `macos` version of the target environment into account.
 
+		Parameters:
+			bl_platform: The target environment's Blender platform.
+			valid_python_tags: The supported Python interpreter tags of the target environment.
+			valid_abi_tags: The supported Python ABI tags of the target environment.
+			min_glibc_version: The minimum `glibc` version of the target environment.
+				_Ignored if the target environment is not Linux-based._
+			min_macos_version: The minimum `macos` version of the target environment.
+				_Ignored if the target environment is not MacOS-based._
 
 		Returns:
 			All wheels compatible with:
@@ -159,10 +200,40 @@ class PyDep(pyd.BaseModel, frozen=True):
 		valid_abi_tags: frozenset[str],
 		min_glibc_version: tuple[int, int],
 		min_macos_version: tuple[int, int],
-		target_descendants: frozenset[str],
+		target_descendants: frozenset[str] = _EMPTY_FROZENSET_STR,
 		err_msgs: dict[extyp.BLPlatform, list[str]] | None = None,
 	) -> PyDepWheel | None:
-		"""Select the best wheel to satisfy this dependency."""
+		"""Select the "best" wheel to implement this `PyDep` in a given Python environment.
+
+		Notes:
+			This method essentially selects the "best" wheel from `self.valid_wheels_for(...)`.
+
+			In this context, "best" means "highest OS version" (`min_glibc_version` or `min_macos_version`), since this maximizes the feature available to the user.
+
+		Parameters:
+			bl_platform: The target environment's Blender platform.
+			valid_python_tags: The supported Python interpreter tags of the target environment.
+			valid_abi_tags: The supported Python ABI tags of the target environment.
+			min_glibc_version: The minimum `glibc` version of the target environment.
+				_Ignored if the target environment is not Linux-based._
+			min_macos_version: The minimum `macos` version of the target environment.
+				_Ignored if the target environment is not MacOS-based._
+			target_descendants: Names of the downstream `PyDep`s that cause this `PyDep` to be included.
+				_Only used to prepare an error message._
+			err_msgs: Error messages to propagate to the caller by-platform.
+				_Only used to prepare an error message._
+
+		Returns:
+			All wheels compatible with:
+
+				- The given `BLPlatform` of the target environment.
+				- One of the given `valid_python_tags`.
+				- One of the given `valid_abi_tags`.
+				- An OS with at least `min_glibc_version` (Linux) or `min_macos_version` (MacOS), if relevant (Windows ignores both).
+
+			**Any wheel** returned by this method will work in the given Python environment.
+			In general, however, it's best to select the wheel with the largest `glibc` / `macos` version, as this is likely to provide the widest and/or most expected feature set for the user.
+		"""
 		####################
 		# - Step 0: Find All Valid Wheels
 		####################
@@ -260,7 +331,7 @@ class PyDep(pyd.BaseModel, frozen=True):
 			f'> 1. **Remove** `{bl_platform}` from `tool.blext.supported_platforms`.',
 			f'> 2. **Remove** `{"==".join(next(iter(target_descendants)))}` from `project.dependencies`.'
 			if len(target_descendants) == 1
-			else f'> 2. **Remove** `{self.name}=={self.version}` from `project.dependencies`.',
+			else f'> 2. **Remove** `{self.name}=={self.version_string}` from `project.dependencies`.',
 			f'> 3. **Raise** `{osver_str}` version in `tool.blext.min_{osver_str}_version`.'  # pyright: ignore[reportPossiblyUnboundVariable]
 			if semivalid_wheels and not bl_platform.is_windows
 			else '>',
@@ -278,35 +349,84 @@ class PyDep(pyd.BaseModel, frozen=True):
 	@pyd.field_validator('name', mode='after')
 	@classmethod
 	def normalize_name_field(cls, name: str) -> packaging.utils.NormalizedName:
-		"""Normalize the `name` field to its standard normalization.
+		"""Normalize the Python dependency name to its standard, comparable form.
 
 		Notes:
-			Uses `PyDep.normalize_pydep_name(name)` to perform the normalization.
+			Uses `packaging.utils.canonicalize_name(name, validate=True)` to perform the normalization.
 
 		Parameters:
 			cls: This class.
-			name: The non-normalized string value.
+			name: The non-normalized string name of the Python dependency.
+
+		Returns:
+			The normalized variant of `name`.
+
+		Raises:
+			InvalidName: If `name` is not a valid Python dependency name.
+
+		See Also:
+			- PyPa Name Normalization: <https://packaging.python.org/en/latest/specifications/name-normalization/>
+			- `packaging.utils`: <https://packaging.pypa.io/en/stable/utils.html#packaging.utils.canonicalize_name>
 		"""
 		try:
 			return packaging.utils.canonicalize_name(name, validate=True)
 		except packaging.utils.InvalidName as ex:
-			msg = 'Could not create `PyDep` with invalid name: `name`.'
+			msg = f'Could not create `PyDep` with invalid name: `{name}`.'
 			raise ValueError(msg) from ex
 
-	@pyd.field_validator('version', mode='after')
+	@pyd.field_validator('version_string', mode='after')
 	@classmethod
-	def normalize_version_field(cls, version: str) -> str:
-		"""Normalize the `name` field to its standard normalization.
+	def normalize_version_field(cls, version_string: str) -> str:
+		"""Normalize the Python dependency version string to its standard form.
 
 		Notes:
-			Uses `PyDep.normalize_pydep_name(name)` to perform the normalization.
+			Uses `packaging.utils.canonicalize_version(version_string)` to perform the normalization.
 
 		Parameters:
 			cls: This class.
-			name: The non-normalized string value.
+			version_string: The non-normalized string version of the Python dependency.
+
+		Returns:
+			The normalized variant of `version_string`.
+
+		See Also:
+			- PyPa Version Normalization: <https://packaging.python.org/en/latest/specifications/version-specifiers/#appendix-parsing-version-strings-with-regular-expressions>
+			- `packaging.utils`: <https://packaging.pypa.io/en/stable/utils.html#packaging.utils.canonicalize_version>
 		"""
-		try:
-			return packaging.utils.canonicalize_version(version)
-		except packaging.utils.InvalidName as ex:
-			msg = 'Could not create `PyDep` with invalid name: `name`.'
-			raise ValueError(msg) from ex
+		return packaging.utils.canonicalize_version(version_string)
+
+	@pyd.field_validator('deps', mode='after')
+	@classmethod
+	def normalize_deps_names(
+		cls, deps: frozendict[str, PyDepMarker | None]
+	) -> frozendict[packaging.utils.NormalizedName, PyDepMarker | None]:
+		"""Normalize all Python dependency names of this `PyDep`'s own dependencies.
+
+		Notes:
+			Uses `packaging.utils.canonicalize_name(name, validate=True)` to perform each normalization.
+
+		Parameters:
+			cls: This class.
+			deps: The dependencies of this `PyDep`, including any markers, but with non-normalized string names.
+
+		Returns:
+			`deps`, but with normalized string names.
+
+		Raises:
+			InvalidName: If one of the keys of `deps` is not a valid Python dependency name.
+
+		See Also:
+			- PyPa Version Normalization: <https://packaging.python.org/en/latest/specifications/version-specifiers/#appendix-parsing-version-strings-with-regular-expressions>
+			- `packaging.utils`: <https://packaging.pypa.io/en/stable/utils.html#packaging.utils.canonicalize_version>
+		"""
+		normalized_deps = dict[str, PyDepMarker | None]()
+		for dep_name, dep_marker in deps.copy().items():
+			try:
+				normalized_deps[
+					packaging.utils.canonicalize_name(dep_name, validate=True)
+				] = dep_marker
+			except packaging.utils.InvalidName as ex:
+				msg = f'Could not parse `dep_name` (`{dep_name}`) of a `PyDep` dependency.'
+				raise ValueError(msg) from ex
+
+		return frozendict(normalized_deps)
