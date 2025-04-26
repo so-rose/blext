@@ -16,6 +16,7 @@ dependencies = [
 	"annotated-types>=0.7.0",
 	"cyclopts>=3.1.5",
 	"frozendict>=2.4.6",
+	"gitpython>=3.1.44",
 	"networkx>=3.4.2",
 	"packaging>=24.2",
 	"platformdirs>=4.3.6",
