@@ -27,7 +27,7 @@ from pathlib import Path
 from .pydep_wheel import PyDepWheel
 
 if typ.TYPE_CHECKING:
-	import collections.abc
+	import collections.abc as cabc
 
 
 ####################
@@ -70,7 +70,7 @@ def download_wheel(
 		urllib.request.urlopen(wheel_url, timeout=10) as www_wheel,  # pyright: ignore[reportAny]
 		wheel_path.open('wb') as f_wheel,
 	):
-		raw_data_iterator: collections.abc.Iterator[bytes] = iter(
+		raw_data_iterator: cabc.Iterator[bytes] = iter(
 			functools.partial(
 				www_wheel.read,  # pyright: ignore[reportAny]
 				DOWNLOAD_CHUNK_BYTES,

@@ -14,23 +14,4 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Manage Python dependencies of Blender extensions."""
-
-from . import uv
-from .blext_deps import BLExtDeps
-from .pydep import PyDep
-from .pydep_download import download_wheel, download_wheels
-from .pydep_marker import PyDepMarker
-from .pydep_wheel import MANYLINUX_LEGACY_ALIASES, PyDepWheel
-
-__all__ = [
-	'MANYLINUX_LEGACY_ALIASES',
-	'BLExtDeps',
-	'PyDep',
-	'PyDepMarker',
-	'PyDepWheel',
-	'download_wheel',
-	'download_wheels',
-	'pydep',
-	'uv',
-]
+"""Tests `blext.cli.show_path_global_config`."""
