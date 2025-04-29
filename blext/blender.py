@@ -225,7 +225,7 @@ def detect_blender_version(blender_exe: Path) -> extyp.BLVersion:
 	)
 
 	# Extract Version Output String
-	bl_release = extyp.BLReleaseDiscovered.from_blender_version_output(
+	bl_release = extyp.BLReleaseDetected.from_blender_version_output(
 		blender_version_output
 	)
 	return bl_release.bl_version

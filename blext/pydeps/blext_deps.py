@@ -332,6 +332,8 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 				- **Project Extensions**: The package folder name, such that `<module_name>/__init__.py` exists and has the extension's `register()` method.
 				- `BLExtSpec.id`: The
 		"""
+		module_name = packaging.utils.canonicalize_name(module_name)
+
 		####################
 		# - Stage 1: Parse [[package]]
 		####################
@@ -390,7 +392,7 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 					and 'registry' in package['source']
 					# Package must not be the "current" package.
 					## - We've made the decision not to consider the root (L0) package as a PyDep.
-					and packaging.utils.canonicalize_name(module_name)
+					and module_name
 					!= packaging.utils.canonicalize_name(package['name'])  # pyright: ignore[reportAny]
 				)
 			}
