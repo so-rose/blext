@@ -38,8 +38,6 @@ from frozendict import frozendict
 
 from blext.utils.pydantic_frozendict import FrozenDict
 
-from .log_level import BLExtLogLevel
-
 
 ####################
 # - Release Profiles
@@ -61,17 +59,12 @@ class ReleaseProfile(pyd.BaseModel, frozen=True):
 		- Extensions must explicitly load `init_settings.toml` and use the fields within.
 	"""
 
-	init_settings_filename: typ.Literal['init_settings.toml'] = 'init_settings.toml'
+	init_settings_filename: typ.Literal['release_config.toml'] = 'release_config.toml'
 
-	use_log_file: bool
-	log_file_name: str
-	log_file_level: BLExtLogLevel
-	use_log_console: bool
-	log_console_level: BLExtLogLevel
+	config: FrozenDict[str, typ.Any] | None = None
+	overrides: FrozenDict[str, typ.Any] | None = None
 
-	overrides: FrozenDict[str, typ.Any] = frozendict()
-
-	def export_init_settings(self, *, fmt: typ.Literal['json', 'toml']) -> str:
+	def export(self, *, fmt: typ.Literal['json', 'toml']) -> str:
 		"""Initialization settings for this release profile, as a string.
 
 		Parameters:
@@ -80,28 +73,14 @@ class ReleaseProfile(pyd.BaseModel, frozen=True):
 		Returns:
 			Initialization settings as a formatted string.
 		"""
-		# Parse Model to JSON
-		## - JSON is used like a Rosetta Stone, since it is best supported by pydantic.
-		json_str = self.model_dump_json(
-			include={
-				'use_log_file',
-				'log_file_name',
-				'log_file_level',
-				'use_log_console',
-				'log_console_level',
-			},
-			by_alias=True,
+		manifest_export: dict[str, typ.Any] = self.model_dump(
+			mode='json', exclude_none=True
 		)
-
-		# Return String as Format
-		if fmt == 'json':
-			return json_str
-		if fmt == 'toml':
-			json_dict: dict[str, typ.Any] = json.loads(json_str)
-			return tomli_w.dumps(json_dict)
-
-		msg = f'Cannot export init settings to the given unknown format: {fmt}'  # pyright: ignore[reportUnreachable]
-		raise ValueError(msg)
+		match fmt:
+			case 'json':
+				return json.dumps(manifest_export)
+			case 'toml':
+				return tomli_w.dumps(manifest_export)
 
 
 ####################
@@ -117,37 +96,44 @@ class StandardReleaseProfile(enum.StrEnum):
 
 	@functools.cached_property
 	def release_profile(self) -> ReleaseProfile:
-		"""A sensible default for common release profiles."""
+		"""Sensible default fields for common release profiles."""
 		log_file_name = 'addon.log'
 
 		SRP = StandardReleaseProfile
 		return {
 			SRP.Test: ReleaseProfile(
-				use_log_file=True,
-				log_file_name=log_file_name,
-				log_file_level=BLExtLogLevel.Debug,
-				use_log_console=True,
-				log_console_level=BLExtLogLevel.Info,
+				config=frozendict({
+					'use_log_file': True,
+					'log_file_name': log_file_name,
+					'log_file_level': 'debug',
+					'use_log_console': True,
+					'log_console_level': 'info',
+				})
 			),
 			SRP.Dev: ReleaseProfile(
-				use_log_file=True,
-				log_file_name=log_file_name,
-				log_file_level=BLExtLogLevel.Debug,
-				use_log_console=True,
-				log_console_level=BLExtLogLevel.Info,
+				config=frozendict({
+					'use_log_file': True,
+					'log_file_name': log_file_name,
+					'log_file_level': 'debug',
+					'use_log_console': True,
+					'log_console_level': 'info',
+				})
 			),
 			SRP.Release: ReleaseProfile(
-				use_log_file=False,
-				log_file_name=log_file_name,
-				log_file_level=BLExtLogLevel.Debug,
-				use_log_console=True,
-				log_console_level=BLExtLogLevel.Warning,
+				config=frozendict({
+					'use_log_file': False,
+					'log_file_level': 'debug',
+					'use_log_console': True,
+					'log_console_level': 'warning',
+				})
 			),
 			SRP.ReleaseDebug: ReleaseProfile(
-				use_log_file=True,
-				log_file_name=log_file_name,
-				log_file_level=BLExtLogLevel.Debug,
-				use_log_console=True,
-				log_console_level=BLExtLogLevel.Info,
+				config=frozendict({
+					'use_log_file': True,
+					'log_file_name': log_file_name,
+					'log_file_level': 'debug',
+					'use_log_console': True,
+					'log_console_level': 'info',
+				})
 			),
 		}[self]

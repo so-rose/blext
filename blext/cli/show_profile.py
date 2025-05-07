@@ -53,7 +53,7 @@ def show_profile(
 	# Show BLExtSpec
 	if blext_spec.release_profile is not None:
 		CONSOLE.print(
-			blext_spec.release_profile.export_init_settings(fmt=format),
+			blext_spec.release_profile.export(fmt=format),
 			markup=False,
 			end='',
 		)

@@ -407,7 +407,7 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					err_msgs=err_msgs,
 					err_num_missing_wheels=err_num_missing_wheels,
 				)
-				for bl_platform in self.granular_bl_platforms
+				for bl_platform in self.sorted_granular_bl_platforms
 				if bl_platform in bl_version.valid_bl_platforms
 			})
 			for bl_version in self.sorted_bl_versions
@@ -423,10 +423,11 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 
 		msgs = [
 			err_msg
-			for bl_platform_err_msgs in err_msgs.values()
+			for bl_version_err_msgs in err_msgs.values()
+			for bl_platform_err_msgs in bl_version_err_msgs.values()
 			for err_msg in bl_platform_err_msgs
 		] + [
-			f'**Missing Wheels** for `{bl_version.pretty_version}`:\n'
+			f'**Num. Missing Wheels** for `{bl_version.pretty_version}`:\n'
 			+ '\n'.join([
 				f'> `{bl_platform}`: {err_num_missing_wheels[bl_version][bl_platform]}'
 				for bl_platform in self.sorted_granular_bl_platforms
@@ -950,8 +951,8 @@ class BLExtSpec(pyd.BaseModel, frozen=True):
 					path_uv_exe=path_uv_exe,
 				),
 				module_name=project['name'],  # pyright: ignore[reportAny]
-				min_glibc_version=blext_spec_dict.get('min_glibc_version'),
-				min_macos_version=blext_spec_dict.get('min_macos_version'),
+				min_glibc_version_tuple=blext_spec_dict.get('min_glibc_version'),
+				min_macos_version_tuple=blext_spec_dict.get('min_macos_version'),
 				valid_python_tags=blext_spec_dict.get('supported_python_tags'),
 				valid_abi_tags=blext_spec_dict.get('supported_abi_tags'),
 			),

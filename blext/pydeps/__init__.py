@@ -21,10 +21,9 @@ from .blext_deps import BLExtDeps
 from .pydep import PyDep
 from .pydep_download import download_wheel, download_wheels
 from .pydep_marker import PyDepMarker
-from .pydep_wheel import MANYLINUX_LEGACY_ALIASES, PyDepWheel
+from .pydep_wheel import PyDepWheel
 
 __all__ = [
-	'MANYLINUX_LEGACY_ALIASES',
 	'BLExtDeps',
 	'PyDep',
 	'PyDepMarker',

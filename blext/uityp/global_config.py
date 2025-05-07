@@ -64,7 +64,7 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 
 	# Global Cache Path
 	path_global_cache: typ.Annotated[
-		Path,
+		pyd.DirectoryPath,
 		cyclopts.Parameter(
 			env_var='BLEXT_PATH_GLOBAL_CACHE',
 		),
@@ -210,21 +210,11 @@ class GlobalConfig(pyd.BaseModel, frozen=True):
 	####################
 	@pyd.field_validator('path_global_cache', mode='after')
 	@classmethod
-	def mkdir_path_global_cache(cls, value: Path) -> Path:
+	def validate_path_global_cache_is_writable(cls, value: Path) -> Path:
 		"""Ensure the global cache path exists."""
-		# Doesn't Exist: Create Folder
-		if not value.exists():
-			value.mkdir(parents=True, exist_ok=True)
-
-		# Exists, Not Folder: Error
-		elif not value.is_dir():
-			msg = f"The global cache path {value} is not a folder, yet it exists. Please remove this path, or adjust blext's global cache path."
-			raise ValueError(msg)
-
-		# Exists, Is Folder: Check Read/Write Permissions
+		# Check Read/Write Permissions
 		## - I know, I know, "forgiveness vs permission" and all that.
-		## - I raise you "explicit is better than implicit".
-		## - Why are you reading this? Because you care. Let's get a coffee or something.
+		## - But let's be good to the user and tell them if this expectation is not upheld.
 		if os.access(value, os.R_OK):
 			if os.access(value, os.W_OK):
 				return value

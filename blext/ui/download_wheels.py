@@ -166,7 +166,7 @@ def ui_download_wheels(
 	# - Layout: Static UI
 	####################
 	max_wheel_project_length = max([
-		*[len(wheel.project) for wheel in wheels_to_download],
+		*[len(wheel.pydep_name) for wheel in wheels_to_download],
 		len('Name'),
 	])
 
@@ -204,7 +204,7 @@ def ui_download_wheels(
 		for wheel in sorted(progress_download_wheels, key=lambda wheel: wheel.filename):
 			if task_download_wheels[wheel] is not None:
 				table_wheel_progress.add_row(
-					wheel.project,
+					wheel.pydep_name,
 					wheel.pretty_bl_platforms,
 					progress_download_wheels[wheel],
 				)

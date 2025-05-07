@@ -15,3 +15,20 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Tests `blext.pydeps.pydep_wheel`."""
+
+from hypothesis import provisional as st_prov
+from hypothesis import strategies as st
+
+from blext import pydeps
+from blext.pydeps.pydep_wheel import RE_SHA256_HASH
+
+####################
+# - Constants
+####################
+ST_PYDEP_WHEEL = st.builds(
+	pydeps.PyDep,
+	url=st_prov.urls(),
+	registry=st.just('https://pypi.org/simple'),
+	hash=st.from_regex(RE_SHA256_HASH),
+	size=st.integers(),
+)

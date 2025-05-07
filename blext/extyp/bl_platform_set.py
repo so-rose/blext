@@ -20,6 +20,7 @@ import collections.abc
 import functools
 import typing as typ
 
+import semver.version
 from frozendict import frozendict
 
 from .bl_platform import BLPlatform
@@ -33,12 +34,12 @@ from .bl_version import BLVersion
 class IPyDepWheel(typ.Protocol):
 	"""Matches `blext.pydeps.PyDepWheel`."""
 
-	def works_with_platform(
+	def works_with_bl_platform(
 		self,
 		bl_platform: BLPlatform,
 		*,
-		min_glibc_version: tuple[int, int] | None,
-		min_macos_version: tuple[int, int] | None,
+		min_glibc_version: semver.version.Version | None,
+		min_macos_version: semver.version.Version | None,
 	) -> bool:
 		"""Matches `blext.pydeps.PyDepWheel`."""
 		...
@@ -165,8 +166,8 @@ class BLPlatformSet(str):
 		bl_platform: BLPlatform,
 		*,
 		ext_bl_versions: frozenset[BLVersion],
-		ext_min_glibc_version: tuple[int, int] | None,
-		ext_min_macos_version: tuple[int, int] | None,
+		ext_min_glibc_version: semver.version.Version | None,
+		ext_min_macos_version: semver.version.Version | None,
 		ext_wheels_granular: frozendict[
 			BLVersion, frozendict[BLPlatform, frozenset[IPyDepWheel]]
 		],
@@ -175,7 +176,7 @@ class BLPlatformSet(str):
 		# IF all wheels that work with me, also work with you, then smoosh is valid.
 		##
 		return all(
-			wheel.works_with_platform(
+			wheel.works_with_bl_platform(
 				bl_platform,
 				min_glibc_version=(
 					bl_version.min_glibc_version

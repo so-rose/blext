@@ -24,6 +24,7 @@ import annotated_types as atyp
 import packaging.utils
 import packaging.version
 import pydantic as pyd
+import semver.version
 from frozendict import frozendict
 
 from blext import extyp
@@ -135,7 +136,7 @@ class PyDep(pyd.BaseModel, frozen=True):
 			# The wheel must work in an environment that supports the given ABI tags.
 			and wheel.works_with_abi_tags(valid_abi_tags)
 			# The wheel must work for any OS version of the given BLPlatform.
-			and wheel.works_with_platform(
+			and wheel.works_with_bl_platform(
 				bl_platform=bl_platform,
 				min_glibc_version=None,
 				min_macos_version=None,
@@ -149,8 +150,8 @@ class PyDep(pyd.BaseModel, frozen=True):
 		bl_platform: extyp.BLPlatform,
 		valid_python_tags: frozenset[str],
 		valid_abi_tags: frozenset[str],
-		min_glibc_version: tuple[int, int],
-		min_macos_version: tuple[int, int],
+		min_glibc_version: semver.version.Version,
+		min_macos_version: semver.version.Version,
 	) -> frozenset[PyDepWheel]:
 		"""Select all wheels that implement this `PyDep`, which work with the given Python environment.
 
@@ -185,7 +186,7 @@ class PyDep(pyd.BaseModel, frozen=True):
 				valid_abi_tags=valid_abi_tags,
 			)
 			# The wheel must work for the constrained OS version of the given BLPlatform.
-			if wheel.works_with_platform(
+			if wheel.works_with_bl_platform(
 				bl_platform=bl_platform,
 				min_glibc_version=min_glibc_version,
 				min_macos_version=min_macos_version,
@@ -198,8 +199,8 @@ class PyDep(pyd.BaseModel, frozen=True):
 		bl_platform: extyp.BLPlatform,
 		valid_python_tags: frozenset[str],
 		valid_abi_tags: frozenset[str],
-		min_glibc_version: tuple[int, int],
-		min_macos_version: tuple[int, int],
+		min_glibc_version: semver.version.Version,
+		min_macos_version: semver.version.Version,
 		target_descendants: frozenset[str] = _EMPTY_FROZENSET_STR,
 		err_msgs: dict[extyp.BLPlatform, list[str]] | None = None,
 	) -> PyDepWheel | None:
@@ -265,12 +266,12 @@ class PyDep(pyd.BaseModel, frozen=True):
 
 				## Error Handling
 				osver_str = 'glibc'
-				min_osver_str = '.'.join(str(i) for i in min_glibc_version)
+				min_osver_str = f'{min_glibc_version.major}.{min_glibc_version.minor}'
 				semivalid_wheel_osver_strs = {
-					semivalid_wheel: ', '.join(
-						'.'.join(str(i) for i in glibc_version)
-						for glibc_version in semivalid_wheel.glibc_versions.values()
-						if glibc_version is not None
+					semivalid_wheel: (
+						f'{semivalid_wheel.min_glibc_version.major}.{semivalid_wheel.min_glibc_version.minor}'
+						if semivalid_wheel.min_glibc_version is not None
+						else ''
 					)
 					for semivalid_wheel in semivalid_wheels
 				}
@@ -285,12 +286,12 @@ class PyDep(pyd.BaseModel, frozen=True):
 
 				## Error Handling
 				osver_str = 'macos'
-				min_osver_str = '.'.join(str(i) for i in min_macos_version)
+				min_osver_str = f'{min_macos_version.major}.{min_macos_version.minor}'
 				semivalid_wheel_osver_strs = {
-					semivalid_wheel: ', '.join(
-						'.'.join(str(i) for i in macos_version)
-						for macos_version in semivalid_wheel.macos_versions.values()
-						if macos_version is not None
+					semivalid_wheel: (
+						f'{semivalid_wheel.min_macos_version.major}.{semivalid_wheel.min_macos_version.minor}'
+						if semivalid_wheel.min_macos_version is not None
+						else ''
 					)
 					for semivalid_wheel in semivalid_wheels
 				}

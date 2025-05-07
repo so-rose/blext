@@ -187,7 +187,7 @@ def pack_bl_extension(  # noqa: PLR0913
 			_ = cb_update_status('Writing Release Profile to `init_settings.toml`')
 			f_zip.writestr(
 				blext_spec.release_profile.init_settings_filename,
-				blext_spec.release_profile.export_init_settings(fmt='toml'),
+				blext_spec.release_profile.export(fmt='toml'),
 			)
 
 		####################

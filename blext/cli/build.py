@@ -161,21 +161,21 @@ def build(  # noqa: C901, PLR0912, PLR0913, PLR0915
 	bl_platforms = blext_info.bl_platforms(global_config)
 
 	if any([
-		blext_spec.deps.min_glibc_version is not None,
-		blext_spec.deps.min_macos_version is not None,
+		blext_spec.deps.min_glibc_version_tuple is not None,
+		blext_spec.deps.min_macos_version_tuple is not None,
 		blext_spec.deps.valid_python_tags is not None,
 		blext_spec.deps.valid_abi_tags is not None,
 	]):
-		if blext_spec.deps.min_glibc_version is not None:
+		if blext_spec.deps.min_glibc_version_tuple is not None:
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					f'Using **modified platform support** `min_glibc_version={list(blext_spec.deps.min_glibc_version)}`'
+					f'Using **modified platform support** `min_glibc_version={list(blext_spec.deps.min_glibc_version_tuple)}`'
 				)
 			)
-		if blext_spec.deps.min_macos_version is not None:
+		if blext_spec.deps.min_macos_version_tuple is not None:
 			CONSOLE.print(
 				rich.markdown.Markdown(
-					f'Using **modified platform support**: `min_macos_version={list(blext_spec.deps.min_macos_version)}`'
+					f'Using **modified platform support**: `min_macos_version={list(blext_spec.deps.min_macos_version_tuple)}`'
 				)
 			)
 		if blext_spec.deps.valid_python_tags is not None:

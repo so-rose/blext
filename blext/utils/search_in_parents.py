@@ -26,7 +26,7 @@ def search_in_parents(path: Path, filename: str) -> Path | None:
 	"""Search all parents of a path for a file.
 
 	Notes:
-		The input `path` is itself searched for the filename, but only if it is a directory.
+		If `path` is a directory, then it is also searched for a file named `filename`.
 
 	Parameters:
 		path: The path to search the parents of.

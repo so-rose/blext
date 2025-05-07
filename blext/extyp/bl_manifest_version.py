@@ -41,6 +41,6 @@ class BLManifestVersion(enum.StrEnum):
 		}[self]
 
 	@functools.cached_property
-	def semantic_version(self) -> Version:
+	def version(self) -> Version:
 		"""Class representing this Blender manifest schema."""
 		return Version.parse(self)

@@ -86,8 +86,8 @@ def show_deps(
 
 		for wheel in blext_wheels:
 			table.add_row(
-				wheel.project,
-				wheel.version,
+				wheel.pydep_name,
+				str(wheel.pydep_version),
 				*([bl_version_strs[wheel]] if not all_the_same else []),
 				', '.join(list(wheel.platform_tags)),
 				', '.join(list(wheel.python_tags))

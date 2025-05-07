@@ -28,7 +28,6 @@ dependencies = [
 	"tomli-w>=1.1.0",
 	"tomlkit>=0.13.2",
 	"uv>=0.6.17",
-	"wheel-filename>=1.4.2",
 ]
 
 classifiers = [
@@ -48,7 +47,7 @@ Homepage = "https://git.sofus.io/so-rose/blext"
 
 [dependency-groups]
 dev = [
-    "basedpyright>=1.28.1",
+    "basedpyright>=1.29.1",
     "bpy>=4.3.0",
     "commitizen>=4.1.0",
     "cz-conventional-gitmoji>=0.6.1",

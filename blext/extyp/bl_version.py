@@ -33,12 +33,41 @@ import typing as typ
 
 import packaging.version
 import pydantic as pyd
-from frozendict import deepfreeze, frozendict
+import semver.version
+from frozendict import frozendict
 
 from blext.utils.pydantic_frozendict import FrozenDict
 
 from .bl_manifest_version import BLManifestVersion
 from .bl_platform import BLPlatform
+
+
+####################
+# - Python Environment w/Extra
+####################
+class EnvironmentWithExtra(typ.TypedDict):
+	"""Variant of `packaging.markers.Environment` that includes an attribute `extra: str`.
+
+	Notes:
+		Technically, `packaging.markers.Marker.evaluate` takes an environment that includes `extra: str`.
+		However, `packaging.markers.Environment` does not allow such an attribute.
+
+		This object thus works around this limitation, while preserving the ability to use the type system to validate the correctness of a passed environment.
+
+	"""
+
+	implementation_name: str
+	implementation_version: str
+	os_name: str
+	platform_machine: str
+	platform_release: str
+	platform_system: str
+	platform_version: str
+	python_full_version: str
+	platform_python_implementation: str
+	python_version: str
+	sys_platform: str
+	extra: str
 
 
 ####################
@@ -62,8 +91,8 @@ class BLVersion(pyd.BaseModel, frozen=True):
 
 	# Platform Compatibility
 	valid_bl_platforms: frozenset[BLPlatform]
-	min_glibc_version: tuple[int, int]
-	min_macos_version: tuple[int, int]
+	min_glibc_version_tuple: tuple[int, int]
+	min_macos_version_tuple: tuple[int, int]
 
 	# Python Compatibility
 	py_sys_version: tuple[int, int, int, str, int]
@@ -86,7 +115,7 @@ class BLVersion(pyd.BaseModel, frozen=True):
 		"""The latest supported Blender manifest version."""
 		return sorted(
 			self.valid_manifest_versions,
-			key=lambda el: el.semantic_version,
+			key=lambda el: el.version,
 		)[-1]
 
 	@functools.cached_property
@@ -98,6 +127,16 @@ class BLVersion(pyd.BaseModel, frozen=True):
 			pkg_name: packaging.version.Version(pkg_version_str)
 			for pkg_name, pkg_version_str in self.vendored_site_package_strs.items()
 		})
+
+	@functools.cached_property
+	def min_glibc_version(self) -> semver.version.Version:
+		"""The minimum supported `glibc` version of this version of Blender, as a `semver.version.Version`."""
+		return semver.version.Version(*self.min_glibc_version_tuple)
+
+	@functools.cached_property
+	def min_macos_version(self) -> semver.version.Version:
+		"""The minimum supported `macos` version of this version of Blender, as a `semver.version.Version`."""
+		return semver.version.Version(*self.min_glibc_version_tuple)
 
 	####################
 	# - Pretty Version
@@ -279,7 +318,7 @@ class BLVersion(pyd.BaseModel, frozen=True):
 		self,
 		*,
 		pkg_name: str | None = None,
-	) -> frozendict[BLPlatform, tuple[frozendict[str, str], ...]]:
+	) -> frozendict[BLPlatform, tuple[EnvironmentWithExtra, ...]]:
 		"""All supported marker environments, indexed by `BLPlatform`.
 
 		Notes:
@@ -311,35 +350,34 @@ class BLVersion(pyd.BaseModel, frozen=True):
 			for bl_platform in self.valid_bl_platforms
 		}
 
-		_initial_frozenset: frozenset[str] = frozenset()
-		pymarker_environments = {
-			bl_platform: [
-				{
+		return frozendict({
+			bl_platform: tuple([
+				frozendict[str, str]({
 					'implementation_name': self.pymarker_implementation_name,
 					'implementation_version': self.pymarker_implementation_version,
 					'os_name': bl_platform.pymarker_os_name,
 					'platform_machine': platform_machine,
 					'platform_release': '',
 					'platform_system': bl_platform.pymarker_platform_system,
+					'platform_version': '',
 					'python_full_version': f'{major}.{minor}.{patch}',
 					'platform_python_implementation': self.pymarker_platform_python_implementation,
 					'python_version': f'{major}.{minor}',
 					'sys_platform': bl_platform.pymarker_sys_platform,
 					'extra': pymarker_extra,
-				}
+				})
 				for platform_machine in pymarker_platform_machines[bl_platform]
 				for pymarker_extra in (
 					self.pymarker_extras
 					| (
-						_initial_frozenset
+						frozenset[str]()
 						if pkg_name is None
 						else self.pymarker_encoded_package_extras(pkg_name)
 					)
 				)
-			]
+			])
 			for bl_platform in self.valid_bl_platforms
-		}
-		return deepfreeze(pymarker_environments)  # pyright: ignore[reportAny]
+		})
 
 	####################
 	# - "Smooshing"
@@ -482,8 +520,12 @@ class BLVersion(pyd.BaseModel, frozen=True):
 					self.valid_extension_tags & other.valid_extension_tags
 				),
 				valid_bl_platforms=(self.valid_bl_platforms & other.valid_bl_platforms),
-				min_glibc_version=min(self.min_glibc_version, other.min_glibc_version),
-				min_macos_version=min(self.min_macos_version, other.min_macos_version),
+				min_glibc_version_tuple=min(
+					self.min_glibc_version_tuple, other.min_glibc_version_tuple
+				),
+				min_macos_version_tuple=min(
+					self.min_macos_version_tuple, other.min_macos_version_tuple
+				),
 				py_sys_version=min(self.py_sys_version, other.py_sys_version),
 				valid_python_tags=(self.valid_python_tags & other.valid_python_tags),
 				valid_abi_tags=(self.valid_abi_tags & other.valid_abi_tags),

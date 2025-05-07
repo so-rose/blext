@@ -17,6 +17,7 @@
 """Implements `PyDep` and `PyDepMarker."""
 
 import functools
+import typing as typ
 
 import packaging.markers
 import pydantic as pyd
@@ -34,7 +35,11 @@ class PyDepMarker(pyd.BaseModel, frozen=True):
 	####################
 	@functools.cached_property
 	def marker(self) -> packaging.markers.Marker:
-		"""Parsed marker whose `evaluate()` method checks it against a Python environment."""
+		"""Parsed marker whose `evaluate()` method checks it against a Python environment.
+
+		Raises:
+			packaging.markers.InvalidMarker: If the marker string doesn't conform to the Python marker specification.
+		"""
 		return packaging.markers.Marker(self.marker_str)
 
 	####################
@@ -68,16 +73,25 @@ class PyDepMarker(pyd.BaseModel, frozen=True):
 
 		"""
 		return any(
-			self.marker.evaluate(environment=pymarker_environment)
-			for pymarker_environment in [
-				# dict() each 'environment' by-platform.
-				## - 'pymarker_environment' encodes the 'extra' corresponding to the Blender version.
-				## - For example: {'extra': 'bl4-2'}
-				## - By specifying 'pkg_name', 'pymarker_environment' also has 'extra' by-package.
-				## - For example: {'extra': 'extra-11-simple-proj-bl4-2'}
-				dict(pymarker_environment)
-				for pymarker_environment in bl_version.pymarker_environments(
-					pkg_name=pkg_name
-				)[bl_platform]
-			]
+			self.marker.evaluate(environment=pymarker_environment)  # pyright: ignore[reportArgumentType]
+			## - 'pymarker_environment' encodes the 'extra' corresponding to the Blender version.
+			## - For example: {'extra': 'bl4-2'}
+			## - By specifying 'pkg_name', 'pymarker_environment' also has 'extra' by-package.
+			## - For example: {'extra': 'extra-11-simple-proj-bl4-2'}
+			for pymarker_environment in bl_version.pymarker_environments(
+				pkg_name=pkg_name
+			)[bl_platform]
 		)
+
+	####################
+	# - Validators
+	####################
+	@pyd.model_validator(mode='after')
+	def validate_marker_validity(self) -> typ.Self:
+		"""Guarantee that `self.marker_str` is a valid marker string.
+
+		Notes:
+			Performs an anonymous access to `self.marker`, with the side effect of filling that property's cache.
+		"""
+		_ = self.marker
+		return self

@@ -22,6 +22,7 @@ import typing as typ
 import networkx as nx
 import packaging.utils
 import pydantic as pyd
+import semver.version
 from frozendict import frozendict
 
 from blext import extyp
@@ -40,10 +41,27 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 
 	# PyDepWheel Constraint Overrides
 	## - 'None' will use the property from `bl_version`.
-	min_glibc_version: tuple[int, int] | None = None
-	min_macos_version: tuple[int, int] | None = None
+	min_glibc_version_tuple: tuple[int, int] | None = None
+	min_macos_version_tuple: tuple[int, int] | None = None
 	valid_python_tags: frozenset[str] | None = None
 	valid_abi_tags: frozenset[str] | None = None
+
+	####################
+	# - Key Properties
+	####################
+	@functools.cached_property
+	def min_glibc_version(self) -> semver.version.Version | None:
+		"""The minimum supported `glibc` version of this version of Blender, as a `semver.version.Version`."""
+		if self.min_glibc_version_tuple is not None:
+			return semver.version.Version(*self.min_glibc_version_tuple)
+		return None
+
+	@functools.cached_property
+	def min_macos_version(self) -> semver.version.Version | None:
+		"""The minimum supported `macos` version of this version of Blender, as a `semver.version.Version`."""
+		if self.min_macos_version_tuple is not None:
+			return semver.version.Version(*self.min_macos_version_tuple)
+		return None
 
 	####################
 	# - PyDeps Dependency Graph
@@ -163,12 +181,6 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		## - We deal with this by never letting them progress to "finding wheels"...
 		## - ...since no wheels would be able to be found.
 		## - This works. Kind of. Egh.
-		##
-		## Dear Blender Devs: I beg you to run a PyPi repo for your homebrew builds.
-		## - That way we can all just pin your repo...
-		## - ...and easily duplicate Blender's Python environment.
-		## - How-To for Gitea: https://docs.gitea.com/1.18/packages/packages/pypi
-		## - I love you all <3. And thank you for coming to my TED Talk.
 
 		# We need a fuller story than just `pydep_name` - we need (pydep_name, pydep_version)!
 		## There should be exactly one of these, otherwise something is very wrong.
@@ -317,8 +329,8 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		uv_lock: frozendict[str, typ.Any],
 		*,
 		module_name: str,
-		min_glibc_version: tuple[int, int] | None = None,
-		min_macos_version: tuple[int, int] | None = None,
+		min_glibc_version_tuple: tuple[int, int] | None = None,
+		min_macos_version_tuple: tuple[int, int] | None = None,
 		valid_python_tags: frozenset[str] | None = None,
 		valid_abi_tags: frozenset[str] | None = None,
 	) -> typ.Self:
@@ -452,8 +464,8 @@ class BLExtDeps(pyd.BaseModel, frozen=True):
 		return cls(
 			pydeps=frozendict(pydeps),
 			target_pydeps=frozendict(target_pydeps),
-			min_glibc_version=min_glibc_version,
-			min_macos_version=min_macos_version,
+			min_glibc_version_tuple=min_glibc_version_tuple,
+			min_macos_version_tuple=min_macos_version_tuple,
 			valid_python_tags=valid_python_tags,
 			valid_abi_tags=valid_abi_tags,
 		)

@@ -29,7 +29,6 @@ from .blext_location import BLExtLocation
 from .blext_location_git import BLExtLocationGit
 from .blext_location_http import BLExtLocationHttp
 from .blext_location_path import BLExtLocationPath
-from .log_level import BLExtLogLevel
 from .release_profile import ReleaseProfile, StandardReleaseProfile
 from .spdx_license import SPDXLicense
 
@@ -38,7 +37,6 @@ __all__ = [
 	'BLExtLocationGit',
 	'BLExtLocationHttp',
 	'BLExtLocationPath',
-	'BLExtLogLevel',
 	'BLManifest',
 	'BLManifest1_0_0',
 	'BLManifestVersion',

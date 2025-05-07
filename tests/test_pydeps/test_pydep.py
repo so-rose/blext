@@ -81,7 +81,6 @@ def test_pydep_version_string_normalized(pydep: pydeps.PyDep) -> None:
 def test_pydep_version_valid(pydep: pydeps.PyDep) -> None:
 	"""Test that `version` is predictable and valid."""
 	assert packaging.version.parse(pydep.version_string) == pydep.version
-	assert packaging.version.parse(pydep.version_string) == pydep.version
 
 
 @hyp.given(ST_PYDEP_NOWHEELS)

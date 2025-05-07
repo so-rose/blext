@@ -102,7 +102,7 @@ class BLPlatform(enum.StrEnum):
 				'fat64',
 			}),
 			BLP.macos_arm64: frozenset({'arm64', 'universal2'}),
-			BLP.windows_x64: frozenset({'', 'amd64'}),
+			BLP.windows_x64: frozenset({'amd64'}),
 			BLP.windows_arm64: frozenset({'arm64'}),
 		}[self]
 

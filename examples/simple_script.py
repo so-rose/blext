@@ -41,7 +41,7 @@
 # authors = [
 #     { name = "John Doe", email = "jdoe@example.com" },
 # ]
-# license = { text = "AGPL-3.0-or-later" }
+# license = "AGPL-3.0-or-later"
 #
 # [tool.blext]
 # pretty_name = "Single File Extension Example"

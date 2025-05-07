@@ -83,7 +83,6 @@ dependencies = [
     { name = "tomli-w" },
     { name = "tomlkit" },
     { name = "uv" },
-    { name = "wheel-filename" },
 ]
 
 [package.dev-dependencies]
@@ -123,12 +122,11 @@ requires-dist = [
     { name = "tomli-w", specifier = ">=1.1.0" },
     { name = "tomlkit", specifier = ">=0.13.2" },
     { name = "uv", specifier = ">=0.6.17" },
-    { name = "wheel-filename", specifier = ">=1.4.2" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "basedpyright", specifier = ">=1.28.1" },
+    { name = "basedpyright", specifier = ">=1.29.1" },
     { name = "bpy", specifier = ">=4.3.0" },
     { name = "commitizen", specifier = ">=4.1.0" },
     { name = "cz-conventional-gitmoji", specifier = ">=0.6.1" },
@@ -1510,15 +1508,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6c/63/53559446a878410fc5a5974feb13d31d78d752eb18aeba59c7fef1af7598/wcwidth-0.2.13.tar.gz", hash = "sha256:72ea0c06399eb286d978fdedb6923a9eb47e1c486ce63e9b4e64fc18303972b5", size = 101301, upload_time = "2024-01-06T02:10:57.829Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fd/84/fd2ba7aafacbad3c4201d395674fc6348826569da3c0937e75505ead3528/wcwidth-0.2.13-py2.py3-none-any.whl", hash = "sha256:3da69048e4540d84af32131829ff948f1e022c1c6bdb8d6102117aac784f6859", size = 34166, upload_time = "2024-01-06T02:10:55.763Z" },
-]
-
-[[package]]
-name = "wheel-filename"
-version = "1.4.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/38/be/726dab762b770d0417e505c58e26d661aac1ec0c831e483cda4817ca2417/wheel_filename-1.4.2.tar.gz", hash = "sha256:87891c465dcbb40b40394a906f01a93214bdd51aa5d25e3a9a59cae62bc298fd", size = 7911, upload_time = "2024-12-01T13:03:16.012Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b4/0f/6e97a3bc38cdde32e3ec49f8c0903fe3559ec9ec9db181782f0bb4417717/wheel_filename-1.4.2-py3-none-any.whl", hash = "sha256:3fa599046443d4ca830d06e3d180cd0a675d5871af0a68daa5623318bb4d17e3", size = 6195, upload_time = "2024-12-01T13:03:00.536Z" },
 ]
 
 [[package]]
