@@ -37,7 +37,7 @@ PYPI_ARCHES = {
 		'fat64',
 	}),
 	extyp.BLPlatform.macos_arm64: frozenset({'arm64', 'universal2'}),
-	extyp.BLPlatform.windows_x64: frozenset({'', 'amd64'}),
+	extyp.BLPlatform.windows_x64: frozenset({'amd64'}),
 	extyp.BLPlatform.windows_arm64: frozenset({'arm64'}),
 }
 
