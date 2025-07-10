@@ -22,6 +22,7 @@ import types
 
 import pydantic as pyd
 import rich
+import rich.console
 import rich.markdown
 import rich.theme
 import rich.traceback
