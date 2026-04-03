@@ -1,0 +1,75 @@
+####################
+# - Hooks
+####################
+branch_whitelist = ["main"]
+tag_prefix = "v"
+pre_bump_hooks = [
+    "prek -a"  # pre-commit: All lightweight static analysis.
+    # TODO: Run test suite
+]
+pre_package_bump_hooks = [
+    #"echo 'upgrading {{package}}' to {{version}}",
+    "cargo set-version {{version}}"
+]
+
+####################
+# - Configure: Commit Types
+####################
+[commit_types]
+# Emojis must (mostly) match gitmoji
+# - See: https://gitmoji.dev/
+
+# UX Commit
+fix = { bump_patch = true, order = 5, changelog_title = "🐛 Bug Fix" }
+feat = { bump_minor = true, order = 1, changelog_title = "✨ Feature" }
+refactor = { bump_patch = true, order = 6, changelog_title = "♻️ Refactoring" }
+perf = { bump_patch = true, order = 3, changelog_title = "⚡️ Performance" }
+ux = { bump_minor = true, order = 4, changelog_title = "💄 UI/UX" }
+revert = { bump_patch = true, order = 2, changelog_title = "⏪️ Reversion" }
+
+# Auxiliary Commit
+deps = { bump_patch = true, order = 7, changelog_title = "📦️ Dependency Change" }
+docs = { bump_patch = true, order = 8, changelog_title = "📝 Documentation" }
+test = { bump_patch = true, order = 9, changelog_title = "✅ Test Suite" }
+lang = { bump_patch = true, order = 10, changelog_title = "🌐 I18n / Localization" }
+
+# DX Commit
+style = { order = 11, changelog_title = "🎨 Code Style" }
+build = { order = 12, changelog_title = "👷 Build Process" }
+tool = { order = 13, changelog_title = "🔨 Scripts / Tooling" }
+ci = { order = 14, changelog_title = "💚 CI/CD" }
+
+# Workflow Commits
+hotfix = { bump_patch = true, order = 15, changelog_title = "🚑️ Critical Hotfix" }
+dump = { bump_minor = true, order = 16, changelog_title = "🤡 Code Dump" }
+wip = { order = 17, changelog_title = "🚧 Work in Progress" }
+experiment = { order = 18, changelog_title = "⚗️ Experiment" }
+chore = { omit_from_changelog = true, changelog_title = "🧹 Chore" }
+
+# Purpose Commits
+init = { omit_from_changelog = true, changelog_title = "🎉 Initialization" }
+#release = { omit_from_changelog = true, changelog_title = "🚀 Release" }  ## TODO: No way to configure bump-commit type.
+merge = { omit_from_changelog = true, changelog_title = "🔀 Merge" }
+
+## TODO: Modify cocogitto to allow configuring the commit-type of the bump commit.
+## See - https://github.com/cocogitto/cocogitto/blob/main/src/command/bump/monorepo.rs#L83
+
+####################
+# - Configure: Automatic Versioning
+####################
+
+[packages]
+itypst = { path = "crates/itypst", bump_order = 2 }
+libitypst = { path = "crates/libitypst", bump_order = 1 }
+#typst = { path = "typst", bump_order = 3 }
+## TODO: bump the `typst` package version too!
+
+[changelog]
+path = "CHANGELOG.md"
+template = "remote"
+remote = "git.sofus.io"
+repository = "itypst"
+owner = "so-rose"
+authors = [
+  { signature = "Sofus Albert Høgsbro Rose", username = "so-rose" },
+]

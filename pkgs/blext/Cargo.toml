@@ -1,0 +1,102 @@
+[package]
+name = "blext"
+version = "0.3.0"
+edition = { workspace = true }
+rust-version = { workspace = true }
+description = "The blext CLI binary."
+documentation = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+keywords = []
+categories = []
+default-run = "blext"
+
+[lints]
+workspace = true
+
+[dependencies]
+exitcode = "1.1.2"
+thiserror = { version = "2.0.17", default-features = false, features = ["std"] }
+tokio = { version = "1.50.0", default-features = false, features = ["fs", "io-std", "rt-multi-thread", "tracing", "time"] }
+tracing = { version = "0.1.44", default-features = false, features = ["std", "release_max_level_info"] }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["std", "ansi", "fmt", "tracing"] }
+clap = { version = "4.6.0", default-features = false, features = ["std", "error-context", "help", "suggestions", "usage", "deprecated", "derive", "env", "unicode", "wrap_help"] }
+clap-verbosity-flag = { version = "3.0.4", default-features = false, features = ["serde", "tracing"] }
+shadow-rs = { version = "1.7.1", default-features = false }
+indicatif = { version = "0.18.4", default-features = false, features = ["improved_unicode"] }
+tracing-indicatif = { version = "0.3.14", default-features = false }
+toml = { version = "1.0.6", default-features = false, features = ["std", "parse", "serde", "preserve_order"] }
+patharg = { version = "0.4.1", default-features = false, features = ["serde", "tokio"] }
+serde = { version = "1.0.228", default-features = false, features = ["std", "derive"] }
+libblext = { workspace = true }
+
+url = { version = "2.5.8", default-features = false, optional = true, features = ["std"] }
+git2 = { version = "0.20.4", default-features = false, optional = true }
+notify = { version = "8.2.0", optional = true, default-features = false, features = ["macos_fsevent"] }
+notify-debouncer-full = { version = "0.6.0", optional = true, default-features = false, features = ["macos_fsevent"] }
+
+
+[features]
+default = ["color", "networking", "git", "git-https", "vendor-libgit2"]
+
+## Enables color support in the CLI.
+cli-color = ["clap/color"]
+
+# CLI Features
+color = [
+    "clap/color",
+]
+
+## Allow use of filesystem notification.
+fsnotify = [
+    "dep:notify",
+    "dep:notify-debouncer-full",
+]
+
+## Allow use of networking notification.
+networking = [
+    "dep:url",
+]
+
+# Enable use of `git` based extension sources.
+git = [
+    "libblext/src-git",
+]
+
+# Enable use of `https` remotes for `git`.
+git-https = [
+    "networking",
+    "git",
+    "libblext/src-git-https",
+]
+
+# Enable use of `ssh` remotes for `git`.
+git-ssh = [
+    "networking",
+    "git",
+    "libblext/src-git-ssh",
+]
+
+# Statically link `libgit2`.
+vendor-libgit2 = [
+    "git",
+    "libblext/vendor-libgit2",
+]
+
+# Statically link `openssl`.
+vendor-openssl = [
+    "networking",
+    "libblext/vendor-openssl",
+]
+
+[package.metadata.deb]
+maintainer = "Sofus Albert Høgsbro Rose <sofus@sofusrose.com>"
+copyright = "2025, Sofus Albert Høgsbro Rose <sofus@sofusrose.com>"
+license-file = ["LICENSE"]
+extended-description = """\
+TBD
+"""
+# depends = ["uv"]  ## TODO: How to do this? Neither are in the official repos.
+section = "text"
+priority = "optional"

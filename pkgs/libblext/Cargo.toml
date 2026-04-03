@@ -1,0 +1,136 @@
+[package]
+name = "libblext"
+version = "0.3.0"
+edition = { workspace = true }
+rust-version = { workspace = true }
+description = "Underlying library powering blext."
+documentation = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+keywords = []
+categories = []
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tokio-test = "0.4.4"
+
+[dependencies]
+thiserror = { version = "2.0.18", default-features = false }
+constcat = { version = "0.6.1", default-features = false }
+async-trait = "0.1.89"
+tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
+futures-lite = { version = "2.6.1", default-features = false }
+bytes = { version = "1.11.1", default-features = false }
+compact_str = { version = "0.9.0", default-features = false }
+toml = { version = "1.1.0", default-features = false, features = ["display", "parse"] }
+semver = { version = "1.0.27", default-features = false }
+email_address = {
+    # NOTE: no_std support was relatively trivial to add, but it's stuck in a PR.
+    # - Here, we're using the PR. Ideally we can go back to upstream when it's merged.
+    git = "https://github.com/matteopolak/rust-email_address.git",
+    rev = "00d9e767daba91d72d9e84c40861f145c6e11b30",
+    version = "0.2.9",
+    default-features = false
+}
+spdx = { version = "0.13.4", default-features = false }
+url = { version = "2.5.8", default-features = false }
+chrono = { version = "0.4.44", default-features = false, features = ["alloc"] }
+hashbrown = { version = "0.16.1", default-features = false, features = ["default-hasher", "inline-more", "equivalent"] }
+futures-io = { version = "0.3.32", default-features = false }
+
+serde = { version = "1.0.228", optional = true, default-features = false, features = ["derive"] }
+toml_edit = { version = "0.25.8", optional = true, default-features = false, features = ["display", "parse"] }
+tokio = { version = "1.50.0", optional = true, default-features = false, features = ["tracing"] }
+git2 = { version = "0.20.4", optional = true, default-features = false }
+process-wrap = { version = "9.1.0", optional = true, default-features = false, features = ["creation-flags", "job-object", "kill-on-drop", "process-group", "process-session", "tracing"] }
+which = { version = "8.0.0", optional = true, default-features = false, features = ["real-sys", "tracing"] }
+zip = { version = "8.5.0", optional = true, default-features = false, features = ["deflate", "deflate-flate2-zlib-rs", "chrono"] }
+flume = { version = "0.12.0", optional = true, default-features = false, features = ["eventual-fairness"] }
+rayon = { version = "1.11.0", optional = true, default-features = false }
+
+[features]
+default = ["std", "serde", "src-git", "src-git-https", "src-git-ssh", "vendor-libgit2"]
+std = [
+	"thiserror/std",
+	"tracing/std",
+	"futures-lite/std",
+	"compact_str/std",
+    "bytes/std",
+	"toml/std",
+	"semver/std",
+    "email_address/std",
+    "spdx/std",
+    "url/std",
+    "chrono/std",
+    "futures-io/std",
+	"serde?/std",
+	"process-wrap?/std",
+]
+
+## Serialization/deserialization for `libblext` objects.
+serde = [
+    "dep:serde",
+    "compact_str/serde",
+    "toml/serde",
+    "semver/serde",
+    "email_address/serde_support",
+    "url/serde",
+    "chrono/serde",
+    "toml_edit?/serde",
+]
+
+## Enable `uv` Python dependency resolver.
+py-uv = [
+    "std",
+    "dep:which",
+    "dep:process-wrap",
+    "process-wrap?/tokio1",
+]
+
+## Parsing Blender extension specs from `pyproject.toml` and/or PEP 723 scripts.
+spec-edit = [
+    "std",
+    "serde",
+    "dep:toml_edit",
+]
+
+## Enable `tokio` based builder for Blender extensions.
+builder-tokio = [
+    "std",
+    "dep:tokio",
+    "dep:rayon",
+    "chrono/now",
+    "hashbrown/rayon",
+]
+
+## Enable `git` based source for Blender extensions.
+src-git = [
+    "std",
+    "dep:git2",
+]
+
+## Enable `https` remotes, for `src-git`.
+src-git-https = [
+    "src-git",
+    "git2?/https",
+]
+
+## Enable `ssh` remotes, for `src-git`.
+src-git-ssh = [
+    "src-git",
+    "git2?/ssh",
+]
+
+## Statically link `libgit2`.
+vendor-libgit2 = [
+    "src-git",
+    "git2?/vendored-libgit2",
+]
+
+## Statically link `openssl`.
+vendor-openssl = [
+    "git2?/vendored-openssl",
+]

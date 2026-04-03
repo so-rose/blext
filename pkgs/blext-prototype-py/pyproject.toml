@@ -1,0 +1,234 @@
+[project]
+name = "blext-cli-py"
+version = "0.3.0"
+description = "A fast, convenient project manager for Blender extensions."
+authors = [
+    { name = "Sofus Albert Høgsbro Rose", email = "blext@sofusrose.com" },
+]
+maintainers = [
+    { name = "Sofus Albert Høgsbro Rose", email = "blext@sofusrose.com" },
+]
+
+readme = "README.md"
+requires-python = "~=3.11"
+license = "AGPL-3.0-or-later"
+dependencies = [
+	"annotated-types>=0.7.0",
+	"cyclopts>=3.1.5",
+	"frozendict>=2.4.6",
+	"gitpython>=3.1.44",
+	"networkx>=3.4.2",
+	"packaging>=24.2",
+	"platformdirs>=4.3.6",
+	"pydantic>=2.10.5",
+	"pydantic-extra-types[semver]>=2.10.3",
+	"rich>=13.9.4",
+	"scipy>=1.15.2",
+	"semver>=3.0.4",
+	"tomli-w>=1.1.0",
+	"tomlkit>=0.13.2",
+	"uv>=0.6.17",
+]
+
+classifiers = [
+	"Development Status :: 3 - Alpha",
+	"Programming Language :: Python :: 3",
+	"Environment :: Console",
+	"Natural Language :: English",
+	"Intended Audience :: Developers",
+	"Operating System :: OS Independent",
+	"License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+	"Topic :: Artistic Software",
+	"Topic :: Software Development :: Build Tools",
+]
+
+[project.urls]
+Homepage = "https://git.sofus.io/so-rose/blext"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.29.1",
+    "bpy>=4.3.0",
+    "commitizen>=4.1.0",
+    "cz-conventional-gitmoji>=0.6.1",
+    "griffe-pydantic>=1.1.2",
+    "hypothesis>=6.126.0",
+    "mkdocs>=1.6.1",
+    "mkdocs-github-admonitions-plugin>=0.0.3",
+    "mkdocs-macros-plugin>=1.3.7",
+    "mkdocs-material>=9.6.7",
+    "mkdocstrings[python]>=0.28.2",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.9.1",
+    "termynal>=0.13.0",
+    "types-networkx>=3.4.2.20250319",
+]
+
+[tool.uv]
+package = true
+
+[project.scripts]
+blext = "blext:cli.entrypoint"
+
+####################
+# - Build System: hatchling
+####################
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["blext"]
+
+####################
+# - Tool: Setuptools
+####################
+[tool.setuptools]
+packages = ["blext"]
+
+####################
+# - Tool: ruff
+####################
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+task-tags = ["TODO"]
+select = [
+	"E",   # pycodestyle  ## General Purpose
+	"F",   # pyflakes  ## General Purpose
+	"PL",  # Pylint  ## General Purpose
+	
+	## Code Quality
+	"TCH", # flake8-type-checking  ## Type Checking Block Validator
+	"C90", # mccabe  ## Avoid Too-Complex Functions
+	"ERA", # eradicate  ## Ban Commented Code
+	"TRY", # tryceratops  ## Exception Handling Style
+	"B",   # flake8-bugbear  ## Opinionated, Probable-Bug Patterns
+	"N",   # pep8-naming
+	"D",   # pydocstyle
+	"SIM", # flake8-simplify  ## Sanity-Check for Code Simplification
+	"SLF", # flake8-self  ## Ban Private Member Access
+	"RUF", # Ruff-specific rules  ## Extra Good-To-Have Rules
+	
+	## Style
+	"I",   # isort  ## Force import Sorting
+	"UP",  # pyupgrade  ## Enforce Upgrade to Newer Python Syntaxes
+	"COM", # flake8-commas  ## Enforce Trailing Commas
+	"Q",   # flake8-quotes  ## Finally - Quoting Style!
+	"PTH", # flake8-use-pathlib  ## Enforce pathlib usage
+	"A",   # flake8-builtins  ## Prevent Builtin Shadowing
+	"C4",  # flake9-comprehensions  ## Check Compehension Appropriateness
+	"DTZ", # flake8-datetimez  ## Ban naive Datetime Creation
+	"EM",  # flake8-errmsg  ## Check Exception String Formatting
+	"ISC", # flake8-implicit-str-concat  ## Enforce Good String Literal Concat
+	"G",   # flake8-logging-format  ## Enforce Good Logging Practices
+	"INP", # flake8-no-pep420  ## Ban PEP420; Enforce __init__.py.
+	"PIE", # flake8-pie  ## Misc Opinionated Checks
+	"T20", # flake8-print  ## Ban print()
+	"RSE", # flake8-raise  ## Check Niche Exception Raising Pattern
+	"RET", # flake8-return  ## Enforce Good Returning
+	"ARG", # flake8-unused-arguments  ## Ban Unused Arguments
+	
+	# Specific 
+	"PT", # flake8-pytest-style  ## pytest-Specific Checks
+]
+ignore = [
+	"COM812",  # Conflicts w/Formatter
+	"ISC001",  # Conflicts w/Formatter
+	"Q000",  # Conflicts w/Formatter
+	"Q001",  # Conflicts w/Formatter
+	"Q002",  # Conflicts w/Formatter
+	"Q003",  # Conflicts w/Formatter
+	"D206", # Conflicts w/Formatter
+	"E701", # class foo(Parent): pass or if simple: return are perfectly elegant
+	"ERA001", # 'Commented-out code' seems to be just about anything to ruff
+	"F722", # jaxtyping uses type annotations that ruff sees as "syntax error"
+	"N806", # Sometimes we like using types w/uppercase in functions, sue me
+	"RUF001", # We use a lot of unicode, yes, on purpose!
+
+	# Line Length - Controversy Incoming
+	## Hot Take: Let the Formatter Worry about Line Length
+	## - Yes dear reader, I'm with you. Soft wrap can go too far.
+	## - ...but also, sometimes there are real good reasons not to split.
+	## - Ex. I think 'one sentence per line' docstrings are a valid thing.
+	## - Overlong lines tend to be be a code smell anyway
+	## - We'll see if my hot takes survive the week :)
+	"E501",  # Let Formatter Worry about Line Length
+]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = []
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 88
+ignore-overlong-task-comments = false
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pylint]
+max-args = 6
+
+
+####################
+# - Tool: ruff format
+####################
+[tool.ruff.format]
+preview = true
+quote-style = "single"
+indent-style = "tab"
+docstring-code-format = false
+
+
+####################
+# - Tool: basedpyright
+####################
+[tool.basedpyright]
+defineConstant = { DEBUG = true }
+
+include = ["blext"]
+exclude = ["examples/**"]
+#strict = ["blext"]
+
+
+reportMissingImports = "error"
+reportMissingTypeStubs = true
+reportImportCycles = false  ## It really has trouble with some perfectly valid things.
+
+executionEnvironments = [
+  { root = "blext/utils/bl_init.py", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages", ".venv/lib/python3.11/site-packages/bpy/4.4/scripts/modules" ] },
+  { root = ".", pythonVersion = "3.11", extraPaths = [ ".venv/lib/python3.11/site-packages" ] },
+]
+
+
+####################
+# - Tooling: pytest
+####################
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+
+####################
+# - Tool: commitizen
+####################
+[tool.commitizen]
+# Specification
+name = "cz_gitmoji"
+version_scheme = "semver2"
+version_provider = "uv"
+tag_format = "v$version"
+
+# Files
+changelog_file = "CHANGELOG.md"
+
+# Version Bumping
+retry_after_failure = true
+major_version_zero = true
+update_changelog_on_bump = true
+
+# Annotations / Signature
+gpg_sign = true
+annotated_tag = true

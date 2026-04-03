@@ -1,42 +1,42 @@
-# See https://pre-commit.com for more information
-# See https://pre-commit.com/hooks.html for more hooks
 repos:
-  - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.5
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
     hooks:
-      - id: forbid-crlf
-      - id: remove-crlf
-      - id: chmod
-        args: ['644']
-        files: \.md$
-      - id: insert-license
-        files: \.py$
-        args:
-          - --license-filepath
-          - LICENSE_header.txt
-          - --comment-style
-          - "#"
-          - --use-current-year
-          - --fuzzy-match-generates-todo
+      - id: trailing-whitespace
+      - id: check-added-large-files
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: check-xml
+      - id: mixed-line-ending
+      - id: check-symlinks
+      - id: detect-private-key
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
-    rev: v0.11.2
+  - repo: local
     hooks:
-      # ruff lint
-      - id: ruff
-      # ruff fmt
-      - id: ruff-format
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --
+        language: system
+        types: [rust]
+        pass_filenames: false # Performance
 
-  - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
-    rev: 1.28.4
-    hooks:
-      - id: basedpyright
+      - id: cargo-clippy
+        name: cargo clippy
+        language: system
+        types: [rust]
+        pass_filenames: false
+        entry: cargo clippy --all-targets --all-features -- -D warnings
 
-  - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.1.0
-    hooks:
-      - id: commitizen
-        additional_dependencies: [cz-conventional-gitmoji]
-      - id: commitizen-branch
-        stages: [push]
+  #- repo: https://github.com/notken12/licensesnip
+  #  rev: f01f898e2cef002c653bde4cfe9aefe89019cbb8
+  #  hooks:
+  #    - id: licensesnip
+  #      args: ["check"] # optionally modify the arguments for licensesnip (default arguments shown here)
+  #
+
+# TODO:
+# - Integrate clippy into our IDE so we can enable it here.
+# - Wait for https://github.com/j178/prek/pull/989 so we can integrate licensesnip support.

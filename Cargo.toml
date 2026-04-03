@@ -1,0 +1,31 @@
+[workspace]
+resolver = "3"
+members = [
+    "pkgs/blext",
+    "pkgs/libblext",
+]
+
+[workspace.package]
+# Crate: name
+# Crate: version
+edition = "2024"
+rust-version = "1.91"
+# Crate: description
+documentation = "https://git.sofus.io/so-rose/blext"
+readme = "README.md"
+homepage = "https://git.sofus.io/so-rose/blext"
+repository = "https://git.sofus.io/so-rose/blext"
+license = "AGPL-3.0-or-later"
+# Crate: keywords
+# Crate: categories
+
+[workspace.dependencies]
+blext = { path = "pkgs/blext" }
+libblext = { path = "pkgs/libblext" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+missing_docs_in_private_items = "warn"
